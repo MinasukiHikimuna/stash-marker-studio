@@ -1876,8 +1876,8 @@ function MarkerPageContent() {
             "X",
             "I",
             "O",
-            "C",
-            "V",
+            "N",
+            "M",
             "T",
           ],
         },
@@ -2839,10 +2839,6 @@ function MarkerPageContent() {
                               <li>Z: Accept/Confirm</li>
                               <li>X: Reject</li>
                               <li>Shift+X: Delete rejected</li>
-                              <li>C: Previous unprocessed (swimlane)</li>
-                              <li>V: Next unprocessed (swimlane)</li>
-                              <li>Shift+C: Previous unprocessed (global)</li>
-                              <li>Shift+V: Next unprocessed (global)</li>
                               <li>
                                 <strong>Create:</strong>
                               </li>
@@ -2886,6 +2882,13 @@ function MarkerPageContent() {
                               <li>O: Jump to marker end</li>
                               <li>Shift+O: Jump to scene end</li>
                               <li>P: Move marker to current time</li>
+                              <li>
+                                <strong>Navigation:</strong>
+                              </li>
+                              <li>N: Previous unprocessed (swimlane)</li>
+                              <li>M: Next unprocessed (swimlane)</li>
+                              <li>Shift+N: Previous unprocessed (global)</li>
+                              <li>Shift+M: Next unprocessed (global)</li>
                               <li>
                                 <strong>Shots:</strong>
                               </li>
