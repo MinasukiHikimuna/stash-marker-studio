@@ -49,6 +49,13 @@ docker run -p 3000:3000 --env-file .env.local stash-marker-studio
 
 5. Open [http://localhost:3000](http://localhost:3000)
 
+For `pyscenedetect-process.js`, please run:
+
+```bash
+npm install
+node src/scripts/pyscenedetect-process.js
+```
+
 ### Detailed configuration
 
 These are the environment variables in the env file:
