@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, ReactNode } from "react";
 import { SceneMarker, Tag, Scene } from "../services/StashappService";
+import type { IncorrectMarker } from "@/utils/incorrectMarkerStorage";
 
 // Define the marker state type
 export type MarkerState = {
@@ -47,6 +48,8 @@ export type MarkerState = {
 
   // Swimlane filter state
   filteredSwimlane: string | null; // null means show all, string is the tag group name
+  incorrectMarkers: IncorrectMarker[];
+  isCollectingModalOpen: boolean;
 };
 
 // Define action types
@@ -93,6 +96,8 @@ type MarkerAction =
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "SET_ERROR"; payload: string | null }
   | { type: "SET_FILTERED_SWIMLANE"; payload: string | null }
+  | { type: "SET_INCORRECT_MARKERS"; payload: IncorrectMarker[] }
+  | { type: "SET_COLLECTING_MODAL_OPEN"; payload: boolean }
   | { type: "RESET_STATE" };
 
 // Initial state
@@ -128,6 +133,8 @@ const initialState: MarkerState = {
   isLoading: false,
   error: null,
   filteredSwimlane: null,
+  incorrectMarkers: [],
+  isCollectingModalOpen: false,
 };
 
 // Reducer function
@@ -206,6 +213,10 @@ function markerReducer(state: MarkerState, action: MarkerAction): MarkerState {
       return { ...state, error: action.payload };
     case "SET_FILTERED_SWIMLANE":
       return { ...state, filteredSwimlane: action.payload };
+    case "SET_INCORRECT_MARKERS":
+      return { ...state, incorrectMarkers: action.payload };
+    case "SET_COLLECTING_MODAL_OPEN":
+      return { ...state, isCollectingModalOpen: action.payload };
     case "RESET_STATE":
       return initialState;
     default:

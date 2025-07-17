@@ -16,6 +16,8 @@ import { useMarker, MarkerProvider } from "../../contexts/MarkerContext";
 import { useConfig } from "@/contexts/ConfigContext";
 import Toast from "../components/Toast";
 import { useRouter } from "next/navigation";
+import { incorrectMarkerStorage } from "@/utils/incorrectMarkerStorage";
+import { IncorrectMarkerCollectionModal } from "../components/IncorrectMarkerCollectionModal";
 
 // Add this type definition at the top of the file
 type MarkerSummary = {
@@ -389,74 +391,16 @@ function MarkerPageContent() {
 
   // New function to refresh markers without resetting selected marker index
   const refreshMarkersOnly = useCallback(async () => {
-    dispatch({ type: "SET_LOADING", payload: true });
-    dispatch({ type: "SET_ERROR", payload: null });
-
-    // Remember the currently selected marker ID from action markers
-    const actionMarkers = getActionMarkers();
-    const currentSelectedMarkerId =
-      actionMarkers[state.selectedMarkerIndex]?.id;
-
     try {
-      const sceneId = new URL(window.location.href).searchParams.get("sceneId");
-      if (!sceneId) {
-        router.push("/search");
-        return;
-      }
-      const result = await stashappService.getSceneMarkers(sceneId);
-
-      const newMarkers = result.findSceneMarkers.scene_markers;
+      dispatch({ type: "SET_LOADING", payload: true });
+      const response = await stashappService.getSceneMarkers(
+        state.scene?.id || ""
+      );
       dispatch({
         type: "SET_MARKERS",
-        payload: newMarkers,
+        payload: response.findSceneMarkers.scene_markers,
       });
-
-      // Also refresh scene data for sprite support if we have a scene
-      if (state.scene) {
-        try {
-          const sceneData = await stashappService.getScene(state.scene.id);
-          dispatch({
-            type: "SET_SCENE_DATA",
-            payload: sceneData,
-          });
-        } catch (sceneError) {
-          console.error("Error refreshing scene data:", sceneError);
-          // Continue without scene data - sprites won't work but markers will
-        }
-      }
-
-      // Try to find the previously selected marker in the new action markers list and update the index
-      if (currentSelectedMarkerId) {
-        // Apply the same filtering logic as the actionMarkers useMemo
-        let newActionMarkers = newMarkers.filter((marker) => {
-          // Always include temp markers regardless of their primary tag
-          if (marker.id.startsWith("temp-")) {
-            return true;
-          }
-          // Filter out shot boundary markers for non-temp markers
-          return !isShotBoundaryMarker(marker);
-        });
-
-        // Apply swimlane filter if active (same logic as actionMarkers useMemo)
-        if (state.filteredSwimlane) {
-          newActionMarkers = newActionMarkers.filter((marker) => {
-            // Handle AI tag grouping - if the marker's tag name ends with "_AI",
-            // group it with the base tag name for filtering
-            const tagGroupName = marker.primary_tag.name.endsWith("_AI")
-              ? marker.primary_tag.name.replace("_AI", "")
-              : marker.primary_tag.name;
-            return tagGroupName === state.filteredSwimlane;
-          });
-        }
-
-        const newIndex = newActionMarkers.findIndex(
-          (m) => m.id === currentSelectedMarkerId
-        );
-        if (newIndex >= 0) {
-          dispatch({ type: "SET_SELECTED_MARKER_INDEX", payload: newIndex });
-        }
-      }
-    } catch (err: unknown) {
+    } catch (err) {
       console.error("Error refreshing markers:", err);
       dispatch({
         type: "SET_ERROR",
@@ -466,14 +410,7 @@ function MarkerPageContent() {
     } finally {
       dispatch({ type: "SET_LOADING", payload: false });
     }
-  }, [
-    dispatch,
-    state.selectedMarkerIndex,
-    state.filteredSwimlane,
-    state.scene,
-    getActionMarkers,
-    router,
-  ]);
+  }, [dispatch, state.scene?.id]);
 
   const handleEditMarker = useCallback((marker: SceneMarker) => {
     setEditingMarkerId(marker.id);
@@ -2103,14 +2040,48 @@ function MarkerPageContent() {
         case "c":
         case "C":
           event.preventDefault();
-          const previousUnprocessedIndex = hasShift
-            ? findPreviousUnprocessedMarker() // Shift+C: Global search
-            : findPreviousUnprocessedMarkerInSwimlane(); // C: Swimlane search
-          if (previousUnprocessedIndex >= 0) {
-            dispatch({
-              type: "SET_SELECTED_MARKER_INDEX",
-              payload: previousUnprocessedIndex,
-            });
+          if (hasShift) {
+            // Shift+C: Open collection modal
+            if (state.incorrectMarkers.length > 0) {
+              dispatch({ type: "SET_COLLECTING_MODAL_OPEN", payload: true });
+            } else {
+              showToast("No incorrect markers to collect", "success");
+            }
+          } else {
+            // C: Mark/unmark current marker as incorrect
+            const currentMarker = actionMarkers[state.selectedMarkerIndex];
+            if (currentMarker && state.scene?.id) {
+              const isIncorrect = state.incorrectMarkers.some(
+                (m) => m.markerId === currentMarker.id
+              );
+
+              if (isIncorrect) {
+                incorrectMarkerStorage.removeIncorrectMarker(
+                  state.scene.id,
+                  currentMarker.id
+                );
+                showToast("Removed incorrect marker feedback", "success");
+              } else {
+                incorrectMarkerStorage.addIncorrectMarker(state.scene.id, {
+                  markerId: currentMarker.id,
+                  tagName: currentMarker.primary_tag.name,
+                  startTime: currentMarker.seconds,
+                  endTime: currentMarker.end_seconds || null,
+                  timestamp: new Date().toISOString(),
+                  sceneId: state.scene.id,
+                  sceneTitle: state.scene.title || "Untitled Scene",
+                });
+                showToast("Marked marker as incorrect", "success");
+              }
+
+              // Update state
+              dispatch({
+                type: "SET_INCORRECT_MARKERS",
+                payload: incorrectMarkerStorage.getIncorrectMarkers(
+                  state.scene.id
+                ),
+              });
+            }
           }
           break;
         case "v":
@@ -2399,6 +2370,9 @@ function MarkerPageContent() {
       jumpToNextShot,
       jumpToPreviousShot,
       createOrDuplicateMarker,
+      state.incorrectMarkers,
+      state.scene,
+      showToast,
     ]
   );
 
@@ -2531,6 +2505,19 @@ function MarkerPageContent() {
     }
   }, [state.videoElement, dispatch]);
 
+  // Load incorrect markers when scene changes
+  useEffect(() => {
+    if (state.scene?.id) {
+      const incorrectMarkers = incorrectMarkerStorage.getIncorrectMarkers(
+        state.scene.id
+      );
+      dispatch({
+        type: "SET_INCORRECT_MARKERS",
+        payload: incorrectMarkers,
+      });
+    }
+  }, [state.scene?.id, dispatch]);
+
   const updateCurrentTime = useCallback(() => {
     if (state.videoElement) {
       dispatch({
@@ -2562,6 +2549,18 @@ function MarkerPageContent() {
       };
     }
   }, [state.videoElement, updateCurrentTime, dispatch]);
+
+  useEffect(() => {
+    if (state.scene) {
+      const incorrectMarkers = incorrectMarkerStorage.getIncorrectMarkers(
+        state.scene.id
+      );
+      dispatch({
+        type: "SET_INCORRECT_MARKERS",
+        payload: incorrectMarkers,
+      });
+    }
+  }, [state.scene, dispatch]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -2601,6 +2600,22 @@ function MarkerPageContent() {
                 className="bg-red-500 hover:bg-red-700 text-white px-3 py-1.5 rounded-sm text-sm transition-colors"
               >
                 Delete Rejected
+              </button>
+              <button
+                onClick={() =>
+                  dispatch({ type: "SET_COLLECTING_MODAL_OPEN", payload: true })
+                }
+                className={`px-3 py-1.5 rounded-sm text-sm font-medium transition-colors
+                  ${
+                    state.incorrectMarkers.length > 0
+                      ? "bg-purple-600 hover:bg-purple-700"
+                      : "bg-gray-600"
+                  } text-white`}
+                disabled={state.incorrectMarkers.length === 0}
+              >
+                Collect AI Feedback{" "}
+                {state.incorrectMarkers.length > 0 &&
+                  `(${state.incorrectMarkers.length})`}
               </button>
               <button
                 onClick={handleAIConversion}
@@ -2839,6 +2854,8 @@ function MarkerPageContent() {
                               <li>Z: Accept/Confirm</li>
                               <li>X: Reject</li>
                               <li>Shift+X: Delete rejected</li>
+                              <li>C: Mark/unmark incorrect marker</li>
+                              <li>Shift+C: Collect incorrect markers</li>
                               <li>
                                 <strong>Create:</strong>
                               </li>
@@ -2952,6 +2969,10 @@ function MarkerPageContent() {
                                 ? "bg-blue-800 border-blue-400"
                                 : isSelected
                                 ? "bg-gray-700 text-white border-blue-500"
+                                : state.incorrectMarkers.some(
+                                    (m) => m.markerId === marker.id
+                                  )
+                                ? "bg-purple-900/50 border-purple-500 hover:bg-purple-800"
                                 : "hover:bg-gray-600 hover:text-white border-transparent"
                             }`}
                             onClick={() => handleMarkerClick(marker)}
@@ -3540,6 +3561,40 @@ function MarkerPageContent() {
             </div>
           </div>
         </div>
+      )}
+      {state.isCollectingModalOpen && state.scene?.id && (
+        <IncorrectMarkerCollectionModal
+          isOpen={state.isCollectingModalOpen}
+          onClose={() =>
+            dispatch({ type: "SET_COLLECTING_MODAL_OPEN", payload: false })
+          }
+          markers={state.incorrectMarkers}
+          currentSceneId={state.scene.id}
+          onRemoveMarker={(markerId) => {
+            if (state.scene?.id) {
+              incorrectMarkerStorage.removeIncorrectMarker(
+                state.scene.id,
+                markerId
+              );
+              dispatch({
+                type: "SET_INCORRECT_MARKERS",
+                payload: incorrectMarkerStorage.getIncorrectMarkers(
+                  state.scene.id
+                ),
+              });
+            }
+          }}
+          onConfirm={async () => {
+            if (state.scene?.id) {
+              incorrectMarkerStorage.clearIncorrectMarkers(state.scene.id);
+              dispatch({
+                type: "SET_INCORRECT_MARKERS",
+                payload: [],
+              });
+            }
+          }}
+          refreshMarkersOnly={refreshMarkersOnly}
+        />
       )}
     </div>
   );
