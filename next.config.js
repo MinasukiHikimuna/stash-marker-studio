@@ -5,17 +5,16 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        // Parse NEXT_PUBLIC_STASH_URL to get protocol, hostname and port
-        protocol: process.env.NEXT_PUBLIC_STASH_URL
-          ? new URL(process.env.NEXT_PUBLIC_STASH_URL).protocol.replace(":", "")
+        // Parse STASH_URL to get protocol, hostname and port
+        protocol: process.env.STASH_URL
+          ? new URL(process.env.STASH_URL).protocol.replace(":", "")
           : "http",
-        hostname: process.env.NEXT_PUBLIC_STASH_URL
-          ? new URL(process.env.NEXT_PUBLIC_STASH_URL).hostname
+        hostname: process.env.STASH_URL
+          ? new URL(process.env.STASH_URL).hostname
           : "localhost",
         // Only include port if it exists in the URL
-        ...(process.env.NEXT_PUBLIC_STASH_URL &&
-        new URL(process.env.NEXT_PUBLIC_STASH_URL).port
-          ? { port: new URL(process.env.NEXT_PUBLIC_STASH_URL).port }
+        ...(process.env.STASH_URL && new URL(process.env.STASH_URL).port
+          ? { port: new URL(process.env.STASH_URL).port }
           : {}),
       },
     ],

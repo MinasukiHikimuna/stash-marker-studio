@@ -10,7 +10,7 @@ export interface AppConfig {
 }
 
 function getEnv(name: string): string {
-  const value = process.env[name] ?? process.env[`NEXT_PUBLIC_${name}`];
+  const value = process.env[name];
   if (!value) {
     throw new Error(`Environment variable ${name} is required.`);
   }
