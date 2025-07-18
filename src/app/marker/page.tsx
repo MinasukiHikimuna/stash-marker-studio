@@ -2084,16 +2084,30 @@ function MarkerPageContent() {
             }
           }
           break;
-        case "v":
-        case "V":
+        case "n":
+        case "N":
           event.preventDefault();
-          const nextUnprocessedIndex = hasShift
-            ? findNextUnprocessedMarker() // Shift+V: Global search
-            : findNextUnprocessedMarkerInSwimlane(); // V: Swimlane search
-          if (nextUnprocessedIndex >= 0) {
+          const prevUnprocessedIdx = hasShift
+            ? findPreviousUnprocessedMarker() // Shift+N: Global search
+            : findPreviousUnprocessedMarkerInSwimlane(); // N: Swimlane search
+          if (prevUnprocessedIdx >= 0) {
             dispatch({
               type: "SET_SELECTED_MARKER_INDEX",
-              payload: nextUnprocessedIndex,
+              payload: prevUnprocessedIdx,
+            });
+          }
+          break;
+
+        case "m":
+        case "M":
+          event.preventDefault();
+          const nextUnprocessedIdx = hasShift
+            ? findNextUnprocessedMarker() // Shift+M: Global search
+            : findNextUnprocessedMarkerInSwimlane(); // M: Swimlane search
+          if (nextUnprocessedIdx >= 0) {
+            dispatch({
+              type: "SET_SELECTED_MARKER_INDEX",
+              payload: nextUnprocessedIdx,
             });
           }
           break;
@@ -2320,6 +2334,35 @@ function MarkerPageContent() {
             const marker = actionMarkers[state.selectedMarkerIndex];
             state.videoElement.currentTime = marker.seconds;
             state.videoElement.play();
+          }
+          break;
+
+        // Navigation between unprocessed markers
+        case "n":
+        case "N":
+          event.preventDefault();
+          const prevMarkerIndex = hasShift
+            ? findPreviousUnprocessedMarker() // Shift+N: Global search
+            : findPreviousUnprocessedMarkerInSwimlane(); // N: Swimlane search
+          if (prevMarkerIndex >= 0) {
+            dispatch({
+              type: "SET_SELECTED_MARKER_INDEX",
+              payload: prevMarkerIndex,
+            });
+          }
+          break;
+
+        case "m":
+        case "M":
+          event.preventDefault();
+          const nextMarkerIndex = hasShift
+            ? findNextUnprocessedMarker() // Shift+M: Global search
+            : findNextUnprocessedMarkerInSwimlane(); // M: Swimlane search
+          if (nextMarkerIndex >= 0) {
+            dispatch({
+              type: "SET_SELECTED_MARKER_INDEX",
+              payload: nextMarkerIndex,
+            });
           }
           break;
 
