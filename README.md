@@ -13,6 +13,10 @@ To reliably use tools like Skier's NSFW AI model or marker sources such as TPDB 
 
 Stash Marker Studio also optionally supports PySceneDetect which will analyze the video stream, detect shot boundaries and use those for easier navigating when reviewing and finetuning the markers.
 
+Stash Marker Studio is heavily centered around keyboard use and many functionalities are only available using those. You can click on i icon to see the full list. The guiding principle is that left hand is used for modifying actions and right hand is used for navigating within the scene.
+
+![Keyboard shortcuts](stash-marker-keyboard-shortcuts.png)
+
 ## My current workflow
 
 - New scene is added to Stashapp
