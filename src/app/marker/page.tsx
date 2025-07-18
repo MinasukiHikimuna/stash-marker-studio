@@ -2413,8 +2413,6 @@ function MarkerPageContent() {
       jumpToNextShot,
       jumpToPreviousShot,
       createOrDuplicateMarker,
-      state.incorrectMarkers,
-      state.scene,
       showToast,
     ]
   );

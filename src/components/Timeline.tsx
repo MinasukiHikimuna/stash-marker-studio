@@ -936,12 +936,6 @@ export default function Timeline({
               );
               if (groupMarkers.length === 0) return null;
 
-              // Get marker group name from the first marker
-              const firstMarker = groupMarkers[0];
-              const currentMarkerGroupName = firstMarker
-                ? getMarkerGroupName(firstMarker)
-                : null;
-
               // Calculate swimlane position
               const swimlaneTop = displayTagGroups
                 .slice(0, swimlaneIndex)
@@ -957,20 +951,6 @@ export default function Timeline({
                   const prevGroupHeight = prevTracksInGroup * trackHeight;
                   return acc + prevGroupHeight;
                 }, 0);
-
-              // Check if this is the first swimlane of a new marker group
-              const previousMarker =
-                swimlaneIndex > 0
-                  ? displayMarkersWithTracks.find(
-                      (m) => m.swimlane === swimlaneIndex - 1
-                    )
-                  : null;
-              const previousMarkerGroup = previousMarker
-                ? getMarkerGroupName(previousMarker)
-                : null;
-              const isNewMarkerGroup =
-                currentMarkerGroupName &&
-                currentMarkerGroupName !== previousMarkerGroup;
 
               // Calculate total height for this group
               const maxTrack =
