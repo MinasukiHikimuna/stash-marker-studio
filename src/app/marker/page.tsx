@@ -3274,7 +3274,7 @@ function MarkerPageContent() {
             {/* Timeline spans full width below the video/marker layout */}
             <div
               ref={timelineContainerRef}
-              className="px-6 py-4 border-t border-gray-300 flex-shrink-0"
+              className="border-t border-gray-300 flex-shrink-0"
             >
               <Timeline
                 markers={state.markers || []}

@@ -22,6 +22,103 @@ export type MarkerWithTrack = SceneMarker & {
   tagGroup: string;
 };
 
+export type TagGroup = {
+  name: string;
+  markers: SceneMarker[];
+  isRejected: boolean;
+};
+
+// Add this new component for the tag label with optional group name
+function TagLabel({
+  tagName,
+  groupName,
+  isLastInGroup,
+  isRejected,
+  counts,
+  isFilteredSwimlane,
+  isActiveSwimlane,
+  onClick,
+  isFirstInGroup, // Add this new prop
+}: {
+  tagName: string;
+  groupName?: string | null;
+  isLastInGroup: boolean;
+  isRejected: boolean;
+  counts: { confirmed: number; rejected: number; pending: number };
+  isFilteredSwimlane: boolean;
+  isActiveSwimlane: boolean;
+  onClick: () => void;
+  isFirstInGroup: boolean; // Add this new prop
+}) {
+  return (
+    <>
+      <div
+        className={`w-full h-full grid grid-cols-[minmax(60px,auto)_16px_1fr_auto] items-center text-xs transition-all duration-200 cursor-pointer hover:brightness-110 ${
+          isFilteredSwimlane
+            ? "border-l-2 border-yellow-400" +
+              (isRejected ? " bg-red-900/60" : " bg-blue-900/60")
+            : isActiveSwimlane
+            ? "border-l-2 border-white" +
+              (isRejected ? " bg-red-900/60" : " bg-blue-900/60")
+            : isRejected
+            ? " bg-red-900/40"
+            : " bg-blue-900/40"
+        }`}
+        onClick={onClick}
+        title={
+          isFilteredSwimlane
+            ? `Click to show all`
+            : `Click to filter by ${tagName}`
+        }
+      >
+        {/* Group name column - always takes space but only visible on first swimlane */}
+        <div className="px-2 font-medium whitespace-nowrap">
+          <span className={isFirstInGroup ? "text-blue-100" : "opacity-0"}>
+            {groupName || ""}
+          </span>
+        </div>
+
+        {/* Separator - always takes space but only visible on first swimlane */}
+        <div className="text-center text-gray-500">
+          <span className={isFirstInGroup ? "" : "opacity-0"}>
+            {groupName ? "/" : ""}
+          </span>
+        </div>
+
+        {/* Tag name */}
+        <div className="truncate text-gray-100 px-1">
+          <span>{tagName}</span>
+          {isRejected && " (R)"}
+          {isFilteredSwimlane && " 🔍"}
+        </div>
+
+        {/* Counts */}
+        <div className="flex items-center gap-1 pr-2 font-medium whitespace-nowrap">
+          {counts.confirmed > 0 && (
+            <div className="flex items-center">
+              <span className="text-green-400">✓</span>
+              <span className="text-green-200 ml-px">{counts.confirmed}</span>
+            </div>
+          )}
+          {counts.rejected > 0 && (
+            <div className="flex items-center">
+              <span className="text-red-400">✗</span>
+              <span className="text-red-200 ml-px">{counts.rejected}</span>
+            </div>
+          )}
+          {counts.pending > 0 && (
+            <div className="flex items-center">
+              <span className="text-yellow-400">?</span>
+              <span className="text-yellow-200 ml-px">{counts.pending}</span>
+            </div>
+          )}
+        </div>
+      </div>
+      {isLastInGroup && <div className="h-px bg-gray-600 w-full" />}
+    </>
+  );
+}
+
 type TimelineProps = {
   markers: SceneMarker[];
   actionMarkers: SceneMarker[];
@@ -47,12 +144,6 @@ type TimelineProps = {
   onZoomChange?: (zoom: number) => void;
 };
 
-export type TagGroup = {
-  name: string;
-  markers: SceneMarker[];
-  isRejected: boolean;
-};
-
 // Helper function to extract marker group name from tag parents
 function getMarkerGroupName(marker: SceneMarker): string | null {
   const parents = marker.primary_tag.parents;
@@ -70,7 +161,7 @@ function getMarkerGroupName(marker: SceneMarker): string | null {
       )
     ) {
       // Return the group name without the "Marker Group: " prefix
-      return parent.name.replace("Marker Group: ", "");
+      return parent.name.replace("Marker Group: ", "").replace(/^\d+\.\s*/, "");
     }
   }
 
@@ -601,40 +692,56 @@ export default function Timeline({
   return (
     <div
       ref={containerRef}
-      className="relative w-full bg-gray-800 rounded-lg overflow-hidden flex"
+      className="relative w-full bg-gray-800 flex"
       style={{
-        height: `${Math.max(300, totalHeight + 48 + 40)}px`, // Increased minimum height
+        height: `${totalHeight + 32}px`, // Only add height for the time header
       }}
     >
       {/* Left sidebar with sticky tag names */}
-      <div className="flex-shrink-0 w-48 bg-gray-900 border-r border-gray-600 relative z-10 overflow-hidden">
+      <div className="flex-shrink-0 w-60 bg-gray-900 border-r border-gray-600 relative z-10">
         {/* Time area spacer */}
         <div className="h-8 bg-gray-700 border-b border-gray-600"></div>
 
-        {/* Tag labels container with same height as timeline */}
-        <div
-          className="relative overflow-hidden"
-          style={{ height: `${totalHeight}px` }}
-        >
+        {/* Tag labels container */}
+        <div className="relative" style={{ height: `${totalHeight}px` }}>
           {displayTagGroups.map((tagGroup, swimlaneIndex) => {
             const groupMarkers = displayMarkersWithTracks.filter(
               (m) => m.swimlane === swimlaneIndex
             );
-            const maxTrack =
-              groupMarkers.length > 0
-                ? Math.max(...groupMarkers.map((m) => m.track))
-                : -1;
-            const tracksInGroup = Math.max(1, maxTrack + 1);
+            if (groupMarkers.length === 0) return null;
 
-            // Check if this swimlane contains the selected marker
-            const isActiveSwimlane =
-              selectedMarker &&
-              groupMarkers.some((m) => m.id === selectedMarker.id);
+            // Get the marker group name from the first marker
+            const firstMarker = groupMarkers[0];
+            const currentMarkerGroupName = firstMarker
+              ? getMarkerGroupName(firstMarker)
+              : null;
 
-            // Check if this swimlane is being filtered
-            const isFilteredSwimlane = filteredSwimlane === tagGroup.name;
+            // Check if this is the first swimlane of the current marker group
+            const previousMarker =
+              swimlaneIndex > 0
+                ? displayMarkersWithTracks.find(
+                    (m) => m.swimlane === swimlaneIndex - 1
+                  )
+                : null;
+            const previousMarkerGroup = previousMarker
+              ? getMarkerGroupName(previousMarker)
+              : null;
+            const isFirstInGroup =
+              currentMarkerGroupName !== previousMarkerGroup;
 
-            // Calculate vertical position of this swimlane (same calculation as timeline)
+            // Check if this is the last swimlane of the current marker group
+            const nextMarker =
+              swimlaneIndex < displayTagGroups.length - 1
+                ? displayMarkersWithTracks.find(
+                    (m) => m.swimlane === swimlaneIndex + 1
+                  )
+                : null;
+            const nextMarkerGroup = nextMarker
+              ? getMarkerGroupName(nextMarker)
+              : null;
+            const isLastInGroup = currentMarkerGroupName !== nextMarkerGroup;
+
+            // Calculate vertical position of this swimlane
             const swimlaneTop = displayTagGroups
               .slice(0, swimlaneIndex)
               .reduce((acc, prevGroup, prevIndex) => {
@@ -646,12 +753,41 @@ export default function Timeline({
                     ? Math.max(...prevGroupMarkers.map((m) => m.track))
                     : -1;
                 const prevTracksInGroup = Math.max(1, prevMaxTrack + 1);
-                const prevGroupHeight = prevTracksInGroup * trackHeight; // Remove gaps between tracks
+                const prevGroupHeight = prevTracksInGroup * trackHeight;
                 return acc + prevGroupHeight;
               }, 0);
 
-            // Calculate total height for this group (remove extra gaps)
+            // Calculate height for this group
+            const maxTrack = Math.max(...groupMarkers.map((m) => m.track), -1);
+            const tracksInGroup = Math.max(1, maxTrack + 1);
             const groupHeight = tracksInGroup * trackHeight;
+
+            // Calculate status counts
+            const counts = {
+              confirmed: tagGroup.markers.filter(
+                (marker) => isMarkerConfirmed(marker) || isMarkerManual(marker)
+              ).length,
+              rejected: tagGroup.markers.filter(isMarkerRejected).length,
+              pending: tagGroup.markers.filter(
+                (marker) =>
+                  !isMarkerConfirmed(marker) &&
+                  !isMarkerManual(marker) &&
+                  !isMarkerRejected(marker)
+              ).length,
+            };
+
+            // Check if this swimlane contains the selected marker
+            const isActiveSwimlane =
+              selectedMarker &&
+              groupMarkers.some((m) => m.id === selectedMarker.id);
+
+            // Check if this swimlane is being filtered
+            const isFilteredSwimlane = filteredSwimlane === tagGroup.name;
+
+            // Get the display name for the tag (remove _AI suffix if present)
+            const displayName = tagGroup.name.endsWith("_AI")
+              ? tagGroup.name.slice(0, -3)
+              : tagGroup.name;
 
             return (
               <div
@@ -662,87 +798,28 @@ export default function Timeline({
                   height: `${groupHeight}px`,
                 }}
               >
-                {/* Single tag label that spans entire group height */}
-                <div
-                  className={`absolute w-full px-2 text-xs flex items-center justify-between transition-all duration-200 cursor-pointer hover:brightness-110 ${
-                    isFilteredSwimlane
-                      ? "font-bold border-l-4 border-yellow-400 shadow-lg ring-1 ring-yellow-400" +
-                        (tagGroup.isRejected
-                          ? " bg-red-700 text-red-50"
-                          : " bg-blue-400 text-blue-50")
-                      : isActiveSwimlane
-                      ? "font-bold border-l-2 border-white shadow-md" +
-                        (tagGroup.isRejected
-                          ? " bg-red-800 text-red-50"
-                          : " bg-blue-500 text-blue-50")
-                      : "font-medium" +
-                        (tagGroup.isRejected
-                          ? " bg-red-900 text-red-100"
-                          : " bg-blue-600 text-blue-100")
-                  }`}
-                  style={{
-                    height: `${groupHeight}px`,
-                  }}
+                <TagLabel
+                  tagName={displayName}
+                  groupName={
+                    isFirstInGroup
+                      ? currentMarkerGroupName
+                      : currentMarkerGroupName
+                  }
+                  isLastInGroup={isLastInGroup}
+                  isRejected={tagGroup.isRejected}
+                  counts={counts}
+                  isFilteredSwimlane={!!isFilteredSwimlane}
+                  isActiveSwimlane={!!isActiveSwimlane}
                   onClick={() => {
                     if (onSwimlaneFilter) {
-                      // Toggle filter: if already filtered, clear it; otherwise set it
                       const newFilter = isFilteredSwimlane
                         ? null
                         : tagGroup.name;
                       onSwimlaneFilter(newFilter);
                     }
                   }}
-                  title={
-                    isFilteredSwimlane
-                      ? `Filtered by ${tagGroup.name} - Click to show all`
-                      : `Click to filter by ${tagGroup.name}`
-                  }
-                >
-                  <div className="truncate" title={tagGroup.name}>
-                    {tagGroup.name} {tagGroup.isRejected && "(All R)"}
-                    {isFilteredSwimlane && " 🔍"}
-                  </div>
-                  <div className="flex items-center space-x-2 flex-shrink-0">
-                    {(() => {
-                      // Calculate status counts for this tag group
-                      const approved = tagGroup.markers.filter(
-                        (marker) =>
-                          isMarkerConfirmed(marker) || isMarkerManual(marker)
-                      ).length;
-                      const rejected =
-                        tagGroup.markers.filter(isMarkerRejected).length;
-                      const unknown = tagGroup.markers.filter(
-                        (marker) =>
-                          !isMarkerConfirmed(marker) &&
-                          !isMarkerManual(marker) &&
-                          !isMarkerRejected(marker)
-                      ).length;
-
-                      return (
-                        <>
-                          {approved > 0 && (
-                            <div className="flex items-center">
-                              <span className="text-green-300 mr-1">✓</span>
-                              <span>{approved}</span>
-                            </div>
-                          )}
-                          {rejected > 0 && (
-                            <div className="flex items-center">
-                              <span className="text-red-300 mr-1">✗</span>
-                              <span>{rejected}</span>
-                            </div>
-                          )}
-                          {unknown > 0 && (
-                            <div className="flex items-center">
-                              <span className="text-yellow-300 mr-1">?</span>
-                              <span>{unknown}</span>
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
+                  isFirstInGroup={isFirstInGroup}
+                />
               </div>
             );
           })}
@@ -752,7 +829,7 @@ export default function Timeline({
       {/* Timeline container with horizontal scroll */}
       <div
         ref={timelineRef}
-        className="flex-1 overflow-x-auto overflow-y-hidden relative"
+        className="flex-1 overflow-x-auto relative"
         style={{ height: "100%" }}
         data-timeline-container
       >
@@ -857,14 +934,15 @@ export default function Timeline({
               const groupMarkers = displayMarkersWithTracks.filter(
                 (m) => m.swimlane === swimlaneIndex
               );
-              const maxTrack =
-                groupMarkers.length > 0
-                  ? Math.max(...groupMarkers.map((m) => m.track))
-                  : -1;
-              const tracksInGroup = Math.max(1, maxTrack + 1);
-              const groupHeight = tracksInGroup * trackHeight;
+              if (groupMarkers.length === 0) return null;
 
-              // Calculate vertical position of this swimlane
+              // Get marker group name from the first marker
+              const firstMarker = groupMarkers[0];
+              const currentMarkerGroupName = firstMarker
+                ? getMarkerGroupName(firstMarker)
+                : null;
+
+              // Calculate swimlane position
               const swimlaneTop = displayTagGroups
                 .slice(0, swimlaneIndex)
                 .reduce((acc, prevGroup, prevIndex) => {
@@ -880,95 +958,128 @@ export default function Timeline({
                   return acc + prevGroupHeight;
                 }, 0);
 
-              return (
-                <div
-                  key={`swimlane-${swimlaneIndex}`}
-                  className="absolute w-full"
-                  style={{
-                    top: `${swimlaneTop}px`,
-                    height: `${groupHeight}px`,
-                  }}
-                >
-                  {/* Track backgrounds */}
-                  {Array.from({ length: tracksInGroup }).map(
-                    (_, trackIndex) => (
-                      <div
-                        key={`track-${swimlaneIndex}-${trackIndex}`}
-                        className={`absolute border ${
-                          tagGroup.isRejected
-                            ? "border-red-800"
-                            : "border-gray-600"
-                        }`}
-                        style={{
-                          top: `${trackIndex * trackHeight}px`,
-                          height: `${trackHeight}px`,
-                          width: `${scaledWidth}px`,
-                          backgroundColor: tagGroup.isRejected
-                            ? swimlaneIndex % 2 === 0
-                              ? "rgba(127, 29, 29, 0.3)" // Even rejected: darker red
-                              : "rgba(153, 27, 27, 0.25)" // Odd rejected: slightly lighter red
-                            : swimlaneIndex % 2 === 0
-                            ? "rgba(65, 75, 90, 0.35)" // Even normal: lighter than gray-700
-                            : "rgba(75, 85, 99, 0.35)", // Odd normal: gray-600 with custom opacity
-                        }}
-                      />
+              // Check if this is the first swimlane of a new marker group
+              const previousMarker =
+                swimlaneIndex > 0
+                  ? displayMarkersWithTracks.find(
+                      (m) => m.swimlane === swimlaneIndex - 1
                     )
-                  )}
+                  : null;
+              const previousMarkerGroup = previousMarker
+                ? getMarkerGroupName(previousMarker)
+                : null;
+              const isNewMarkerGroup =
+                currentMarkerGroupName &&
+                currentMarkerGroupName !== previousMarkerGroup;
 
-                  {/* Markers in this swimlane */}
-                  {groupMarkers.map((marker) => {
-                    const isSelected =
-                      selectedMarker && marker.id === selectedMarker.id;
+              // Calculate total height for this group
+              const maxTrack =
+                groupMarkers.length > 0
+                  ? Math.max(...groupMarkers.map((m) => m.track))
+                  : -1;
+              const tracksInGroup = Math.max(1, maxTrack + 1);
+              const groupHeight = tracksInGroup * trackHeight;
 
-                    return (
-                      <div
-                        key={marker.id}
-                        className={`absolute rounded cursor-pointer ${getMarkerColor(
-                          marker
-                        )} select-none transition-all duration-200
-                          ${
-                            isSelected
-                              ? "ring-2 ring-white ring-opacity-100 shadow-lg brightness-110"
-                              : "opacity-80"
-                          }`}
-                        style={{
-                          left: `${marker.seconds * pixelsPerSecond}px`,
-                          width: `${
-                            ((marker.end_seconds || marker.seconds + 1) -
-                              marker.seconds) *
-                            pixelsPerSecond
-                          }px`,
-                          top: `${marker.track * trackHeight}px`,
-                          height: `${trackHeight}px`,
-                          minWidth: "4px",
-                          zIndex: isSelected ? 20 : 10,
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onMarkerClick(marker);
-                        }}
-                        onMouseEnter={(e) => handleMarkerMouseEnter(e, marker)}
-                        onMouseLeave={handleMarkerMouseLeave}
-                        onMouseMove={(e) => handleMarkerMouseMove(e, marker)}
-                      >
-                        {/* Visual indicator for AI vs normal tags */}
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          {marker.primary_tag.name.endsWith("_AI") ? (
-                            <div
-                              className="w-2 h-2 bg-purple-400 rounded-full opacity-80"
-                              title={`AI: ${marker.primary_tag.name}`}
-                            />
-                          ) : (
-                            <div
-                              className="w-2 h-2 bg-white rounded-full opacity-60"
-                              title={`Manual: ${marker.primary_tag.name}`}
-                            />
-                          )}
+              return (
+                <React.Fragment key={`swimlane-${swimlaneIndex}`}>
+                  <div
+                    className="absolute w-full"
+                    style={{
+                      top: `${swimlaneTop}px`,
+                      height: `${groupHeight}px`,
+                    }}
+                  >
+                    {/* Track backgrounds */}
+                    {Array.from({ length: tracksInGroup }).map(
+                      (_, trackIndex) => {
+                        // Get the marker group name from the first marker in this group
+                        const firstMarker = groupMarkers[0];
+                        const currentMarkerGroupName = firstMarker
+                          ? getMarkerGroupName(firstMarker)
+                          : null;
+
+                        return (
+                          <div
+                            key={`track-${swimlaneIndex}-${trackIndex}`}
+                            className={`absolute border ${
+                              tagGroup.isRejected
+                                ? "border-red-800/30"
+                                : currentMarkerGroupName
+                                ? "border-blue-400/20"
+                                : "border-gray-600/20"
+                            }`}
+                            style={{
+                              top: `${trackIndex * trackHeight}px`,
+                              height: `${trackHeight}px`,
+                              width: `${scaledWidth}px`,
+                              backgroundColor: getGroupBackgroundColor(
+                                currentMarkerGroupName,
+                                swimlaneIndex,
+                                tagGroup.isRejected
+                              ),
+                            }}
+                          />
+                        );
+                      }
+                    )}
+
+                    {/* Markers in this swimlane */}
+                    {groupMarkers.map((marker) => {
+                      const isSelected =
+                        selectedMarker && marker.id === selectedMarker.id;
+
+                      return (
+                        <div
+                          key={marker.id}
+                          className={`absolute rounded cursor-pointer ${getMarkerColor(
+                            marker
+                          )} select-none transition-all duration-200
+                            ${
+                              isSelected
+                                ? "ring-2 ring-white ring-opacity-100 shadow-lg brightness-110"
+                                : "opacity-80"
+                            }`}
+                          style={{
+                            left: `${marker.seconds * pixelsPerSecond}px`,
+                            width: `${
+                              ((marker.end_seconds || marker.seconds + 1) -
+                                marker.seconds) *
+                              pixelsPerSecond
+                            }px`,
+                            top: `${marker.track * trackHeight}px`,
+                            height: `${trackHeight}px`,
+                            minWidth: "4px",
+                            zIndex: isSelected ? 20 : 10,
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onMarkerClick(marker);
+                          }}
+                          onMouseEnter={(e) =>
+                            handleMarkerMouseEnter(e, marker)
+                          }
+                          onMouseLeave={handleMarkerMouseLeave}
+                          onMouseMove={(e) => handleMarkerMouseMove(e, marker)}
+                        >
+                          {/* Visual indicator for AI vs normal tags */}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            {marker.primary_tag.name.endsWith("_AI") ? (
+                              <div
+                                className="w-2 h-2 bg-purple-400 rounded-full opacity-80"
+                                title={`AI: ${marker.primary_tag.name}`}
+                              />
+                            ) : (
+                              <div
+                                className="w-2 h-2 bg-white rounded-full opacity-60"
+                                title={`Manual: ${marker.primary_tag.name}`}
+                              />
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                </React.Fragment>
               );
             })}
 
@@ -1074,4 +1185,45 @@ export default function Timeline({
       )}
     </div>
   );
+}
+
+function getGroupBackgroundColor(
+  markerGroupName: string | null,
+  swimlaneIndex: number,
+  isRejected: boolean
+): string {
+  if (isRejected) {
+    return swimlaneIndex % 2 === 0
+      ? "rgba(127, 29, 29, 0.3)" // Even rejected: darker red
+      : "rgba(153, 27, 27, 0.25)"; // Odd rejected: slightly lighter red
+  }
+
+  // Define colors for different marker groups
+  const groupColors: { [key: string]: { even: string; odd: string } } = {
+    Positions: {
+      even: "rgba(59, 130, 246, 0.15)", // blue-500 with low opacity
+      odd: "rgba(59, 130, 246, 0.1)",
+    },
+    Actions: {
+      even: "rgba(16, 185, 129, 0.15)", // emerald-500 with low opacity
+      odd: "rgba(16, 185, 129, 0.1)",
+    },
+    Objects: {
+      even: "rgba(245, 158, 11, 0.15)", // amber-500 with low opacity
+      odd: "rgba(245, 158, 11, 0.1)",
+    },
+    // Add more group colors as needed
+  };
+
+  // If we have a specific color for this group, use it
+  if (markerGroupName && groupColors[markerGroupName]) {
+    return swimlaneIndex % 2 === 0
+      ? groupColors[markerGroupName].even
+      : groupColors[markerGroupName].odd;
+  }
+
+  // Default colors for groups without specific colors
+  return swimlaneIndex % 2 === 0
+    ? "rgba(65, 75, 90, 0.35)" // Default even: lighter than gray-700
+    : "rgba(75, 85, 99, 0.35)"; // Default odd: gray-600 with custom opacity
 }
