@@ -469,7 +469,6 @@ function MarkerPageContent() {
 
     const currentMarker = actionMarkers[state.selectedMarkerIndex];
     const currentTime = state.videoElement.currentTime;
-    const wasPlaying = !state.videoElement.paused;
 
     // Check if the current time is within the marker's range
     if (
@@ -495,8 +494,7 @@ function MarkerPageContent() {
         originalTagIds
       );
 
-      // Create the second part of the split (current time to original end)
-      await stashappService.createSceneMarker(
+      const secondPartMarker = await stashappService.createSceneMarker(
         currentMarker.scene.id,
         currentMarker.primary_tag.id,
         currentTime,
@@ -504,38 +502,31 @@ function MarkerPageContent() {
         originalTagIds
       );
 
-      // Delete the original marker
       await stashappService.deleteMarker(currentMarker.id);
+      const updatedMarkers = state.markers
+        .filter((m) => m.id !== currentMarker.id)
+        .concat([firstPartMarker, secondPartMarker])
+        .sort((a, b) => a.seconds - b.seconds);
 
-      // Refresh the markers list
-      await refreshMarkersOnly();
+      dispatch({
+        type: "SET_MARKERS",
+        payload: updatedMarkers,
+      });
 
-      // Find and select the first part of the split marker by its ID
-      setTimeout(() => {
-        const updatedActionMarkers = state.markers
-          ? state.markers.filter((m) => {
-              if (m.id.startsWith("temp-")) return true;
-              return !isShotBoundaryMarker(m);
-            })
-          : [];
+      const updatedActionMarkers = updatedMarkers.filter(
+        (m) => m.id.startsWith("temp-") || !isShotBoundaryMarker(m)
+      );
+      const firstPartIndex = updatedActionMarkers.findIndex(
+        (m) => m.id === firstPartMarker.id
+      );
 
-        // Find the first part marker by its ID
-        const firstPartMarkerIndex = updatedActionMarkers.findIndex(
-          (m) => m.id === firstPartMarker.id
-        );
-
-        if (firstPartMarkerIndex >= 0) {
-          dispatch({
-            type: "SET_SELECTED_MARKER_INDEX",
-            payload: firstPartMarkerIndex,
-          });
-        }
-      }, 100); // Small delay to ensure state is updated
-
-      // Ensure video is paused after splitting
-      if (state.videoElement) {
-        state.videoElement.pause();
-        if (!wasPlaying) {
+      if (firstPartIndex >= 0) {
+        dispatch({
+          type: "SET_SELECTED_MARKER_INDEX",
+          payload: firstPartIndex,
+        });
+        if (state.videoElement) {
+          state.videoElement.pause();
           state.videoElement.currentTime = currentTime;
         }
       }
@@ -548,7 +539,6 @@ function MarkerPageContent() {
     state.markers,
     state.selectedMarkerIndex,
     state.videoElement,
-    refreshMarkersOnly,
     dispatch,
   ]);
 
