@@ -33,6 +33,8 @@ Actual tags such as Kissing and Kissing_AI relationship is configured by setting
 
 ## Getting Started
 
+Stash Marker Studio requires Stash version 0.28 or later. 0.28 introduced support for start and end times for markers which is crucial for the tool.
+
 1. Clone the repository
 2. Copy the `.env.sample` file to `.env.local` and update the values according to your Stashapp instance configuration.
 3. Build the Docker image:
