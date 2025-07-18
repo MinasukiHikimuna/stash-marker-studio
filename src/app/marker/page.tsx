@@ -7,10 +7,8 @@ import {
   type SceneMarker,
 } from "../../services/StashappService";
 import { Popover } from "@headlessui/react";
-import Timeline, {
-  type MarkerWithTrack,
-  type TagGroup,
-} from "../../components/Timeline";
+import Timeline from "../../components/Timeline";
+import { MarkerWithTrack, TagGroup } from "../../core/marker/types";
 import { AITagConversionModal } from "../components/AITagConversionModal";
 import { useMarker, MarkerProvider } from "../../contexts/MarkerContext";
 import { useConfig } from "@/contexts/ConfigContext";
@@ -18,6 +16,11 @@ import Toast from "../components/Toast";
 import { useRouter } from "next/navigation";
 import { incorrectMarkerStorage } from "@/utils/incorrectMarkerStorage";
 import { IncorrectMarkerCollectionModal } from "../components/IncorrectMarkerCollectionModal";
+import {
+  formatSeconds,
+  formatTimeColonDot,
+  parseTimeColonDot,
+} from "@/utils/timeFormatting";
 
 // Add this type definition at the top of the file
 type MarkerSummary = {
@@ -3627,47 +3630,6 @@ export default function MarkerPage() {
       <MarkerPageContent />
     </MarkerProvider>
   );
-}
-
-// Update formatSeconds function to handle milliseconds
-function formatSeconds(
-  seconds: number,
-  showMilliseconds: boolean = false
-): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  const milliseconds = Math.round((remainingSeconds % 1) * 1000);
-
-  const formattedMinutes = minutes.toString().padStart(2, "0");
-  const formattedSeconds = Math.floor(remainingSeconds)
-    .toString()
-    .padStart(2, "0");
-
-  if (showMilliseconds) {
-    const formattedMilliseconds = milliseconds.toString().padStart(3, "0");
-    return `${formattedMinutes}:${formattedSeconds}.${formattedMilliseconds}`;
-  }
-
-  return `${formattedMinutes}:${formattedSeconds}`;
-}
-
-function formatTimeColonDot(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  const ms = Math.round((seconds - Math.floor(seconds)) * 1000);
-  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}.${ms
-    .toString()
-    .padStart(3, "0")}`;
-}
-
-function parseTimeColonDot(str: string): number {
-  // Accepts mm:ss.zzz
-  const match = str.match(/^(\d{1,2}):(\d{2})\.(\d{1,3})$/);
-  if (!match) return 0;
-  const m = Number(match[1]);
-  const s = Number(match[2]);
-  const ms = Number(match[3]);
-  return m * 60 + s + ms / 1000;
 }
 
 // Add this new TagAutocomplete component after the formatTimeColonDot function and before SelectedMarkerDetails
