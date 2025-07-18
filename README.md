@@ -1,75 +1,41 @@
 # Stash Marker Studio
 
-This is a companion app for Stashapp. This makes working with markers and tags easier than Stashapp supports natively.
+![Stash Marker Studio](stash-marker-studio.png)
 
-Stashapp contains mostly video scenes which can be tagged and have markers. Markers are essentially timed tags with a starting time an an optional ending time.
+Stash Marker Studio is a companion app for Stashapp and makes working with markers and tags much easier. It was mainly designed to support using [Skier's NSFW AI model](https://github.com/skier233/nsfw_ai_model_server) but it works with any markers.
 
-Stashapp is connected to using GraphQL API.
+To reliably use tools like Skier's NSFW AI model or marker sources such as TPDB or timestamp.trade, there needs to be some kind of review. The opinionated approach of Stash Marker Studio is as follows:
 
-## Features
+- Markers always have a single, actual tag stored as primary tag.
+- Additional tags of markers are used only for metadata such as is the marker confirmed or rejected or what is the source for that marker.
+- When a scene is reviewed, user will confirm or reject the markers on the scene. Rejected markers can be easily deleted.
+- After review is completed, all AI tags of a scene and its markers will be removed and only the tags from the confirmed markers will be saved. Tags which were previously present on a scene and did not originate from any of the markers will not be touched.
 
-- Markers can be approved or rejected quickly
-- Manually created markers are shown as pre-approved
-- New markers can be created
-- An existing marker can be split or duplicated
-- Marker's start and end time can be adjusted
-- Marker's primary tag can be changed
-- Visual timeline showing all markers
-- Zoom controls for detailed editing
-- Color-coded markers by status
-
-## Prerequisites
-
-- Node.js 22+ and npm
-- A running instance of Stashapp
-- Stashapp API key
-
-## Configuration
-
-Copy the `.env.sample` file to `.env.local` and update the values according to your Stashapp instance configuration.
-
-The API key must be set in the environment variables. This is used for authentication with your Stashapp instance.
+Stash Marker Studio also optionally supports PySceneDetect which will analyze the video stream, detect shot boundaries and use those for easier navigating when reviewing and finetuning the markers.
 
 ## Getting Started
 
 1. Clone the repository
-2. Install dependencies:
+2. Copy the `.env.sample` file to `.env.local` and update the values according to your Stashapp instance configuration.
+3. Build the Docker image:
 
 ```bash
-npm install
-# or
-yarn install
-# or
-pnpm install
+docker build -t stash-marker-studio .
 ```
 
-3. Configure your environment variables (see Configuration section above)
-
-4. Run the development server:
+4. Run the Docker image:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+docker run -p 3000:3000 --env-file .env.local stash-marker-studio
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. Open [http://localhost:3000](http://localhost:3000)
 
 ## Development
 
 This project uses:
 
-- Next.js 14 with App Router
+- Next.js 15 with App Router
 - TypeScript for type safety
 - Tailwind CSS for styling
 - GraphQL for API communication
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-[Add your license here]
