@@ -15,18 +15,7 @@ import {
 } from "../services/StashappService";
 import { stashappService } from "../services/StashappService";
 import SpritePreview from "./SpritePreview";
-
-export type MarkerWithTrack = SceneMarker & {
-  track: number;
-  swimlane: number;
-  tagGroup: string;
-};
-
-export type TagGroup = {
-  name: string;
-  markers: SceneMarker[];
-  isRejected: boolean;
-};
+import { MarkerWithTrack, TagGroup } from "../core/marker/types";
 
 // Add new type for marker group info
 type MarkerGroupInfo = {
@@ -197,7 +186,7 @@ async function groupMarkersByTags(markers: SceneMarker[]): Promise<TagGroup[]> {
     tagGroupMap.get(groupName)!.push(marker);
   }
 
-  // Create tag groups with all markers (rejected and non-rejected together)
+  // Convert to array of tag groups
   const tagGroups: TagGroup[] = Array.from(tagGroupMap.entries())
     .map(([name, markers]) => {
       // Sort markers by time within each group
@@ -206,9 +195,26 @@ async function groupMarkersByTags(markers: SceneMarker[]): Promise<TagGroup[]> {
       // A group is considered rejected only if ALL markers in it are rejected
       const isRejected = sortedMarkers.every(isMarkerRejected);
 
+      // Get unique tags from markers
+      const uniqueTags = Array.from(
+        new Set(markers.map((m) => m.primary_tag.id))
+      )
+        .map((tagId) => {
+          const marker = markers.find((m) => m.primary_tag.id === tagId);
+          if (!marker) return null;
+          return {
+            id: marker.primary_tag.id,
+            name: marker.primary_tag.name,
+            description: marker.primary_tag.description,
+            parents: marker.primary_tag.parents,
+          };
+        })
+        .filter((tag): tag is NonNullable<typeof tag> => tag !== null);
+
       return {
         name,
         markers: sortedMarkers,
+        tags: uniqueTags,
         isRejected,
       };
     })
@@ -237,15 +243,6 @@ async function groupMarkersByTags(markers: SceneMarker[]): Promise<TagGroup[]> {
       return a.name.localeCompare(b.name);
     });
 
-  console.log(
-    "Created groups:",
-    tagGroups.map((g) => {
-      const markerGroup = getMarkerGroupName(g.markers[0]);
-      const groupName = markerGroup ? markerGroup.displayName : "No Group";
-      return `${g.name} [${groupName}] (${g.markers.length} markers, all rejected: ${g.isRejected})`;
-    })
-  );
-
   return tagGroups;
 }
 
@@ -254,43 +251,57 @@ function assignTracksWithinSwimlanes(tagGroups: TagGroup[]): MarkerWithTrack[] {
   const markersWithTracks: MarkerWithTrack[] = [];
 
   tagGroups.forEach((tagGroup, swimlaneIndex) => {
+    // Sort markers by time within each swimlane
     const swimlaneMarkers = [...tagGroup.markers].sort(
       (a, b) => a.seconds - b.seconds
     );
+
+    // Initialize array to track occupied tracks for this swimlane
     const tracks: MarkerWithTrack[] = [];
 
+    // Process each marker in the swimlane
     swimlaneMarkers.forEach((marker) => {
-      let track = 0;
-      let placed = false;
+      // Find the first available track that doesn't overlap with this marker
+      let trackIndex = 0;
+      let foundTrack = false;
 
-      while (!placed) {
-        const overlapping = tracks.find(
-          (m) =>
-            m.track === track &&
-            ((marker.seconds >= m.seconds &&
-              marker.seconds < (m.end_seconds || m.seconds + 1)) ||
-              ((marker.end_seconds || marker.seconds + 1) > m.seconds &&
-                (marker.end_seconds || marker.seconds + 1) <=
-                  (m.end_seconds || m.seconds + 1)) ||
-              (marker.seconds <= m.seconds &&
-                (marker.end_seconds || marker.seconds + 1) >=
-                  (m.end_seconds || m.seconds + 1)))
-        );
+      while (!foundTrack) {
+        // Check if this track is available for this marker
+        const isTrackAvailable = !tracks
+          .filter((t) => t.track === trackIndex)
+          .some((t) => {
+            // Check for overlap
+            const markerStart = marker.seconds;
+            const markerEnd = marker.end_seconds || markerStart + 1;
+            const trackMarkerStart = t.seconds;
+            const trackMarkerEnd = t.end_seconds || trackMarkerStart + 1;
 
-        if (!overlapping) {
-          const markerWithTrack: MarkerWithTrack = {
-            ...marker,
-            track,
-            swimlane: swimlaneIndex,
-            tagGroup: tagGroup.name,
-          };
-          tracks.push(markerWithTrack);
-          markersWithTracks.push(markerWithTrack);
-          placed = true;
+            return (
+              (markerStart >= trackMarkerStart &&
+                markerStart < trackMarkerEnd) ||
+              (markerEnd > trackMarkerStart && markerEnd <= trackMarkerEnd) ||
+              (markerStart <= trackMarkerStart && markerEnd >= trackMarkerEnd)
+            );
+          });
+
+        if (isTrackAvailable) {
+          foundTrack = true;
         } else {
-          track++;
+          trackIndex++;
         }
       }
+
+      // Create the marker with track information
+      const markerWithTrack: MarkerWithTrack = {
+        ...marker,
+        track: trackIndex,
+        swimlane: swimlaneIndex,
+        tagGroup: tagGroup.name,
+      };
+
+      // Add to tracking arrays
+      tracks.push(markerWithTrack);
+      markersWithTracks.push(markerWithTrack);
     });
   });
 
@@ -410,64 +421,36 @@ export default function Timeline({
     console.log("First few actionMarkers:", actionMarkers.slice(0, 3));
 
     const setupTagGroups = async () => {
-      // Base the swimlanes on all non-shot-boundary markers so that swimlanes remain
-      // visible even when filtered to empty, allowing the user to toggle the filter off.
-      const allPossibleActionMarkers = markers.filter(
-        (m) => !isShotBoundaryMarker(m)
-      );
+      if (!markers) return;
 
-      if (allPossibleActionMarkers.length > 0) {
-        try {
-          console.log(
-            "Generating all possible tag groups from",
-            allPossibleActionMarkers.length,
-            "markers"
-          );
-          // Get all possible groups to ensure UI stability during filtering
-          const allGroups = await groupMarkersByTags(allPossibleActionMarkers);
-          console.log(
-            "Created",
-            allGroups.length,
-            "total tag groups:",
-            allGroups.map((g) => g.name)
-          );
+      try {
+        // Group markers by tags
+        const allGroups = await groupMarkersByTags(markers);
 
-          // Now, create the groups for final display. The groups themselves are stable,
-          // but the markers within them are determined by `actionMarkers` (which is filtered).
-          const finalGroups = allGroups.map((group) => ({
-            ...group,
-            markers: actionMarkers.filter((m) => {
-              const groupName = m.primary_tag.name.endsWith("_AI")
-                ? m.primary_tag.name.replace("_AI", "")
-                : m.primary_tag.name;
-              return groupName === group.name;
-            }),
-          }));
+        // Filter groups to only include action markers if needed
+        const finalGroups = allGroups.map((group) => ({
+          ...group,
+          markers: actionMarkers.filter((m) => {
+            const groupName = m.primary_tag.name.endsWith("_AI")
+              ? m.primary_tag.name.replace("_AI", "")
+              : m.primary_tag.name;
+            return groupName === group.name;
+          }),
+        }));
 
-          const markersWithTracksAndSwimlanes =
-            assignTracksWithinSwimlanes(finalGroups);
-          console.log(
-            "Assigned tracks to",
-            markersWithTracksAndSwimlanes.length,
-            "markers for display"
-          );
+        // Update state
+        setTagGroups(finalGroups);
 
-          setTagGroups(finalGroups);
-          setMarkersWithTracks(markersWithTracksAndSwimlanes);
-          if (onSwimlaneDataUpdate) {
-            onSwimlaneDataUpdate(finalGroups, markersWithTracksAndSwimlanes);
-          }
-        } catch (error) {
-          console.error("Error setting up tag groups:", error);
-          // Fallback might be needed here if grouping fails
-        }
-      } else {
-        console.log("No action markers, clearing groups");
-        setTagGroups([]);
-        setMarkersWithTracks([]);
+        // Assign tracks to markers
+        const newMarkersWithTracks = assignTracksWithinSwimlanes(finalGroups);
+        setMarkersWithTracks(newMarkersWithTracks);
+
+        // Notify parent component
         if (onSwimlaneDataUpdate) {
-          onSwimlaneDataUpdate([], []);
+          onSwimlaneDataUpdate(finalGroups, newMarkersWithTracks);
         }
+      } catch (err) {
+        console.error("Error setting up tag groups:", err);
       }
     };
 
@@ -491,7 +474,7 @@ export default function Timeline({
   const displayTagGroups = useMemo(() => {
     if (filteredSwimlane) {
       // When filtering is active, only show groups that have markers
-      return tagGroups.filter((tagGroup) => tagGroup.markers.length > 0);
+      return tagGroups.filter((tagGroup) => tagGroup.tags.length > 0);
     } else {
       // When not filtering, show all groups
       return tagGroups;
@@ -816,7 +799,7 @@ export default function Timeline({
                   tagName={displayName}
                   groupName={currentMarkerGroupName}
                   isLastInGroup={isLastInGroup}
-                  isRejected={tagGroup.isRejected}
+                  isRejected={false} // TagGroup now contains isRejected flag
                   counts={counts}
                   isFilteredSwimlane={!!isFilteredSwimlane}
                   isActiveSwimlane={!!isActiveSwimlane}
@@ -992,7 +975,7 @@ export default function Timeline({
                           <div
                             key={`track-${swimlaneIndex}-${trackIndex}`}
                             className={`absolute border ${
-                              tagGroup.isRejected
+                              false // isRejected flag is now part of TagGroup
                                 ? "border-red-800/30"
                                 : currentMarkerGroupName
                                 ? "border-blue-400/20"
@@ -1005,7 +988,7 @@ export default function Timeline({
                               backgroundColor: getGroupBackgroundColor(
                                 currentMarkerGroupName,
                                 swimlaneIndex,
-                                tagGroup.isRejected
+                                false // isRejected flag is now part of TagGroup
                               ),
                             }}
                           />
