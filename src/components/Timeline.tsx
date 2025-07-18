@@ -28,6 +28,12 @@ export type TagGroup = {
   isRejected: boolean;
 };
 
+// Add new type for marker group info
+type MarkerGroupInfo = {
+  fullName: string;
+  displayName: string;
+} | null;
+
 // Add this new component for the tag label with optional group name
 function TagLabel({
   tagName,
@@ -41,7 +47,7 @@ function TagLabel({
   isFirstInGroup, // Add this new prop
 }: {
   tagName: string;
-  groupName?: string | null;
+  groupName?: MarkerGroupInfo;
   isLastInGroup: boolean;
   isRejected: boolean;
   counts: { confirmed: number; rejected: number; pending: number };
@@ -74,7 +80,7 @@ function TagLabel({
         {/* Group name column - always takes space but only visible on first swimlane */}
         <div className="px-2 font-medium whitespace-nowrap">
           <span className={isFirstInGroup ? "text-blue-100" : "opacity-0"}>
-            {groupName || ""}
+            {groupName?.displayName || ""}
           </span>
         </div>
 
@@ -145,7 +151,7 @@ type TimelineProps = {
 };
 
 // Helper function to extract marker group name from tag parents
-function getMarkerGroupName(marker: SceneMarker): string | null {
+function getMarkerGroupName(marker: SceneMarker): MarkerGroupInfo {
   const parents = marker.primary_tag.parents;
   if (!parents || parents.length === 0) {
     return null;
@@ -160,15 +166,20 @@ function getMarkerGroupName(marker: SceneMarker): string | null {
           grandparent.id === StashappService.MARKER_GROUP_PARENT_ID
       )
     ) {
-      // Return the group name without the "Marker Group: " prefix
-      return parent.name.replace("Marker Group: ", "").replace(/^\d+\.\s*/, "");
+      // Return an object containing both the full name and display name
+      return {
+        fullName: parent.name,
+        displayName: parent.name
+          .replace("Marker Group: ", "")
+          .replace(/^\d+\.\s*/, ""),
+      };
     }
   }
 
   return null;
 }
 
-// Helper function to group markers by tag groups (simplified version)
+// Helper function to group markers by tags (simplified version)
 async function groupMarkersByTags(markers: SceneMarker[]): Promise<TagGroup[]> {
   console.log("Grouping", markers.length, "markers");
 
@@ -206,10 +217,10 @@ async function groupMarkersByTags(markers: SceneMarker[]): Promise<TagGroup[]> {
       const aMarkerGroup = getMarkerGroupName(a.markers[0]);
       const bMarkerGroup = getMarkerGroupName(b.markers[0]);
 
-      // If both have marker groups, sort by marker group then by tag name
+      // If both have marker groups, sort by the full name to preserve numbering
       if (aMarkerGroup && bMarkerGroup) {
-        if (aMarkerGroup !== bMarkerGroup) {
-          return aMarkerGroup.localeCompare(bMarkerGroup);
+        if (aMarkerGroup.fullName !== bMarkerGroup.fullName) {
+          return aMarkerGroup.fullName.localeCompare(bMarkerGroup.fullName);
         }
         return a.name.localeCompare(b.name);
       }
@@ -229,8 +240,9 @@ async function groupMarkersByTags(markers: SceneMarker[]): Promise<TagGroup[]> {
   console.log(
     "Created groups:",
     tagGroups.map((g) => {
-      const markerGroup = getMarkerGroupName(g.markers[0]) || "No Group";
-      return `${g.name} [${markerGroup}] (${g.markers.length} markers, all rejected: ${g.isRejected})`;
+      const markerGroup = getMarkerGroupName(g.markers[0]);
+      const groupName = markerGroup ? markerGroup.displayName : "No Group";
+      return `${g.name} [${groupName}] (${g.markers.length} markers, all rejected: ${g.isRejected})`;
     })
   );
 
@@ -727,7 +739,8 @@ export default function Timeline({
               ? getMarkerGroupName(previousMarker)
               : null;
             const isFirstInGroup =
-              currentMarkerGroupName !== previousMarkerGroup;
+              currentMarkerGroupName?.fullName !==
+              previousMarkerGroup?.fullName;
 
             // Check if this is the last swimlane of the current marker group
             const nextMarker =
@@ -739,7 +752,8 @@ export default function Timeline({
             const nextMarkerGroup = nextMarker
               ? getMarkerGroupName(nextMarker)
               : null;
-            const isLastInGroup = currentMarkerGroupName !== nextMarkerGroup;
+            const isLastInGroup =
+              currentMarkerGroupName?.fullName !== nextMarkerGroup?.fullName;
 
             // Calculate vertical position of this swimlane
             const swimlaneTop = displayTagGroups
@@ -800,11 +814,7 @@ export default function Timeline({
               >
                 <TagLabel
                   tagName={displayName}
-                  groupName={
-                    isFirstInGroup
-                      ? currentMarkerGroupName
-                      : currentMarkerGroupName
-                  }
+                  groupName={currentMarkerGroupName}
                   isLastInGroup={isLastInGroup}
                   isRejected={tagGroup.isRejected}
                   counts={counts}
@@ -1168,7 +1178,7 @@ export default function Timeline({
 }
 
 function getGroupBackgroundColor(
-  markerGroupName: string | null,
+  markerGroupName: MarkerGroupInfo,
   swimlaneIndex: number,
   isRejected: boolean
 ): string {
@@ -1196,10 +1206,10 @@ function getGroupBackgroundColor(
   };
 
   // If we have a specific color for this group, use it
-  if (markerGroupName && groupColors[markerGroupName]) {
+  if (markerGroupName && groupColors[markerGroupName.displayName]) {
     return swimlaneIndex % 2 === 0
-      ? groupColors[markerGroupName].even
-      : groupColors[markerGroupName].odd;
+      ? groupColors[markerGroupName.displayName].even
+      : groupColors[markerGroupName.displayName].odd;
   }
 
   // Default colors for groups without specific colors
