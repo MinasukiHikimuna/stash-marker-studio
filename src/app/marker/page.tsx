@@ -1877,15 +1877,6 @@ function MarkerPageContent() {
 
       // Handle keys that work even without markers
       switch (event.key) {
-        case "g":
-        case "G":
-          event.preventDefault();
-          if (actionMarkers.length === 0) {
-            fetchData();
-          } else {
-            jumpToNextShot();
-          }
-          return;
         case "r":
         case "R":
           event.preventDefault();
@@ -2961,7 +2952,6 @@ function MarkerPageContent() {
                               <li>Enter: Play from marker</li>
                               <li>Escape: Cancel operation</li>
                               <li>F: Filter by current swimlane</li>
-                              <li>G: Next scene</li>
                               <li>R: Refresh markers</li>
                               <li>
                                 <strong>Zoom:</strong>
