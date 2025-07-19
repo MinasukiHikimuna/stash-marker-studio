@@ -1,19 +1,51 @@
 import { MarkerState, MarkerAction } from "./types";
 
 export const initialMarkerState: MarkerState = {
+  // Raw data
+  markers: [],
+  availableTags: [],
+  sceneId: null,
+  sceneTitle: null,
   scene: null,
-  markers: null,
+
+  // UI state
   selectedMarkerIndex: -1,
-  videoElement: null,
+  isEditingMarker: false,
+  isCreatingMarker: false,
+  isDuplicatingMarker: false,
+  isDeletingRejected: false,
+  isGeneratingMarkers: false,
+  isAIConversionModalOpen: false,
+
+  // Temporary state for operations
+  markerStartTime: null,
+  markerEndTime: null,
+  newTagSearch: "",
+  selectedNewTag: "",
+  selectedDuplicateTag: "",
+  newMarkerStartTime: null,
+  newMarkerEndTime: null,
+  duplicateStartTime: null,
+  duplicateEndTime: null,
+  generationJobId: null,
+  rejectedMarkers: [],
+  confirmedAIMarkers: [],
+
+  // Marker time copying
+  copiedMarkerTimes: null,
+
+  // Video state
   videoDuration: 0,
   currentVideoTime: 0,
+  videoElement: null,
+
+  // Loading and error states
   isLoading: false,
   error: null,
-  isEditingMarker: false,
-  copiedMarkerTimes: null,
-  incorrectMarkers: [],
+
+  // Swimlane filter state
   filteredSwimlane: null,
-  availableTags: [],
+  incorrectMarkers: [],
   isCollectingModalOpen: false,
 };
 
@@ -26,14 +58,13 @@ export const markerReducer = (
       return {
         ...state,
         scene: action.payload,
+        sceneId: action.payload?.id || null,
+        sceneTitle: action.payload?.title || null,
       };
     case "SET_SCENE_DATA":
       return {
         ...state,
-        scene: {
-          ...state.scene!,
-          ...action.payload,
-        },
+        scene: action.payload,
       };
     case "SET_MARKERS":
       return {

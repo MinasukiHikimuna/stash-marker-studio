@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { SceneMarker } from "../services/StashappService";
+
 import { stashappService } from "../services/StashappService";
 import { MarkerContextType } from "../core/marker/types";
 import { getActionMarkers, isMarkerRejected } from "../core/marker/markerLogic";

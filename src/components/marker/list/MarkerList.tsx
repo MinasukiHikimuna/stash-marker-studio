@@ -1,9 +1,6 @@
 import { useRef, useEffect } from "react";
 import { useMarker } from "../../../contexts/MarkerContext";
-import {
-  getActionMarkers,
-  formatSeconds,
-} from "../../../core/marker/markerLogic";
+import { getActionMarkers } from "../../../core/marker/markerLogic";
 import { MarkerItem } from "./MarkerItem";
 
 interface MarkerListProps {

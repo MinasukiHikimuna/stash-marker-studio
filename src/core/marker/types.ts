@@ -75,10 +75,10 @@ export type MarkerState = {
 };
 
 export type MarkerAction =
+  | { type: "SET_SCENE"; payload: Scene | null }
+  | { type: "SET_SCENE_DATA"; payload: Scene | null }
   | { type: "SET_MARKERS"; payload: SceneMarker[] }
   | { type: "SET_AVAILABLE_TAGS"; payload: Tag[] }
-  | { type: "SET_SCENE"; payload: { id: string; title: string } }
-  | { type: "SET_SCENE_DATA"; payload: Scene | null }
   | { type: "SET_SELECTED_MARKER_INDEX"; payload: number }
   | { type: "SET_EDITING_MARKER"; payload: boolean }
   | { type: "SET_CREATING_MARKER"; payload: boolean }

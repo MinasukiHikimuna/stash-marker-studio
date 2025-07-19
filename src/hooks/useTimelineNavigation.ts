@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { MarkerContextType, MarkerWithTrack } from "../core/marker/types";
-import { SceneMarker } from "../services/StashappService";
+
 import {
   getActionMarkers,
   findNearestMarker,

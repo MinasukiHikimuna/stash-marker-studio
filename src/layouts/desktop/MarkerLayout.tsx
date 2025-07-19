@@ -5,9 +5,8 @@ import { MarkerSummary } from "../../components/marker/summary/MarkerSummary";
 import Timeline from "../../components/Timeline";
 import { useMarker } from "../../contexts/MarkerContext";
 import { getActionMarkers } from "../../core/marker/markerLogic";
-import { useMarkerKeyboardShortcuts } from "../../hooks/useMarkerKeyboardShortcuts";
+
 import { SceneMarker } from "../../services/StashappService";
-import { TagGroup, MarkerWithTrack } from "../../core/marker/types";
 
 export function MarkerLayout() {
   const { state, dispatch } = useMarker();
@@ -71,12 +70,6 @@ export function MarkerLayout() {
           newMarkerStartTime={state.newMarkerStartTime}
           newMarkerEndTime={state.newMarkerEndTime}
           isEditingMarker={state.isEditingMarker}
-          onSwimlaneDataUpdate={(
-            newTagGroups: TagGroup[],
-            newMarkersWithTracks: MarkerWithTrack[]
-          ) => {
-            // This will be handled by the parent component
-          }}
           filteredSwimlane={state.filteredSwimlane}
           onSwimlaneFilter={(swimlane: string | null) => {
             dispatch({ type: "SET_FILTERED_SWIMLANE", payload: swimlane });

@@ -1,4 +1,4 @@
-import { SceneMarker, Tag } from "../../services/StashappService";
+import { SceneMarker } from "../../services/StashappService";
 import { MarkerSummary, MarkerWithTrack } from "./types";
 
 export const isMarkerRejected = (marker: SceneMarker): boolean => {

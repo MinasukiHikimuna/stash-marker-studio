@@ -281,10 +281,7 @@ function MarkerPageContent() {
         });
         dispatch({
           type: "SET_SCENE",
-          payload: {
-            id: sceneId,
-            title: sceneData.title || "Untitled Scene",
-          },
+          payload: sceneData,
         });
       } catch (sceneError) {
         console.error("Error fetching scene data:", sceneError);
