@@ -109,24 +109,50 @@ export default function SearchPage() {
   const [sortField, setSortField] = useState<SortField>("title");
   const [sortDirection, setSortDirection] = useState<"ASC" | "DESC">("ASC");
 
-  // Load saved search parameters from localStorage
+  // Load all tags and handle localStorage operations only after tags are loaded
   useEffect(() => {
-    try {
-      const savedParams = localStorage.getItem(STORAGE_KEY);
-      if (savedParams) {
-        const params: SearchParams = JSON.parse(savedParams);
-        setSearchQuery(params.query);
-        setSelectedTags(params.tags);
-        setSortField(params.sortField);
-        setSortDirection(params.sortDirection);
+    const loadTags = async () => {
+      try {
+        const response = await stashappService.getAllTags();
+        setAllTags(response.findTags.tags);
+
+        // Now that we have tags, try to load saved search params
+        const savedParams = localStorage.getItem(STORAGE_KEY);
+
+        if (savedParams) {
+          const params: SearchParams = JSON.parse(savedParams);
+          setSearchQuery(params.query);
+          // Match saved tag IDs with loaded tag data
+          const matchedTags = params.tags
+            .map((savedTag) => {
+              const match = response.findTags.tags.find(
+                (tag) => tag.id === savedTag.id
+              );
+              if (!match) {
+                console.log("Could not find matching tag for:", savedTag);
+              }
+              return match;
+            })
+            .filter((tag): tag is Tag => tag !== undefined);
+
+          setSelectedTags(matchedTags);
+          setSortField(params.sortField);
+          setSortDirection(params.sortDirection);
+        }
+      } catch (error) {
+        console.error("Error loading tags or search parameters:", error);
       }
-    } catch (error) {
-      console.error("Error loading saved search parameters:", error);
-    }
+    };
+    loadTags();
   }, []);
 
-  // Save search parameters to localStorage whenever they change
+  // Save search parameters to localStorage only after initial load
   useEffect(() => {
+    if (allTags.length === 0) {
+      // Don't save until we have tags loaded
+      return;
+    }
+
     try {
       const searchParams: SearchParams = {
         query: searchQuery,
@@ -138,20 +164,7 @@ export default function SearchPage() {
     } catch (error) {
       console.error("Error saving search parameters:", error);
     }
-  }, [searchQuery, selectedTags, sortField, sortDirection]);
-
-  // Load all tags on component mount
-  useEffect(() => {
-    const loadTags = async () => {
-      try {
-        const response = await stashappService.getAllTags();
-        setAllTags(response.findTags.tags);
-      } catch (error) {
-        console.error("Error loading tags:", error);
-      }
-    };
-    loadTags();
-  }, []);
+  }, [searchQuery, selectedTags, sortField, sortDirection, allTags]);
 
   // Filter tag suggestions based on search query
   useEffect(() => {
