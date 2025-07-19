@@ -50,6 +50,15 @@ function MarkerPageContent() {
   const router = useRouter();
   const { STASH_URL, STASH_API_KEY } = useConfig();
 
+  const [toastState, setToastState] = useState<ToastState>(null);
+  const showToast = useCallback(
+    (message: string, type: "success" | "error") => {
+      setToastState({ message, type });
+      setTimeout(() => setToastState(null), 3000);
+    },
+    []
+  );
+
   // Get shot boundaries sorted by time
   const getShotBoundaries = useCallback(() => {
     if (!state.markers) return [];
@@ -81,9 +90,6 @@ function MarkerPageContent() {
   // Add zoom state
   const [zoom, setZoom] = useState(1);
   const [timelineContainerWidth, setTimelineContainerWidth] = useState(0);
-
-  // Add toast state
-  const [toast, setToast] = useState<ToastState>(null);
 
   // Timeline container ref for fit-to-window functionality
   const timelineContainerRef = useRef<HTMLDivElement>(null);
@@ -546,6 +552,73 @@ function MarkerPageContent() {
     dispatch,
   ]);
 
+  // Split a Video Cut marker at the current playhead position
+  const splitVideoCutMarker = useCallback(async () => {
+    if (!state.videoElement) return;
+
+    const currentTime = state.videoElement.currentTime;
+    const allMarkers = state.markers || [];
+
+    // Find the Video Cut marker that contains the current time
+    const videoCutMarker = allMarkers.find(
+      (marker) =>
+        isShotBoundaryMarker(marker) &&
+        marker.seconds <= currentTime &&
+        marker.end_seconds &&
+        marker.end_seconds > currentTime
+    );
+
+    if (!videoCutMarker || !videoCutMarker.end_seconds) {
+      dispatch({
+        type: "SET_ERROR",
+        payload: "No Video Cut marker found at current position",
+      });
+      return;
+    }
+
+    try {
+      // Create two new markers from the split
+      const firstMarker = await stashappService.createSceneMarker(
+        videoCutMarker.scene.id,
+        videoCutMarker.primary_tag.id,
+        videoCutMarker.seconds,
+        currentTime,
+        [stashappService.MARKER_SOURCE_MANUAL] // Set source as Manual for new markers
+      );
+
+      const secondMarker = await stashappService.createSceneMarker(
+        videoCutMarker.scene.id,
+        videoCutMarker.primary_tag.id,
+        currentTime,
+        videoCutMarker.end_seconds,
+        [stashappService.MARKER_SOURCE_MANUAL] // Set source as Manual for new markers
+      );
+
+      // Delete the original marker
+      await stashappService.deleteMarker(videoCutMarker.id);
+
+      // Update markers list
+      const updatedMarkers = state.markers
+        .filter((m) => m.id !== videoCutMarker.id)
+        .concat([firstMarker, secondMarker])
+        .sort((a, b) => a.seconds - b.seconds);
+
+      dispatch({
+        type: "SET_MARKERS",
+        payload: updatedMarkers,
+      });
+
+      // Show success message
+      showToast("Video Cut marker split successfully", "success");
+    } catch (err) {
+      console.error("Error splitting Video Cut marker:", err);
+      dispatch({
+        type: "SET_ERROR",
+        payload: "Failed to split Video Cut marker",
+      });
+    }
+  }, [state.markers, state.videoElement, dispatch, showToast]);
+
   // Remove auto-snapping - use standard marker time updates
   const updateMarkerTimes = useCallback(
     async (id: string, newStartTime: number, newEndTime: number | null) => {
@@ -715,14 +788,6 @@ function MarkerPageContent() {
     dispatch({ type: "SET_REJECTED_MARKERS", payload: rejected });
     dispatch({ type: "SET_DELETING_REJECTED", payload: true });
   }, [getActionMarkers, dispatch]);
-
-  // Toast helper function
-  const showToast = useCallback(
-    (message: string, type: "success" | "error") => {
-      setToast({ message, type });
-    },
-    []
-  );
 
   // Copy marker times function
   const copyMarkerTimes = useCallback(() => {
@@ -1876,6 +1941,11 @@ function MarkerPageContent() {
             dispatch({ type: "SET_DUPLICATING_MARKER", payload: false });
           }
           return;
+        case "v":
+        case "V":
+          event.preventDefault();
+          splitVideoCutMarker();
+          return;
       }
 
       // Early return if no markers for marker-specific actions
@@ -2297,6 +2367,7 @@ function MarkerPageContent() {
       jumpToPreviousShot,
       createOrDuplicateMarker,
       showToast,
+      splitVideoCutMarker,
     ]
   );
 
@@ -2786,6 +2857,7 @@ function MarkerPageContent() {
                               <li>A: New marker</li>
                               <li>S: Split marker</li>
                               <li>D: Duplicate marker</li>
+                              <li>V: Split Video Cut marker</li>
                               <li>
                                 <strong>Edit:</strong>
                               </li>
@@ -3300,11 +3372,11 @@ function MarkerPageContent() {
       />
 
       {/* Toast Notifications */}
-      {toast && (
+      {toastState && (
         <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
+          message={toastState.message}
+          type={toastState.type}
+          onClose={() => setToastState(null)}
         />
       )}
 
