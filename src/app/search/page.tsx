@@ -9,8 +9,7 @@ import {
 } from "@/services/StashappService";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { getMarkerStatus } from "../../core/marker/markerLogic";
-import { MarkerStatus } from "../../core/marker/types";
+import { calculateMarkerSummary } from "../../core/marker/markerLogic";
 
 // Extend the Scene type to include scene_markers
 type SceneWithMarkers = Scene & {
@@ -61,40 +60,6 @@ type SearchParams = {
 
 // Constants for localStorage
 const STORAGE_KEY = "stash_marker_search_params";
-
-// Add type for marker statistics
-type MarkerStats = {
-  confirmed: number;
-  rejected: number;
-  unknown: number;
-};
-
-// Function to calculate marker statistics
-const calculateMarkerStats = (markers: SceneMarker[]): MarkerStats => {
-  // Filter out shot boundary markers first
-  const actionMarkers = markers.filter(
-    (marker) => marker.primary_tag.id !== stashappService.MARKER_SHOT_BOUNDARY
-  );
-
-  return actionMarkers.reduce(
-    (stats, marker) => {
-      const status = getMarkerStatus(marker);
-      switch (status) {
-        case MarkerStatus.REJECTED:
-          stats.rejected++;
-          break;
-        case MarkerStatus.CONFIRMED:
-        case MarkerStatus.MANUAL:
-          stats.confirmed++;
-          break;
-        default:
-          stats.unknown++;
-      }
-      return stats;
-    },
-    { confirmed: 0, rejected: 0, unknown: 0 }
-  );
-};
 
 export default function SearchPage() {
   const router = useRouter();
@@ -333,7 +298,7 @@ export default function SearchPage() {
                 {scene.scene_markers && scene.scene_markers.length > 0 && (
                   <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-2 flex justify-around text-xs">
                     {(() => {
-                      const stats = calculateMarkerStats(scene.scene_markers);
+                      const stats = calculateMarkerSummary(scene.scene_markers);
                       return (
                         <>
                           <span className="text-green-400">

@@ -72,18 +72,28 @@ export const isShotBoundaryMarker = (marker: SceneMarker): boolean => {
 };
 
 export const calculateMarkerSummary = (
-  actionMarkers: SceneMarker[]
+  markers: SceneMarker[]
 ): MarkerSummary => {
-  if (!actionMarkers.length) return { confirmed: 0, rejected: 0, unknown: 0 };
+  if (!markers.length) return { confirmed: 0, rejected: 0, unknown: 0 };
+
+  // Filter out shot boundary markers first
+  const actionMarkers = markers.filter(
+    (marker) => marker.primary_tag.id !== stashappService.MARKER_SHOT_BOUNDARY
+  );
 
   return actionMarkers.reduce(
     (acc: MarkerSummary, marker: SceneMarker) => {
-      if (isMarkerRejected(marker)) {
-        acc.rejected++;
-      } else if (isMarkerConfirmed(marker) || isMarkerManual(marker)) {
-        acc.confirmed++;
-      } else {
-        acc.unknown++;
+      const status = getMarkerStatus(marker);
+      switch (status) {
+        case MarkerStatus.REJECTED:
+          acc.rejected++;
+          break;
+        case MarkerStatus.CONFIRMED:
+        case MarkerStatus.MANUAL:
+          acc.confirmed++;
+          break;
+        default:
+          acc.unknown++;
       }
       return acc;
     },
