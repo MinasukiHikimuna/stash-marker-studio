@@ -9,6 +9,11 @@ import {
 } from "@/services/StashappService";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import {
+  isMarkerConfirmed,
+  isMarkerManual,
+  isMarkerRejected,
+} from "@/core/marker/markerLogic";
 
 // Extend the Scene type to include scene_markers
 type SceneWithMarkers = Scene & {
@@ -76,21 +81,13 @@ const calculateMarkerStats = (markers: SceneMarker[]): MarkerStats => {
 
   return actionMarkers.reduce(
     (stats, marker) => {
-      const hasConfirmedTag = marker.tags.some(
-        (tag) => tag.id === stashappService.MARKER_STATUS_CONFIRMED
-      );
-      const hasRejectedTag = marker.tags.some(
-        (tag) => tag.id === stashappService.MARKER_STATUS_REJECTED
-      );
-
-      if (hasConfirmedTag) {
-        stats.confirmed++;
-      } else if (hasRejectedTag) {
+      if (isMarkerRejected(marker)) {
         stats.rejected++;
+      } else if (isMarkerConfirmed(marker) || isMarkerManual(marker)) {
+        stats.confirmed++;
       } else {
         stats.unknown++;
       }
-
       return stats;
     },
     { confirmed: 0, rejected: 0, unknown: 0 }
@@ -310,6 +307,7 @@ export default function SearchPage() {
             id: scene.id,
             title: scene.title,
             paths: scene.paths,
+            markers: scene.scene_markers,
           });
 
           if (!scene.paths?.screenshot) {
