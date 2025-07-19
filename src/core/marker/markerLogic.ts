@@ -1,5 +1,6 @@
 import { SceneMarker } from "../../services/StashappService";
 import { MarkerSummary, MarkerWithTrack } from "./types";
+import { stashappService } from "../../services/StashappService";
 
 export const isMarkerRejected = (marker: SceneMarker): boolean => {
   return marker.primary_tag.name.endsWith("_REJECTED");
@@ -11,9 +12,17 @@ export const isMarkerConfirmed = (marker: SceneMarker): boolean => {
 
 export const isMarkerManual = (marker: SceneMarker): boolean => {
   return (
-    !marker.primary_tag.name.endsWith("_AI") &&
-    !marker.primary_tag.name.endsWith("_REJECTED") &&
-    !marker.primary_tag.name.endsWith("_CONFIRMED")
+    marker.tags?.some(
+      (tag) => tag.id === stashappService.MARKER_SOURCE_MANUAL
+    ) ?? false
+  );
+};
+
+export const isUnprocessed = (marker: SceneMarker): boolean => {
+  return (
+    !isMarkerConfirmed(marker) &&
+    !isMarkerRejected(marker) &&
+    !isMarkerManual(marker)
   );
 };
 

@@ -16,6 +16,7 @@ import {
 import { stashappService } from "../services/StashappService";
 import SpritePreview from "./SpritePreview";
 import { MarkerWithTrack, TagGroup } from "../core/marker/types";
+import { isMarkerManual } from "../core/marker/markerLogic";
 
 // Add new type for marker group info
 type MarkerGroupInfo = {
@@ -317,12 +318,6 @@ const isShotBoundaryMarker = (marker: SceneMarker) => {
 const isMarkerConfirmed = (marker: SceneMarker) => {
   return marker.tags.some(
     (tag: { id: string }) => tag.id === stashappService.MARKER_STATUS_CONFIRMED
-  );
-};
-
-const isMarkerManual = (marker: SceneMarker) => {
-  return marker.tags.some(
-    (tag: { id: string }) => tag.id === stashappService.MARKER_SOURCE_MANUAL
   );
 };
 

@@ -21,6 +21,7 @@ import {
   formatTimeColonDot,
   parseTimeColonDot,
 } from "@/utils/timeFormatting";
+import { isMarkerManual, isUnprocessed } from "@/core/marker/markerLogic";
 
 // Add this type definition at the top of the file
 type MarkerSummary = {
@@ -701,12 +702,6 @@ function MarkerPageContent() {
     );
   }, []);
 
-  const isMarkerManual = useCallback((marker: SceneMarker) => {
-    return marker.tags.some(
-      (tag) => tag.id === stashappService.MARKER_SOURCE_MANUAL
-    );
-  }, []);
-
   const isMarkerRejected = useCallback((marker: SceneMarker) => {
     return marker.tags.some(
       (tag) => tag.id === stashappService.MARKER_STATUS_REJECTED
@@ -731,7 +726,7 @@ function MarkerPageContent() {
       },
       { confirmed: 0, rejected: 0, unknown: 0 }
     );
-  }, [getActionMarkers, isMarkerRejected, isMarkerConfirmed, isMarkerManual]);
+  }, [getActionMarkers, isMarkerConfirmed, isMarkerRejected]);
 
   // Toast helper function
   const showToast = useCallback(
@@ -887,7 +882,7 @@ function MarkerPageContent() {
     );
 
     return unapprovedMarkers.length === 0;
-  }, [getActionMarkers, isMarkerConfirmed, isMarkerRejected, isMarkerManual]);
+  }, [getActionMarkers, isMarkerConfirmed, isMarkerRejected]);
 
   // Helper function to identify AI tags that should be removed from the scene
   const identifyAITagsToRemove = useCallback(
@@ -1062,7 +1057,6 @@ function MarkerPageContent() {
     getShotBoundaries,
     state.scene,
     isMarkerConfirmed,
-    isMarkerManual,
     isMarkerRejected,
   ]);
 
@@ -1156,7 +1150,6 @@ function MarkerPageContent() {
     state.scene,
     identifyAITagsToRemove,
     isMarkerConfirmed,
-    isMarkerManual,
     dispatch,
   ]);
 
@@ -1254,11 +1247,7 @@ function MarkerPageContent() {
     // Look for next unprocessed marker starting from current position
     for (let i = currentIndex + 1; i < actionMarkers.length; i++) {
       const marker = actionMarkers[i];
-      if (
-        !isMarkerConfirmed(marker) &&
-        !isMarkerRejected(marker) &&
-        !isMarkerManual(marker)
-      ) {
+      if (isUnprocessed(marker)) {
         return i;
       }
     }
@@ -1266,23 +1255,13 @@ function MarkerPageContent() {
     // If no unprocessed found after current, search from beginning
     for (let i = 0; i < currentIndex; i++) {
       const marker = actionMarkers[i];
-      if (
-        !isMarkerConfirmed(marker) &&
-        !isMarkerRejected(marker) &&
-        !isMarkerManual(marker)
-      ) {
+      if (isUnprocessed(marker)) {
         return i;
       }
     }
 
     return -1; // No unprocessed markers found
-  }, [
-    getActionMarkers,
-    state.selectedMarkerIndex,
-    isMarkerConfirmed,
-    isMarkerRejected,
-    isMarkerManual,
-  ]);
+  }, [getActionMarkers, state.selectedMarkerIndex]);
 
   // Helper function to find previous unprocessed marker globally
   const findPreviousUnprocessedMarker = useCallback(() => {
@@ -1304,11 +1283,7 @@ function MarkerPageContent() {
     // If no unprocessed found before current, search from end
     for (let i = actionMarkers.length - 1; i > currentIndex; i--) {
       const marker = actionMarkers[i];
-      if (
-        !isMarkerConfirmed(marker) &&
-        !isMarkerRejected(marker) &&
-        !isMarkerManual(marker)
-      ) {
+      if (isUnprocessed(marker)) {
         return i;
       }
     }
@@ -1319,7 +1294,6 @@ function MarkerPageContent() {
     state.selectedMarkerIndex,
     isMarkerConfirmed,
     isMarkerRejected,
-    isMarkerManual,
   ]);
 
   // Helper function to find next unprocessed marker in current swimlane
@@ -1353,12 +1327,7 @@ function MarkerPageContent() {
       const marker = swimlaneMarkers[i];
       // Find this marker in actionMarkers to check its status
       const actionMarker = actionMarkers.find((m) => m.id === marker.id);
-      if (
-        actionMarker &&
-        !isMarkerConfirmed(actionMarker) &&
-        !isMarkerRejected(actionMarker) &&
-        !isMarkerManual(actionMarker)
-      ) {
+      if (actionMarker && isUnprocessed(actionMarker)) {
         // Find this marker's index in actionMarkers
         const actionIndex = actionMarkers.findIndex((m) => m.id === marker.id);
         return actionIndex;
@@ -1370,12 +1339,7 @@ function MarkerPageContent() {
       const marker = swimlaneMarkers[i];
       // Find this marker in actionMarkers to check its status
       const actionMarker = actionMarkers.find((m) => m.id === marker.id);
-      if (
-        actionMarker &&
-        !isMarkerConfirmed(actionMarker) &&
-        !isMarkerRejected(actionMarker) &&
-        !isMarkerManual(actionMarker)
-      ) {
+      if (actionMarker && isUnprocessed(actionMarker)) {
         // Find this marker's index in actionMarkers
         const actionIndex = actionMarkers.findIndex((m) => m.id === marker.id);
         return actionIndex;
@@ -1388,9 +1352,6 @@ function MarkerPageContent() {
     actionMarkers,
     state.selectedMarkerIndex,
     findNextUnprocessedMarker,
-    isMarkerConfirmed,
-    isMarkerRejected,
-    isMarkerManual,
   ]);
 
   // Helper function to find previous unprocessed marker in current swimlane
@@ -1424,12 +1385,7 @@ function MarkerPageContent() {
       const marker = swimlaneMarkers[i];
       // Find this marker in actionMarkers to check its status
       const actionMarker = actionMarkers.find((m) => m.id === marker.id);
-      if (
-        actionMarker &&
-        !isMarkerConfirmed(actionMarker) &&
-        !isMarkerRejected(actionMarker) &&
-        !isMarkerManual(actionMarker)
-      ) {
+      if (actionMarker && isUnprocessed(actionMarker)) {
         // Find this marker's index in actionMarkers
         const actionIndex = actionMarkers.findIndex((m) => m.id === marker.id);
         return actionIndex;
@@ -1441,12 +1397,7 @@ function MarkerPageContent() {
       const marker = swimlaneMarkers[i];
       // Find this marker in actionMarkers to check its status
       const actionMarker = actionMarkers.find((m) => m.id === marker.id);
-      if (
-        actionMarker &&
-        !isMarkerConfirmed(actionMarker) &&
-        !isMarkerRejected(actionMarker) &&
-        !isMarkerManual(actionMarker)
-      ) {
+      if (actionMarker && isUnprocessed(actionMarker)) {
         // Find this marker's index in actionMarkers
         const actionIndex = actionMarkers.findIndex((m) => m.id === marker.id);
         return actionIndex;
@@ -1459,9 +1410,6 @@ function MarkerPageContent() {
     actionMarkers,
     state.selectedMarkerIndex,
     findPreviousUnprocessedMarker,
-    isMarkerConfirmed,
-    isMarkerRejected,
-    isMarkerManual,
   ]);
 
   // Helper function for chronological navigation
@@ -3168,15 +3116,13 @@ function MarkerPageContent() {
                                       </span>
                                     )}
                                     {!isMarkerRejected(marker) &&
-                                      (isMarkerConfirmed(marker) ||
-                                        isMarkerManual(marker)) && (
+                                      isMarkerConfirmed(marker) && (
                                         <span className="text-green-500 mr-2">
                                           ✓
                                         </span>
                                       )}
                                     {!isMarkerRejected(marker) &&
-                                      !isMarkerConfirmed(marker) &&
-                                      !isMarkerManual(marker) && (
+                                      !isMarkerConfirmed(marker) && (
                                         <span className="text-yellow-500 mr-2">
                                           ?
                                         </span>
@@ -3219,11 +3165,6 @@ function MarkerPageContent() {
                                                 true
                                               )}
                                         </span>
-                                        {isMarkerManual(marker) && (
-                                          <span className="text-xs ml-2 bg-blue-500 text-white px-2 py-0.5 rounded-sm">
-                                            Manual
-                                          </span>
-                                        )}
                                       </>
                                     )}
                                   </div>
@@ -3235,9 +3176,7 @@ function MarkerPageContent() {
                                             tag.id !==
                                               stashappService.MARKER_STATUS_CONFIRMED &&
                                             tag.id !==
-                                              stashappService.MARKER_STATUS_REJECTED &&
-                                            tag.id !==
-                                              stashappService.MARKER_SOURCE_MANUAL
+                                              stashappService.MARKER_STATUS_REJECTED
                                         )
                                         .map((tag) => tag.name)
                                         .join(", ")}
