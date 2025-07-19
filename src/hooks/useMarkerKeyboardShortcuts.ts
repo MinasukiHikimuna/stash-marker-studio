@@ -58,7 +58,7 @@ export const useMarkerKeyboardShortcuts = (
   );
 
   const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
+    async (event: KeyboardEvent) => {
       // Ignore keyboard shortcuts if we're typing in an input field
       if (
         event.target instanceof HTMLInputElement ||
@@ -151,21 +151,21 @@ export const useMarkerKeyboardShortcuts = (
               state.filteredSwimlane
             );
             const marker = actionMarkers[state.selectedMarkerIndex];
-            markerOperations.confirmMarker(marker.id);
+            await markerOperations.confirmMarker(marker.id);
           }
           break;
         case "x":
         case "X":
           event.preventDefault();
           if (event.shiftKey) {
-            markerOperations.deleteRejectedMarkers();
+            await markerOperations.deleteRejectedMarkers();
           } else if (state.selectedMarkerIndex >= 0) {
             const actionMarkers = getActionMarkers(
               state.markers || [],
               state.filteredSwimlane
             );
             const marker = actionMarkers[state.selectedMarkerIndex];
-            markerOperations.rejectMarker(marker.id);
+            await markerOperations.rejectMarker(marker.id);
           }
           break;
         case "a":
@@ -174,11 +174,6 @@ export const useMarkerKeyboardShortcuts = (
           if (!state.isCreatingMarker && !state.isDuplicatingMarker) {
             dispatch({ type: "SET_CREATING_MARKER", payload: true });
           }
-          break;
-        case "s":
-        case "S":
-          event.preventDefault();
-          markerOperations.splitMarker();
           break;
         case "d":
         case "D":

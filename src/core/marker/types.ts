@@ -34,7 +34,8 @@ export type MarkerState = {
   scene: Scene | null;
 
   // UI state
-  selectedMarkerIndex: number;
+  selectedMarkerId: string | null; // Primary selection mechanism
+  selectedMarkerIndex: number; // Keep for backwards compatibility
   isEditingMarker: boolean;
   isCreatingMarker: boolean;
   isDuplicatingMarker: boolean;
@@ -79,7 +80,7 @@ export type MarkerAction =
   | { type: "SET_SCENE_DATA"; payload: Scene | null }
   | { type: "SET_MARKERS"; payload: SceneMarker[] }
   | { type: "SET_AVAILABLE_TAGS"; payload: Tag[] }
-  | { type: "SET_SELECTED_MARKER_INDEX"; payload: number }
+  | { type: "SET_SELECTED_MARKER_ID"; payload: string | null }
   | { type: "SET_EDITING_MARKER"; payload: boolean }
   | { type: "SET_CREATING_MARKER"; payload: boolean }
   | { type: "SET_DUPLICATING_MARKER"; payload: boolean }

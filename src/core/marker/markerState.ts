@@ -9,7 +9,8 @@ export const initialMarkerState: MarkerState = {
   scene: null,
 
   // UI state
-  selectedMarkerIndex: -1,
+  selectedMarkerId: null,
+  selectedMarkerIndex: -1, // Keep for backwards compatibility
   isEditingMarker: false,
   isCreatingMarker: false,
   isDuplicatingMarker: false,
@@ -71,11 +72,25 @@ export const markerReducer = (
         ...state,
         markers: action.payload,
       };
-    case "SET_SELECTED_MARKER_INDEX":
+    case "SET_SELECTED_MARKER_ID": {
+      // Find the marker in the list
+      const marker = state.markers.find((m) => m.id === action.payload);
+
+      // Ensure we don't select a shot boundary marker
+      if (marker?.primary_tag.id === "8836") {
+        console.log("Prevented selection of shot boundary marker");
+        return state;
+      }
+
+      // Find the index for backwards compatibility
+      const markerIndex = marker ? state.markers.indexOf(marker) : -1;
+
       return {
         ...state,
-        selectedMarkerIndex: action.payload,
+        selectedMarkerId: action.payload,
+        selectedMarkerIndex: markerIndex,
       };
+    }
     case "SET_VIDEO_ELEMENT":
       return {
         ...state,

@@ -1,11 +1,11 @@
-import { useRef, useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useMarker } from "../../../contexts/MarkerContext";
 import { getActionMarkers } from "../../../core/marker/markerLogic";
 import { MarkerItem } from "./MarkerItem";
 
-interface MarkerListProps {
+type MarkerListProps = {
   className?: string;
-}
+};
 
 export function MarkerList({ className = "" }: MarkerListProps) {
   const { state } = useMarker();
@@ -18,14 +18,13 @@ export function MarkerList({ className = "" }: MarkerListProps) {
 
   // Scroll selected marker into view
   useEffect(() => {
-    if (listRef.current && state.selectedMarkerIndex >= 0) {
+    if (listRef.current && state.selectedMarkerId) {
       // Longer delay to ensure all state updates have completed and DOM has updated
       const timeoutId = setTimeout(() => {
         if (listRef.current) {
-          const markerElements = listRef.current.children;
-          const selectedElement = markerElements[
-            state.selectedMarkerIndex
-          ] as HTMLElement;
+          const selectedElement = listRef.current.querySelector(
+            `[data-marker-id="${state.selectedMarkerId}"]`
+          ) as HTMLElement;
 
           if (selectedElement) {
             selectedElement.scrollIntoView({
@@ -38,7 +37,7 @@ export function MarkerList({ className = "" }: MarkerListProps) {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [state.selectedMarkerIndex, actionMarkers.length]);
+  }, [state.selectedMarkerId]);
 
   if (!actionMarkers.length) {
     return (
@@ -59,7 +58,7 @@ export function MarkerList({ className = "" }: MarkerListProps) {
           key={marker.id}
           marker={marker}
           index={index}
-          isSelected={index === state.selectedMarkerIndex}
+          isSelected={marker.id === state.selectedMarkerId}
         />
       ))}
     </div>

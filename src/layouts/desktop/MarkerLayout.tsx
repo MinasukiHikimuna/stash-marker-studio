@@ -45,20 +45,15 @@ export function MarkerLayout() {
           markers={state.markers || []}
           actionMarkers={actionMarkers}
           selectedMarker={
-            actionMarkers &&
-            actionMarkers.length > 0 &&
-            state.selectedMarkerIndex >= 0 &&
-            state.selectedMarkerIndex < actionMarkers.length
-              ? actionMarkers[state.selectedMarkerIndex]
+            actionMarkers && actionMarkers.length > 0 && state.selectedMarkerId
+              ? actionMarkers.find((m) => m.id === state.selectedMarkerId) ||
+                null
               : null
           }
           videoDuration={state.videoDuration}
           currentTime={state.currentVideoTime}
           onMarkerClick={(marker: SceneMarker) => {
-            const index = actionMarkers.findIndex((m) => m.id === marker.id);
-            if (index >= 0) {
-              dispatch({ type: "SET_SELECTED_MARKER_INDEX", payload: index });
-            }
+            dispatch({ type: "SET_SELECTED_MARKER_ID", payload: marker.id });
           }}
           videoRef={
             {
@@ -66,6 +61,7 @@ export function MarkerLayout() {
             } as React.RefObject<HTMLVideoElement>
           }
           selectedMarkerIndex={state.selectedMarkerIndex}
+          selectedMarkerId={state.selectedMarkerId}
           isCreatingMarker={state.isCreatingMarker}
           newMarkerStartTime={state.newMarkerStartTime}
           newMarkerEndTime={state.newMarkerEndTime}

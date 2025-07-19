@@ -16,9 +16,13 @@ export const useTimelineNavigation = (
         state.markers || [],
         state.filteredSwimlane
       );
-      if (!actionMarkers.length || state.selectedMarkerIndex < 0) return;
+      if (!actionMarkers.length || !state.selectedMarkerId) return;
 
-      const currentMarker = actionMarkers[state.selectedMarkerIndex];
+      const currentMarker = actionMarkers.find(
+        (m) => m.id === state.selectedMarkerId
+      );
+      if (!currentMarker) return;
+
       const currentTrack = markersWithTracks.find(
         (m) => m.id === currentMarker.id
       )?.track;
@@ -45,23 +49,17 @@ export const useTimelineNavigation = (
 
       // Check if the next index is valid
       if (nextIndex >= 0 && nextIndex < swimlaneMarkers.length) {
-        // Find the marker in the main markers array
+        // Get the next marker
         const nextMarker = swimlaneMarkers[nextIndex];
-        const mainIndex = actionMarkers.findIndex(
-          (m) => m.id === nextMarker.id
-        );
-
-        if (mainIndex >= 0) {
-          dispatch({
-            type: "SET_SELECTED_MARKER_INDEX",
-            payload: mainIndex,
-          });
-        }
+        dispatch({
+          type: "SET_SELECTED_MARKER_ID",
+          payload: nextMarker.id,
+        });
       }
     },
     [
       state.markers,
-      state.selectedMarkerIndex,
+      state.selectedMarkerId,
       state.filteredSwimlane,
       markersWithTracks,
       dispatch,
@@ -74,9 +72,13 @@ export const useTimelineNavigation = (
         state.markers || [],
         state.filteredSwimlane
       );
-      if (!actionMarkers.length || state.selectedMarkerIndex < 0) return;
+      if (!actionMarkers.length || !state.selectedMarkerId) return;
 
-      const currentMarker = actionMarkers[state.selectedMarkerIndex];
+      const currentMarker = actionMarkers.find(
+        (m) => m.id === state.selectedMarkerId
+      );
+      if (!currentMarker) return;
+
       const currentTrack = markersWithTracks.find(
         (m) => m.id === currentMarker.id
       )?.track;
@@ -125,22 +127,15 @@ export const useTimelineNavigation = (
           targetMarker = targetTrackMarkers[0];
         }
 
-        // Find the marker in the main markers array
-        const mainIndex = actionMarkers.findIndex(
-          (m) => m.id === targetMarker.id
-        );
-
-        if (mainIndex >= 0) {
-          dispatch({
-            type: "SET_SELECTED_MARKER_INDEX",
-            payload: mainIndex,
-          });
-        }
+        dispatch({
+          type: "SET_SELECTED_MARKER_ID",
+          payload: targetMarker.id,
+        });
       }
     },
     [
       state.markers,
-      state.selectedMarkerIndex,
+      state.selectedMarkerId,
       state.filteredSwimlane,
       markersWithTracks,
       dispatch,
@@ -153,20 +148,26 @@ export const useTimelineNavigation = (
         state.markers || [],
         state.filteredSwimlane
       );
-      if (!actionMarkers.length || state.selectedMarkerIndex < 0) return;
+      if (!actionMarkers.length || !state.selectedMarkerId) return;
 
-      const currentIndex = state.selectedMarkerIndex;
+      const currentMarker = actionMarkers.find(
+        (m) => m.id === state.selectedMarkerId
+      );
+      if (!currentMarker) return;
+
+      const currentIndex = actionMarkers.indexOf(currentMarker);
       const nextIndex =
         direction === "prev" ? currentIndex - 1 : currentIndex + 1;
 
       if (nextIndex >= 0 && nextIndex < actionMarkers.length) {
+        const nextMarker = actionMarkers[nextIndex];
         dispatch({
-          type: "SET_SELECTED_MARKER_INDEX",
-          payload: nextIndex,
+          type: "SET_SELECTED_MARKER_ID",
+          payload: nextMarker.id,
         });
       }
     },
-    [state.markers, state.selectedMarkerIndex, state.filteredSwimlane, dispatch]
+    [state.markers, state.selectedMarkerId, state.filteredSwimlane, dispatch]
   );
 
   return {

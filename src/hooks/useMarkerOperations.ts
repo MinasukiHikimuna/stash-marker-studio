@@ -1,18 +1,32 @@
 import { useCallback } from "react";
-
-import { stashappService } from "../services/StashappService";
-import { MarkerContextType } from "../core/marker/types";
-import { getActionMarkers, isMarkerRejected } from "../core/marker/markerLogic";
+import { MarkerContextType, MarkerWithTrack } from "../core/marker/types";
+import { stashappService, type SceneMarker } from "../services/StashappService";
+import {
+  getActionMarkers,
+  isUnprocessed,
+  isMarkerRejected,
+} from "../core/marker/markerLogic";
+import { isShotBoundaryMarker } from "../core/marker/markerLogic";
 
 export const useMarkerOperations = ({ state, dispatch }: MarkerContextType) => {
   const refreshMarkersOnly = useCallback(async () => {
     if (!state.scene?.id) return;
 
     try {
+      console.log("Refreshing markers...");
       const result = await stashappService.getSceneMarkers(state.scene.id);
+      const markers = result.findSceneMarkers.scene_markers || [];
+      console.log("Got refreshed markers:", {
+        count: markers.length,
+        firstFew: markers.slice(0, 3).map((m) => ({
+          id: m.id,
+          tagId: m.primary_tag.id,
+          tagName: m.primary_tag.name,
+        })),
+      });
       dispatch({
         type: "SET_MARKERS",
-        payload: result.findSceneMarkers.scene_markers || [],
+        payload: markers,
       });
     } catch (err) {
       console.error("Error refreshing markers:", err);
@@ -24,11 +38,12 @@ export const useMarkerOperations = ({ state, dispatch }: MarkerContextType) => {
   }, [state.scene?.id, dispatch]);
 
   const updateMarkerTimes = useCallback(
-    async (id: string, newStartTime: number, newEndTime: number | null) => {
+    async (markerId: string, startTime: number, endTime: number | null) => {
+      if (!state.scene?.id) return;
+
       try {
-        await stashappService.updateMarkerTimes(id, newStartTime, newEndTime);
+        await stashappService.updateMarkerTimes(markerId, startTime, endTime);
         await refreshMarkersOnly();
-        dispatch({ type: "SET_EDITING_MARKER", payload: false });
       } catch (err) {
         console.error("Error updating marker times:", err);
         dispatch({
@@ -37,7 +52,37 @@ export const useMarkerOperations = ({ state, dispatch }: MarkerContextType) => {
         });
       }
     },
-    [refreshMarkersOnly, dispatch]
+    [state.scene?.id, refreshMarkersOnly, dispatch]
+  );
+
+  const updateMarkerTag = useCallback(
+    async (markerId: string, tagId: string) => {
+      if (!state.scene?.id) return;
+
+      try {
+        console.log("Calling updateMarkerTagAndTitle:", {
+          markerId,
+          tagId,
+        });
+        const updatedMarker = await stashappService.updateMarkerTagAndTitle(
+          markerId,
+          tagId
+        );
+        console.log("Got updated marker:", {
+          id: updatedMarker.id,
+          tagId: updatedMarker.primary_tag.id,
+          tagName: updatedMarker.primary_tag.name,
+        });
+        await refreshMarkersOnly();
+      } catch (err) {
+        console.error("Error updating marker tag:", err);
+        dispatch({
+          type: "SET_ERROR",
+          payload: "Failed to update marker tag",
+        });
+      }
+    },
+    [state.scene?.id, refreshMarkersOnly, dispatch]
   );
 
   const deleteRejectedMarkers = useCallback(async () => {
@@ -54,7 +99,7 @@ export const useMarkerOperations = ({ state, dispatch }: MarkerContextType) => {
       const markerIds = rejectedMarkers.map((marker) => marker.id);
       await stashappService.deleteMarkers(markerIds);
       await refreshMarkersOnly();
-      dispatch({ type: "SET_SELECTED_MARKER_INDEX", payload: -1 });
+      dispatch({ type: "SET_SELECTED_MARKER_ID", payload: null });
     } catch (err) {
       console.error("Error deleting rejected markers:", err);
       dispatch({
@@ -89,75 +134,6 @@ export const useMarkerOperations = ({ state, dispatch }: MarkerContextType) => {
     [state.scene?.id, refreshMarkersOnly, dispatch]
   );
 
-  const splitMarker = useCallback(async () => {
-    const actionMarkers = getActionMarkers(
-      state.markers || [],
-      state.filteredSwimlane
-    );
-    if (!state.videoElement || state.selectedMarkerIndex < 0) return;
-
-    try {
-      const currentMarker = actionMarkers[state.selectedMarkerIndex];
-      if (!currentMarker || !currentMarker.end_seconds) return;
-
-      const currentTime = state.videoElement.currentTime;
-      if (
-        currentTime <= currentMarker.seconds ||
-        currentTime >= currentMarker.end_seconds
-      ) {
-        return;
-      }
-
-      // Create two new markers from the split
-      await stashappService.createSceneMarker(
-        currentMarker.scene.id,
-        currentMarker.primary_tag.id,
-        currentMarker.seconds,
-        currentTime
-      );
-      await stashappService.createSceneMarker(
-        currentMarker.scene.id,
-        currentMarker.primary_tag.id,
-        currentTime,
-        currentMarker.end_seconds
-      );
-
-      // Delete the original marker
-      await stashappService.deleteMarkers([currentMarker.id]);
-      await refreshMarkersOnly();
-
-      // Find and select the first part of the split marker
-      const updatedMarkers = getActionMarkers(
-        state.markers || [],
-        state.filteredSwimlane
-      );
-      const firstPartIndex = updatedMarkers.findIndex(
-        (m) => m.seconds === currentMarker.seconds
-      );
-
-      if (firstPartIndex >= 0) {
-        dispatch({
-          type: "SET_SELECTED_MARKER_INDEX",
-          payload: firstPartIndex,
-        });
-        if (state.videoElement) {
-          state.videoElement.pause();
-          state.videoElement.currentTime = currentTime;
-        }
-      }
-    } catch (err) {
-      console.error("Error splitting marker:", err);
-      dispatch({ type: "SET_ERROR", payload: "Failed to split marker" });
-    }
-  }, [
-    state.markers,
-    state.selectedMarkerIndex,
-    state.videoElement,
-    state.filteredSwimlane,
-    dispatch,
-    refreshMarkersOnly,
-  ]);
-
   const confirmMarker = useCallback(
     async (markerId: string) => {
       if (!state.scene?.id) return;
@@ -165,6 +141,44 @@ export const useMarkerOperations = ({ state, dispatch }: MarkerContextType) => {
       try {
         await stashappService.confirmMarker(markerId, state.scene.id);
         await refreshMarkersOnly();
+
+        // Find the current marker's index
+        const actionMarkers = getActionMarkers(
+          state.markers || [],
+          state.filteredSwimlane
+        );
+        const currentMarkerIndex = actionMarkers.findIndex(
+          (m: SceneMarker) => m.id === markerId
+        );
+
+        if (currentMarkerIndex >= 0) {
+          // Find the next unprocessed marker after current position
+          let nextUnprocessedMarker = null;
+          for (let i = currentMarkerIndex + 1; i < actionMarkers.length; i++) {
+            if (isUnprocessed(actionMarkers[i])) {
+              nextUnprocessedMarker = actionMarkers[i];
+              break;
+            }
+          }
+
+          // If not found after current position, look from beginning
+          if (!nextUnprocessedMarker) {
+            for (let i = 0; i < currentMarkerIndex; i++) {
+              if (isUnprocessed(actionMarkers[i])) {
+                nextUnprocessedMarker = actionMarkers[i];
+                break;
+              }
+            }
+          }
+
+          // If found an unprocessed marker, select it
+          if (nextUnprocessedMarker) {
+            dispatch({
+              type: "SET_SELECTED_MARKER_ID",
+              payload: nextUnprocessedMarker.id,
+            });
+          }
+        }
       } catch (err) {
         console.error("Error confirming marker:", err);
         dispatch({
@@ -173,7 +187,13 @@ export const useMarkerOperations = ({ state, dispatch }: MarkerContextType) => {
         });
       }
     },
-    [state.scene?.id, refreshMarkersOnly, dispatch]
+    [
+      state.scene?.id,
+      state.markers,
+      state.filteredSwimlane,
+      dispatch,
+      refreshMarkersOnly,
+    ]
   );
 
   const rejectMarker = useCallback(
@@ -181,8 +201,85 @@ export const useMarkerOperations = ({ state, dispatch }: MarkerContextType) => {
       if (!state.scene?.id) return;
 
       try {
+        console.log("Rejecting marker:", markerId);
         await stashappService.rejectMarker(markerId, state.scene.id);
         await refreshMarkersOnly();
+
+        // Find the current marker's index
+        const actionMarkers = getActionMarkers(
+          state.markers || [],
+          state.filteredSwimlane
+        );
+        console.log("Action markers after refresh:", {
+          count: actionMarkers.length,
+          firstFew: actionMarkers.slice(0, 3).map((m) => ({
+            id: m.id,
+            tagId: m.primary_tag.id,
+            tagName: m.primary_tag.name,
+          })),
+        });
+        const currentMarkerIndex = actionMarkers.findIndex(
+          (m: SceneMarker) => m.id === markerId
+        );
+        console.log("Found rejected marker at index:", currentMarkerIndex);
+
+        if (currentMarkerIndex >= 0) {
+          // Find the next unprocessed marker after current position
+          let nextUnprocessedMarker = null;
+          console.log(
+            "Looking for next unprocessed marker after index:",
+            currentMarkerIndex
+          );
+          for (let i = currentMarkerIndex + 1; i < actionMarkers.length; i++) {
+            if (
+              isUnprocessed(actionMarkers[i]) &&
+              actionMarkers[i].primary_tag.id !==
+                stashappService.MARKER_SHOT_BOUNDARY
+            ) {
+              nextUnprocessedMarker = actionMarkers[i];
+              console.log("Found next unprocessed marker:", {
+                id: nextUnprocessedMarker.id,
+                index: i,
+                tagName: nextUnprocessedMarker.primary_tag.name,
+              });
+              break;
+            }
+          }
+
+          // If not found after current position, look from beginning
+          if (!nextUnprocessedMarker) {
+            console.log(
+              "No unprocessed marker found after current position, searching from start"
+            );
+            for (let i = 0; i < currentMarkerIndex; i++) {
+              if (
+                isUnprocessed(actionMarkers[i]) &&
+                actionMarkers[i].primary_tag.id !==
+                  stashappService.MARKER_SHOT_BOUNDARY
+              ) {
+                nextUnprocessedMarker = actionMarkers[i];
+                console.log("Found next unprocessed marker from start:", {
+                  id: nextUnprocessedMarker.id,
+                  index: i,
+                  tagName: nextUnprocessedMarker.primary_tag.name,
+                });
+                break;
+              }
+            }
+          }
+
+          // If found an unprocessed marker, select it
+          if (nextUnprocessedMarker) {
+            console.log(
+              "Selecting next unprocessed marker:",
+              nextUnprocessedMarker.id
+            );
+            dispatch({
+              type: "SET_SELECTED_MARKER_ID",
+              payload: nextUnprocessedMarker.id,
+            });
+          }
+        }
       } catch (err) {
         console.error("Error rejecting marker:", err);
         dispatch({
@@ -191,15 +288,21 @@ export const useMarkerOperations = ({ state, dispatch }: MarkerContextType) => {
         });
       }
     },
-    [state.scene?.id, refreshMarkersOnly, dispatch]
+    [
+      state.scene?.id,
+      state.markers,
+      state.filteredSwimlane,
+      dispatch,
+      refreshMarkersOnly,
+    ]
   );
 
   return {
     refreshMarkersOnly,
     updateMarkerTimes,
+    updateMarkerTag,
     deleteRejectedMarkers,
     createMarker,
-    splitMarker,
     confirmMarker,
     rejectMarker,
   };

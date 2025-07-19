@@ -1,25 +1,27 @@
-import { SceneMarker } from "../../../services/StashappService";
 import { useMarker } from "../../../contexts/MarkerContext";
-import {
-  getMarkerStatus,
-  formatSeconds,
-  isMarkerConfirmed,
-  isMarkerRejected,
-  isMarkerManual,
-} from "../../../core/marker/markerLogic";
+import { type SceneMarker } from "../../../services/StashappService";
+import { getMarkerStatus } from "../../../core/marker/markerLogic";
 import { MarkerStatus } from "../../../core/marker/types";
+import { formatSeconds } from "../../../core/marker/markerLogic";
 
-interface MarkerItemProps {
+type MarkerItemProps = {
   marker: SceneMarker;
   index: number;
   isSelected: boolean;
-}
+};
 
 export function MarkerItem({ marker, index, isSelected }: MarkerItemProps) {
   const { state, dispatch } = useMarker();
 
   const handleClick = () => {
-    dispatch({ type: "SET_SELECTED_MARKER_INDEX", payload: index });
+    console.log("Selecting marker:", {
+      markerId: marker.id,
+      markerTag: marker.primary_tag.name,
+      markerStart: marker.seconds,
+      markerEnd: marker.end_seconds,
+      reason: "marker list click",
+    });
+    dispatch({ type: "SET_SELECTED_MARKER_ID", payload: marker.id });
     if (state.videoElement) {
       state.videoElement.currentTime = marker.seconds;
     }
@@ -53,47 +55,27 @@ export function MarkerItem({ marker, index, isSelected }: MarkerItemProps) {
 
   return (
     <div
-      className={`p-3 mb-2 rounded-sm cursor-pointer transition-colors ${getMarkerStatusClass()} ${
-        isSelected ? "ring-2 ring-blue-500" : ""
+      data-marker-id={marker.id}
+      className={`p-2 border-l-4 ${
+        isSelected
+          ? "bg-gray-700 text-white border-blue-500"
+          : "hover:bg-gray-600 hover:text-white border-transparent"
       }`}
       onClick={handleClick}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <span className="font-mono text-sm">
-            {formatSeconds(marker.seconds, true)}
-          </span>
-          {marker.end_seconds && (
-            <>
-              <span>-</span>
-              <span className="font-mono text-sm">
-                {formatSeconds(marker.end_seconds, true)}
-              </span>
-            </>
-          )}
-        </div>
-        <div className="flex items-center space-x-2">
-          <span
-            className={`text-sm font-medium ${
-              marker.primary_tag.name.endsWith("_AI")
-                ? "text-purple-300"
-                : "text-white"
-            }`}
-          >
-            {marker.primary_tag.name}
-          </span>
-          <span
-            className={`ml-2 ${
-              isMarkerRejected(marker)
-                ? "text-red-300"
-                : isMarkerConfirmed(marker) || isMarkerManual(marker)
-                ? "text-green-300"
-                : "text-gray-300"
-            }`}
-          >
-            {getMarkerStatusIcon()}
-          </span>
-        </div>
+      <div className="flex items-center">
+        <span className={`mr-2 ${getMarkerStatusClass()}`}>
+          {getMarkerStatusIcon()}
+        </span>
+        <span className="font-bold">{marker.primary_tag.name}</span>
+        <span className="text-sm text-gray-400 ml-2">
+          {marker.end_seconds
+            ? `${formatSeconds(marker.seconds, true)} - ${formatSeconds(
+                marker.end_seconds,
+                true
+              )}`
+            : formatSeconds(marker.seconds, true)}
+        </span>
       </div>
     </div>
   );

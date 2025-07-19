@@ -139,6 +139,7 @@ export const getActionMarkers = (
     return [];
   }
 
+  console.log("getActionMarkers called with", markers.length, "markers");
   let filteredMarkers = markers.filter((marker) => {
     // Always include temp markers regardless of their primary tag
     if (marker.id.startsWith("temp-")) {
@@ -147,9 +148,15 @@ export const getActionMarkers = (
     // Filter out shot boundary markers for non-temp markers
     return !isShotBoundaryMarker(marker);
   });
+  console.log(
+    "After filtering shot boundaries:",
+    filteredMarkers.length,
+    "markers"
+  );
 
   // Apply swimlane filter if active
   if (filteredSwimlane) {
+    console.log("Applying swimlane filter:", filteredSwimlane);
     filteredMarkers = filteredMarkers.filter((marker) => {
       // Handle AI tag grouping - if the marker's tag name ends with "_AI",
       // group it with the base tag name for filtering
@@ -158,7 +165,17 @@ export const getActionMarkers = (
         : marker.primary_tag.name;
       return tagGroupName === filteredSwimlane;
     });
+    console.log("After swimlane filter:", filteredMarkers.length, "markers");
   }
+
+  console.log("getActionMarkers returning:", {
+    count: filteredMarkers.length,
+    firstFew: filteredMarkers.slice(0, 3).map((m) => ({
+      id: m.id,
+      tagId: m.primary_tag.id,
+      tagName: m.primary_tag.name,
+    })),
+  });
 
   return filteredMarkers;
 };

@@ -30,6 +30,7 @@ import {
   calculateMarkerSummary,
 } from "../../core/marker/markerLogic";
 import { MarkerStatus } from "../../core/marker/types";
+import { useMarkerOperations } from "../../hooks/useMarkerOperations";
 
 // Add this type definition at the top of the file
 type MarkerSummary = {
@@ -316,11 +317,11 @@ function MarkerPageContent() {
         payload: markers,
       });
 
-      // Set selected marker index only if we have markers
+      // Set selected marker only if we have markers
       if (markers.length > 0) {
-        dispatch({ type: "SET_SELECTED_MARKER_INDEX", payload: 0 });
+        dispatch({ type: "SET_SELECTED_MARKER_ID", payload: markers[0].id });
       } else {
-        dispatch({ type: "SET_SELECTED_MARKER_INDEX", payload: -1 });
+        dispatch({ type: "SET_SELECTED_MARKER_ID", payload: null });
       }
     } catch (err: unknown) {
       console.error("Error fetching data:", err);
@@ -356,6 +357,11 @@ function MarkerPageContent() {
       return [];
     }
 
+    console.log(
+      "Calculating action markers from",
+      state.markers.length,
+      "markers"
+    );
     let filteredMarkers = state.markers.filter((marker) => {
       // Always include temp markers regardless of their primary tag
       if (marker.id.startsWith("temp-")) {
@@ -364,9 +370,15 @@ function MarkerPageContent() {
       // Filter out shot boundary markers for non-temp markers
       return !isShotBoundaryMarker(marker);
     });
+    console.log(
+      "After filtering shot boundaries:",
+      filteredMarkers.length,
+      "markers"
+    );
 
     // Apply swimlane filter if active
     if (state.filteredSwimlane) {
+      console.log("Applying swimlane filter:", state.filteredSwimlane);
       filteredMarkers = filteredMarkers.filter((marker) => {
         // Handle AI tag grouping - if the marker's tag name ends with "_AI",
         // group it with the base tag name for filtering
@@ -375,7 +387,17 @@ function MarkerPageContent() {
           : marker.primary_tag.name;
         return tagGroupName === state.filteredSwimlane;
       });
+      console.log("After swimlane filter:", filteredMarkers.length, "markers");
     }
+
+    console.log("Final action markers:", {
+      count: filteredMarkers.length,
+      firstFew: filteredMarkers.slice(0, 3).map((m) => ({
+        id: m.id,
+        tagId: m.primary_tag.id,
+        tagName: m.primary_tag.name,
+      })),
+    });
 
     return filteredMarkers;
   }, [state.markers, state.filteredSwimlane]);
@@ -385,42 +407,42 @@ function MarkerPageContent() {
     return actionMarkers;
   }, [actionMarkers]);
 
-  // Effect to update selectedMarkerIndex when filtering changes to ensure it's valid
-  useEffect(() => {
-    if (
-      actionMarkers.length > 0 &&
-      state.selectedMarkerIndex >= actionMarkers.length
-    ) {
-      // If the current index is out of bounds, reset to the first marker
-      dispatch({ type: "SET_SELECTED_MARKER_INDEX", payload: 0 });
-    } else if (actionMarkers.length === 0 && state.selectedMarkerIndex !== 0) {
-      // If no markers after filtering, reset index to 0
-      dispatch({ type: "SET_SELECTED_MARKER_INDEX", payload: 0 });
-    }
-  }, [actionMarkers.length, state.selectedMarkerIndex, dispatch]);
+  const logMarkerSelection = useCallback(
+    (index: number, reason: string) => {
+      const marker = actionMarkers[index];
+      console.log("Selecting marker:", {
+        index,
+        markerId: marker?.id,
+        markerStart: marker?.seconds,
+        markerEnd: marker?.end_seconds,
+        reason,
+      });
+    },
+    [actionMarkers]
+  );
 
-  // New function to refresh markers without resetting selected marker index
-  const refreshMarkersOnly = useCallback(async () => {
-    try {
-      dispatch({ type: "SET_LOADING", payload: true });
-      const response = await stashappService.getSceneMarkers(
-        state.scene?.id || ""
+  // Effect to update selected marker when filtering changes to ensure it's valid
+  useEffect(() => {
+    if (actionMarkers.length > 0) {
+      // Check if currently selected marker still exists after filtering
+      const selectedMarker = actionMarkers.find(
+        (m) => m.id === state.selectedMarkerId
       );
-      dispatch({
-        type: "SET_MARKERS",
-        payload: response.findSceneMarkers.scene_markers,
-      });
-    } catch (err) {
-      console.error("Error refreshing markers:", err);
-      dispatch({
-        type: "SET_ERROR",
-        payload:
-          err instanceof Error ? err.message : "An unknown error occurred",
-      });
-    } finally {
-      dispatch({ type: "SET_LOADING", payload: false });
+      if (!selectedMarker) {
+        // If selected marker is not in filtered list, select the first marker
+        dispatch({
+          type: "SET_SELECTED_MARKER_ID",
+          payload: actionMarkers[0].id,
+        });
+      }
+    } else {
+      // If no markers after filtering, clear selection
+      dispatch({ type: "SET_SELECTED_MARKER_ID", payload: null });
     }
-  }, [dispatch, state.scene?.id]);
+  }, [actionMarkers, state.selectedMarkerId, dispatch]);
+
+  const markerOps = useMarkerOperations({ state, dispatch });
+  const { refreshMarkersOnly } = markerOps;
 
   const handleEditMarker = useCallback((marker: SceneMarker) => {
     setEditingMarkerId(marker.id);
@@ -431,21 +453,18 @@ function MarkerPageContent() {
     async (marker: SceneMarker, tagId?: string) => {
       const finalTagId = tagId || editingTagId;
       if (finalTagId !== marker.primary_tag.id) {
-        try {
-          await stashappService.updateMarkerTagAndTitle(marker.id, finalTagId);
-          await refreshMarkersOnly();
-        } catch (err) {
-          console.error("Error updating marker tag:", err);
-          dispatch({
-            type: "SET_ERROR",
-            payload: "Failed to update marker tag",
-          });
-        }
+        console.log("Updating marker tag:", {
+          markerId: marker.id,
+          markerTag: marker.primary_tag.name,
+          oldTagId: marker.primary_tag.id,
+          newTagId: finalTagId,
+        });
+        await markerOps.updateMarkerTag(marker.id, finalTagId);
       }
       setEditingMarkerId(null);
       setEditingTagId("");
     },
-    [editingTagId, refreshMarkersOnly, dispatch]
+    [editingTagId, markerOps]
   );
 
   const handleCancelEdit = useCallback(() => {
@@ -474,17 +493,30 @@ function MarkerPageContent() {
       state.selectedMarkerIndex < 0 ||
       !state.videoElement
     ) {
+      console.log("Cannot split marker:", {
+        hasActionMarkers: !!actionMarkers,
+        selectedMarkerIndex: state.selectedMarkerIndex,
+        hasVideoElement: !!state.videoElement,
+      });
       return;
     }
 
     const currentMarker = actionMarkers[state.selectedMarkerIndex];
     const currentTime = state.videoElement.currentTime;
 
+    console.log("Attempting to split marker:", {
+      markerId: currentMarker.id,
+      markerStart: currentMarker.seconds,
+      markerEnd: currentMarker.end_seconds,
+      splitTime: currentTime,
+    });
+
     // Check if the current time is within the marker's range
     if (
       currentTime <= currentMarker.seconds ||
       (currentMarker.end_seconds && currentTime >= currentMarker.end_seconds)
     ) {
+      console.log("Split failed: Current time not within marker range");
       dispatch({
         type: "SET_ERROR",
         payload: "Current time must be within the marker's range to split it",
@@ -504,6 +536,12 @@ function MarkerPageContent() {
         originalTagIds
       );
 
+      console.log("Created first part:", {
+        markerId: firstPartMarker.id,
+        start: firstPartMarker.seconds,
+        end: firstPartMarker.end_seconds,
+      });
+
       const secondPartMarker = await stashappService.createSceneMarker(
         currentMarker.scene.id,
         currentMarker.primary_tag.id,
@@ -512,7 +550,15 @@ function MarkerPageContent() {
         originalTagIds
       );
 
+      console.log("Created second part:", {
+        markerId: secondPartMarker.id,
+        start: secondPartMarker.seconds,
+        end: secondPartMarker.end_seconds,
+      });
+
       await stashappService.deleteMarker(currentMarker.id);
+      console.log("Deleted original marker:", currentMarker.id);
+
       const updatedMarkers = state.markers
         .filter((m) => m.id !== currentMarker.id)
         .concat([firstPartMarker, secondPartMarker])
@@ -530,10 +576,15 @@ function MarkerPageContent() {
         (m) => m.id === firstPartMarker.id
       );
 
+      console.log("Selecting first part:", {
+        firstPartIndex,
+        totalActionMarkers: updatedActionMarkers.length,
+      });
+
       if (firstPartIndex >= 0) {
         dispatch({
-          type: "SET_SELECTED_MARKER_INDEX",
-          payload: firstPartIndex,
+          type: "SET_SELECTED_MARKER_ID",
+          payload: firstPartMarker.id,
         });
         if (state.videoElement) {
           state.videoElement.pause();
@@ -618,24 +669,6 @@ function MarkerPageContent() {
       });
     }
   }, [state.markers, state.videoElement, dispatch, showToast]);
-
-  // Remove auto-snapping - use standard marker time updates
-  const updateMarkerTimes = useCallback(
-    async (id: string, newStartTime: number, newEndTime: number | null) => {
-      try {
-        await stashappService.updateMarkerTimes(id, newStartTime, newEndTime);
-        await refreshMarkersOnly();
-        dispatch({ type: "SET_EDITING_MARKER", payload: false });
-      } catch (err) {
-        console.error("Error updating marker times:", err);
-        dispatch({
-          type: "SET_ERROR",
-          payload: "Failed to update marker times",
-        });
-      }
-    },
-    [refreshMarkersOnly, dispatch]
-  );
 
   const createOrDuplicateMarker = useCallback(
     (sourceMarker?: SceneMarker) => {
@@ -750,7 +783,7 @@ function MarkerPageContent() {
         type: "SET_MARKERS",
         payload: updatedMarkers,
       });
-      dispatch({ type: "SET_SELECTED_MARKER_INDEX", payload: tempIndex });
+      dispatch({ type: "SET_SELECTED_MARKER_ID", payload: tempMarker.id });
       dispatch({
         type: isDuplicate ? "SET_DUPLICATING_MARKER" : "SET_CREATING_MARKER",
         payload: true,
@@ -792,9 +825,11 @@ function MarkerPageContent() {
   // Copy marker times function
   const copyMarkerTimes = useCallback(() => {
     const actionMarkers = getActionMarkers();
-    if (!actionMarkers || state.selectedMarkerIndex < 0) return;
+    if (!actionMarkers || !state.selectedMarkerId) return;
 
-    const currentMarker = actionMarkers[state.selectedMarkerIndex];
+    const currentMarker = actionMarkers.find(
+      (m) => m.id === state.selectedMarkerId
+    );
     if (!currentMarker) return;
 
     const copiedTimes = {
@@ -832,7 +867,7 @@ function MarkerPageContent() {
     if (!currentMarker) return;
 
     try {
-      await updateMarkerTimes(
+      await markerOps.updateMarkerTimes(
         currentMarker.id,
         state.copiedMarkerTimes.start,
         state.copiedMarkerTimes.end ?? null
@@ -858,7 +893,7 @@ function MarkerPageContent() {
     state.copiedMarkerTimes,
     getActionMarkers,
     state.selectedMarkerIndex,
-    updateMarkerTimes,
+
     showToast,
   ]);
 
@@ -1185,62 +1220,26 @@ function MarkerPageContent() {
     dispatch,
   ]);
 
-  // Update handleMarkerClick to work with action markers only
+  // Update handleMarkerClick to use marker IDs
   const handleMarkerClick = useCallback(
     (marker: SceneMarker) => {
-      const actionMarkers = getActionMarkers();
-      const markerIndex = actionMarkers.findIndex((m) => m.id === marker.id);
-      if (markerIndex !== -1) {
-        dispatch({ type: "SET_SELECTED_MARKER_INDEX", payload: markerIndex });
+      console.log("Marker clicked:", {
+        markerId: marker.id,
+        markerTag: marker.primary_tag.name,
+        markerStart: marker.seconds,
+        markerEnd: marker.end_seconds,
+      });
+
+      // Don't select shot boundary markers
+      if (marker.primary_tag.id === stashappService.MARKER_SHOT_BOUNDARY) {
+        console.log("Prevented selection of shot boundary marker");
+        return;
       }
+
+      dispatch({ type: "SET_SELECTED_MARKER_ID", payload: marker.id });
     },
-    [getActionMarkers, dispatch]
+    [dispatch]
   );
-
-  // Update confirmCurrentMarker and rejectCurrentMarker to work with action markers
-  const confirmCurrentMarker = useCallback(async () => {
-    const actionMarkers = getActionMarkers();
-    if (actionMarkers && state.selectedMarkerIndex >= 0) {
-      const marker = actionMarkers[state.selectedMarkerIndex];
-      const sceneId = marker.scene.id;
-      try {
-        await stashappService.confirmMarker(marker.id, sceneId);
-        // Refresh the data after confirming
-        await refreshMarkersOnly();
-        // Let user navigate manually - no automatic movement
-      } catch (err) {
-        console.error("Error confirming marker:", err);
-        dispatch({ type: "SET_ERROR", payload: "Failed to confirm marker" });
-      }
-    }
-  }, [
-    getActionMarkers,
-    state.selectedMarkerIndex,
-    refreshMarkersOnly,
-    dispatch,
-  ]);
-
-  const rejectCurrentMarker = useCallback(async () => {
-    const actionMarkers = getActionMarkers();
-    if (actionMarkers && state.selectedMarkerIndex >= 0) {
-      const marker = actionMarkers[state.selectedMarkerIndex];
-      const sceneId = marker.scene.id;
-      try {
-        await stashappService.rejectMarker(marker.id, sceneId);
-        // Refresh the data after rejecting
-        await refreshMarkersOnly();
-        // Let user navigate manually - no automatic movement
-      } catch (err) {
-        console.error("Error rejecting marker:", err);
-        dispatch({ type: "SET_ERROR", payload: "Failed to reject marker" });
-      }
-    }
-  }, [
-    getActionMarkers,
-    state.selectedMarkerIndex,
-    refreshMarkersOnly,
-    dispatch,
-  ]);
 
   // Navigate to next/previous shot
   const jumpToNextShot = useCallback(() => {
@@ -1272,64 +1271,76 @@ function MarkerPageContent() {
   }, [state.videoElement, getShotBoundaries]);
 
   // Helper function to find next unprocessed marker
-  const findNextUnprocessedMarker = useCallback(() => {
+  const findNextUnprocessedMarker = useCallback((): string | null => {
     const actionMarkers = getActionMarkers();
-    const currentIndex = state.selectedMarkerIndex;
+    const currentMarker = actionMarkers.find(
+      (m) => m.id === state.selectedMarkerId
+    );
+    const currentIndex = currentMarker
+      ? actionMarkers.indexOf(currentMarker)
+      : -1;
 
     // Look for next unprocessed marker starting from current position
     for (let i = currentIndex + 1; i < actionMarkers.length; i++) {
       if (isUnprocessed(actionMarkers[i])) {
-        return i;
+        return actionMarkers[i].id;
       }
     }
 
     // If no unprocessed found after current, search from beginning
     for (let i = 0; i < currentIndex; i++) {
       if (isUnprocessed(actionMarkers[i])) {
-        return i;
+        return actionMarkers[i].id;
       }
     }
 
-    return -1; // No unprocessed markers found
-  }, [getActionMarkers, state.selectedMarkerIndex]);
+    return null; // No unprocessed markers found
+  }, [getActionMarkers, state.selectedMarkerId]);
 
   // Helper function to find previous unprocessed marker globally
-  const findPreviousUnprocessedMarker = useCallback(() => {
+  const findPreviousUnprocessedMarker = useCallback((): string | null => {
     const actionMarkers = getActionMarkers();
-    const currentIndex = state.selectedMarkerIndex;
+    const currentMarker = actionMarkers.find(
+      (m) => m.id === state.selectedMarkerId
+    );
+    const currentIndex = currentMarker
+      ? actionMarkers.indexOf(currentMarker)
+      : -1;
 
     // Look for previous unprocessed marker starting from current position
     for (let i = currentIndex - 1; i >= 0; i--) {
       if (isUnprocessed(actionMarkers[i])) {
-        return i;
+        return actionMarkers[i].id;
       }
     }
 
     // If no unprocessed found before current, search from end
     for (let i = actionMarkers.length - 1; i > currentIndex; i--) {
       if (isUnprocessed(actionMarkers[i])) {
-        return i;
+        return actionMarkers[i].id;
       }
     }
 
-    return -1; // No unprocessed markers found
-  }, [getActionMarkers, state.selectedMarkerIndex]);
+    return null; // No unprocessed markers found
+  }, [getActionMarkers, state.selectedMarkerId]);
 
   // Helper function to find next unprocessed marker in current swimlane
-  const findNextUnprocessedMarkerInSwimlane = useCallback(() => {
+  const findNextUnprocessedMarkerInSwimlane = useCallback((): string | null => {
     if (markersWithTracks.length === 0) {
-      // Fallback to global search if no swimlane data
-      return findNextUnprocessedMarker();
+      // If no swimlane data, stay on current marker
+      return state.selectedMarkerId;
     }
 
-    const currentMarker = actionMarkers[state.selectedMarkerIndex];
-    if (!currentMarker) return -1;
+    const currentMarker = actionMarkers.find(
+      (m) => m.id === state.selectedMarkerId
+    );
+    if (!currentMarker) return null;
 
     // Find current marker in markersWithTracks
     const currentMarkerWithTrack = markersWithTracks.find(
       (m) => m.id === currentMarker.id
     );
-    if (!currentMarkerWithTrack) return -1;
+    if (!currentMarkerWithTrack) return state.selectedMarkerId;
 
     // Get all markers in the same swimlane, sorted by time
     const swimlaneMarkers = markersWithTracks
@@ -1339,7 +1350,7 @@ function MarkerPageContent() {
     const currentIndex = swimlaneMarkers.findIndex(
       (m) => m.id === currentMarker.id
     );
-    if (currentIndex === -1) return -1;
+    if (currentIndex === -1) return state.selectedMarkerId;
 
     // Look for next unprocessed marker in swimlane starting from current position
     for (let i = currentIndex + 1; i < swimlaneMarkers.length; i++) {
@@ -1347,47 +1358,33 @@ function MarkerPageContent() {
       // Find this marker in actionMarkers to check its status
       const actionMarker = actionMarkers.find((m) => m.id === marker.id);
       if (actionMarker && isUnprocessed(actionMarker)) {
-        // Find this marker's index in actionMarkers
-        const actionIndex = actionMarkers.findIndex((m) => m.id === marker.id);
-        return actionIndex;
+        return actionMarker.id;
       }
     }
 
-    // If no unprocessed found after current, search from beginning of swimlane
-    for (let i = 0; i < currentIndex; i++) {
-      const marker = swimlaneMarkers[i];
-      // Find this marker in actionMarkers to check its status
-      const actionMarker = actionMarkers.find((m) => m.id === marker.id);
-      if (actionMarker && isUnprocessed(actionMarker)) {
-        // Find this marker's index in actionMarkers
-        const actionIndex = actionMarkers.findIndex((m) => m.id === marker.id);
-        return actionIndex;
-      }
-    }
-
-    return -1; // No unprocessed markers found in swimlane
-  }, [
-    markersWithTracks,
-    actionMarkers,
-    state.selectedMarkerIndex,
-    findNextUnprocessedMarker,
-  ]);
+    // If no later unprocessed markers found in swimlane, stay on current marker
+    return state.selectedMarkerId;
+  }, [markersWithTracks, actionMarkers, state.selectedMarkerId]);
 
   // Helper function to find previous unprocessed marker in current swimlane
-  const findPreviousUnprocessedMarkerInSwimlane = useCallback(() => {
+  const findPreviousUnprocessedMarkerInSwimlane = useCallback(():
+    | string
+    | null => {
     if (markersWithTracks.length === 0) {
-      // Fallback to global search if no swimlane data
-      return findPreviousUnprocessedMarker();
+      // If no swimlane data, stay on current marker
+      return state.selectedMarkerId;
     }
 
-    const currentMarker = actionMarkers[state.selectedMarkerIndex];
-    if (!currentMarker) return -1;
+    const currentMarker = actionMarkers.find(
+      (m) => m.id === state.selectedMarkerId
+    );
+    if (!currentMarker) return null;
 
     // Find current marker in markersWithTracks
     const currentMarkerWithTrack = markersWithTracks.find(
       (m) => m.id === currentMarker.id
     );
-    if (!currentMarkerWithTrack) return -1;
+    if (!currentMarkerWithTrack) return state.selectedMarkerId;
 
     // Get all markers in the same swimlane, sorted by time
     const swimlaneMarkers = markersWithTracks
@@ -1397,7 +1394,7 @@ function MarkerPageContent() {
     const currentIndex = swimlaneMarkers.findIndex(
       (m) => m.id === currentMarker.id
     );
-    if (currentIndex === -1) return -1;
+    if (currentIndex === -1) return state.selectedMarkerId;
 
     // Look for previous unprocessed marker in swimlane starting from current position
     for (let i = currentIndex - 1; i >= 0; i--) {
@@ -1405,9 +1402,7 @@ function MarkerPageContent() {
       // Find this marker in actionMarkers to check its status
       const actionMarker = actionMarkers.find((m) => m.id === marker.id);
       if (actionMarker && isUnprocessed(actionMarker)) {
-        // Find this marker's index in actionMarkers
-        const actionIndex = actionMarkers.findIndex((m) => m.id === marker.id);
-        return actionIndex;
+        return actionMarker.id;
       }
     }
 
@@ -1417,27 +1412,32 @@ function MarkerPageContent() {
       // Find this marker in actionMarkers to check its status
       const actionMarker = actionMarkers.find((m) => m.id === marker.id);
       if (actionMarker && isUnprocessed(actionMarker)) {
-        // Find this marker's index in actionMarkers
-        const actionIndex = actionMarkers.findIndex((m) => m.id === marker.id);
-        return actionIndex;
+        return actionMarker.id;
       }
     }
 
-    return -1; // No unprocessed markers found in swimlane
-  }, [
-    markersWithTracks,
-    actionMarkers,
-    state.selectedMarkerIndex,
-    findPreviousUnprocessedMarker,
-  ]);
+    return null; // No unprocessed markers found in swimlane
+  }, [markersWithTracks, actionMarkers, state.selectedMarkerId]);
 
   // Helper function for chronological navigation
   const navigateChronologically = useCallback(
     (direction: "next" | "prev") => {
       if (!actionMarkers.length) return;
 
-      const currentMarker = actionMarkers[state.selectedMarkerIndex];
-      if (!currentMarker) return;
+      // Find current marker
+      const currentMarker = actionMarkers.find(
+        (m) => m.id === state.selectedMarkerId
+      );
+      if (!currentMarker) {
+        // If no marker is selected, select the first one
+        if (actionMarkers.length > 0) {
+          dispatch({
+            type: "SET_SELECTED_MARKER_ID",
+            payload: actionMarkers[0].id,
+          });
+        }
+        return;
+      }
 
       // Sort all markers by start time
       const sortedMarkers = [...actionMarkers].sort(
@@ -1457,15 +1457,11 @@ function MarkerPageContent() {
         newIndex = currentIndex > 0 ? currentIndex - 1 : currentIndex;
       }
 
-      // Find the new marker in the original actionMarkers array
+      // Select the new marker by ID
       const newMarker = sortedMarkers[newIndex];
-      const originalIndex = actionMarkers.findIndex(
-        (m) => m.id === newMarker.id
-      );
-
-      dispatch({ type: "SET_SELECTED_MARKER_INDEX", payload: originalIndex });
+      dispatch({ type: "SET_SELECTED_MARKER_ID", payload: newMarker.id });
     },
-    [actionMarkers, state.selectedMarkerIndex, dispatch]
+    [actionMarkers, state.selectedMarkerId, dispatch]
   );
 
   // Helper function for swimlane navigation
@@ -1473,46 +1469,24 @@ function MarkerPageContent() {
     (direction: "up" | "down", useTemporalLocality: boolean = true) => {
       if (markersWithTracks.length === 0 || tagGroups.length === 0) {
         // Fallback to chronological navigation if no swimlane data
-        if (!actionMarkers.length) return;
+        navigateChronologically(direction === "up" ? "prev" : "next");
+        return;
+      }
 
-        const currentMarker = actionMarkers[state.selectedMarkerIndex];
-        if (!currentMarker) return;
-
-        // Sort all markers by start time
-        const sortedMarkers = [...actionMarkers].sort(
-          (a, b) => a.seconds - b.seconds
-        );
-        const currentIndex = sortedMarkers.findIndex(
-          (m) => m.id === currentMarker.id
-        );
-
-        let newIndex;
-        if (direction === "up") {
-          newIndex = currentIndex > 0 ? currentIndex - 1 : currentIndex;
-        } else {
-          newIndex =
-            currentIndex < sortedMarkers.length - 1
-              ? currentIndex + 1
-              : currentIndex;
-        }
-
-        // Find the new marker in the original actionMarkers array
-        const newMarker = sortedMarkers[newIndex];
-        const originalIndex = actionMarkers.findIndex(
-          (m) => m.id === newMarker.id
-        );
-
-        if (originalIndex >= 0) {
+      // Find current marker
+      const currentMarker = actionMarkers.find(
+        (m) => m.id === state.selectedMarkerId
+      );
+      if (!currentMarker) {
+        // If no marker is selected, select the first one
+        if (actionMarkers.length > 0) {
           dispatch({
-            type: "SET_SELECTED_MARKER_INDEX",
-            payload: originalIndex,
+            type: "SET_SELECTED_MARKER_ID",
+            payload: actionMarkers[0].id,
           });
         }
         return;
       }
-
-      const currentMarker = actionMarkers[state.selectedMarkerIndex];
-      if (!currentMarker) return;
 
       // Find current marker in markersWithTracks
       const currentMarkerWithTrack = markersWithTracks.find(
@@ -1521,131 +1495,52 @@ function MarkerPageContent() {
       if (!currentMarkerWithTrack) return;
 
       const currentSwimlane = currentMarkerWithTrack.swimlane;
+      let targetSwimlane;
 
-      let bestMatch;
-
-      if (useTemporalLocality) {
-        // New behavior: Search through all swimlanes in the direction until we find one with temporally close markers
-        const currentStart = currentMarkerWithTrack.seconds;
-        const currentEnd =
-          currentMarkerWithTrack.end_seconds || currentStart + 1;
-        const proximityThreshold = 3; // seconds
-
-        // Helper function to check if a marker is temporally close
-        const isTemporallyClose = (marker: MarkerWithTrack) => {
-          const markerStart = marker.seconds;
-          const markerEnd = marker.end_seconds || markerStart + 1;
-
-          // Check for actual overlap
-          const hasOverlap =
-            markerStart < currentEnd && markerEnd > currentStart;
-
-          // Check for proximity (within threshold of either start or end)
-          const isClose =
-            Math.abs(markerStart - currentStart) <= proximityThreshold ||
-            Math.abs(markerStart - currentEnd) <= proximityThreshold ||
-            Math.abs(markerEnd - currentStart) <= proximityThreshold ||
-            Math.abs(markerEnd - currentEnd) <= proximityThreshold;
-
-          return hasOverlap || isClose;
-        };
-
-        // Search through swimlanes in the specified direction
-        const swimlaneStep = direction === "up" ? -1 : 1;
-        const startSwimlane = currentSwimlane + swimlaneStep;
-        const endSwimlane = direction === "up" ? -1 : tagGroups.length;
-
-        for (
-          let targetSwimlane = startSwimlane;
-          direction === "up"
-            ? targetSwimlane > endSwimlane
-            : targetSwimlane < endSwimlane;
-          targetSwimlane += swimlaneStep
-        ) {
-          // Find markers in this target swimlane
-          const targetSwimlaneMarkers = markersWithTracks
-            .filter((m) => m.swimlane === targetSwimlane)
-            .sort((a, b) => a.seconds - b.seconds);
-
-          if (targetSwimlaneMarkers.length === 0) continue;
-
-          // Find temporally close markers in this swimlane
-          const temporallyCloseMarkers =
-            targetSwimlaneMarkers.filter(isTemporallyClose);
-
-          if (temporallyCloseMarkers.length > 0) {
-            // Found markers in this swimlane that are temporally close
-            // Among temporally close markers, find the one with closest start time
-            bestMatch = temporallyCloseMarkers[0];
-            let minTimeDiff = Math.abs(bestMatch.seconds - currentStart);
-
-            for (const marker of temporallyCloseMarkers) {
-              const timeDiff = Math.abs(marker.seconds - currentStart);
-              if (timeDiff < minTimeDiff) {
-                minTimeDiff = timeDiff;
-                bestMatch = marker;
-              }
-            }
-            break; // Found a match, stop searching
-          }
-        }
-
-        if (!bestMatch) {
-          // No markers found within temporal locality in any swimlane - don't move
-          return;
-        }
+      if (direction === "up") {
+        targetSwimlane =
+          currentSwimlane > 0 ? currentSwimlane - 1 : currentSwimlane;
       } else {
-        // Original behavior: Only check immediately adjacent swimlane
-        let targetSwimlane;
-
-        if (direction === "up") {
-          targetSwimlane =
-            currentSwimlane > 0 ? currentSwimlane - 1 : currentSwimlane;
-        } else {
-          targetSwimlane =
-            currentSwimlane < tagGroups.length - 1
-              ? currentSwimlane + 1
-              : currentSwimlane;
-        }
-
-        if (targetSwimlane === currentSwimlane) return; // No movement possible
-
-        // Find markers in target swimlane
-        const targetSwimlaneMarkers = markersWithTracks
-          .filter((m) => m.swimlane === targetSwimlane)
-          .sort((a, b) => a.seconds - b.seconds);
-
-        if (targetSwimlaneMarkers.length === 0) return;
-
-        // Find the marker in target swimlane that's closest in time to current marker
-        bestMatch = targetSwimlaneMarkers[0];
-        let minTimeDiff = Math.abs(
-          bestMatch.seconds - currentMarkerWithTrack.seconds
-        );
-
-        for (const marker of targetSwimlaneMarkers) {
-          const timeDiff = Math.abs(
-            marker.seconds - currentMarkerWithTrack.seconds
-          );
-          if (timeDiff < minTimeDiff) {
-            minTimeDiff = timeDiff;
-            bestMatch = marker;
-          }
-        }
+        targetSwimlane =
+          currentSwimlane < tagGroups.length - 1
+            ? currentSwimlane + 1
+            : currentSwimlane;
       }
 
-      // Find this marker in the original actionMarkers array
-      const newIndex = actionMarkers.findIndex((m) => m.id === bestMatch.id);
-      if (newIndex >= 0) {
-        dispatch({ type: "SET_SELECTED_MARKER_INDEX", payload: newIndex });
+      if (targetSwimlane === currentSwimlane) return;
+
+      // Find all markers in target swimlane
+      const swimlaneMarkers = markersWithTracks.filter(
+        (m) => m.swimlane === targetSwimlane
+      );
+
+      if (swimlaneMarkers.length === 0) return;
+
+      let bestMatch;
+      if (useTemporalLocality) {
+        // Find the marker closest in time to the current marker
+        bestMatch = swimlaneMarkers.reduce((closest, marker) => {
+          if (!closest) return marker;
+          const currentDiff = Math.abs(marker.seconds - currentMarker.seconds);
+          const closestDiff = Math.abs(closest.seconds - currentMarker.seconds);
+          return currentDiff < closestDiff ? marker : closest;
+        }, null as MarkerWithTrack | null);
+      } else {
+        // Just take the first marker in the swimlane
+        bestMatch = swimlaneMarkers[0];
+      }
+
+      if (bestMatch) {
+        dispatch({ type: "SET_SELECTED_MARKER_ID", payload: bestMatch.id });
       }
     },
     [
       markersWithTracks,
       tagGroups,
       actionMarkers,
-      state.selectedMarkerIndex,
+      state.selectedMarkerId,
       dispatch,
+      navigateChronologically,
     ]
   );
 
@@ -1654,46 +1549,24 @@ function MarkerPageContent() {
     (direction: "left" | "right") => {
       if (markersWithTracks.length === 0) {
         // Fallback to chronological navigation if no swimlane data
-        if (!actionMarkers.length) return;
+        navigateChronologically(direction === "left" ? "prev" : "next");
+        return;
+      }
 
-        const currentMarker = actionMarkers[state.selectedMarkerIndex];
-        if (!currentMarker) return;
-
-        // Sort all markers by start time
-        const sortedMarkers = [...actionMarkers].sort(
-          (a, b) => a.seconds - b.seconds
-        );
-        const currentIndex = sortedMarkers.findIndex(
-          (m) => m.id === currentMarker.id
-        );
-
-        let newIndex;
-        if (direction === "left") {
-          newIndex = currentIndex > 0 ? currentIndex - 1 : currentIndex;
-        } else {
-          newIndex =
-            currentIndex < sortedMarkers.length - 1
-              ? currentIndex + 1
-              : currentIndex;
-        }
-
-        // Find the new marker in the original actionMarkers array
-        const newMarker = sortedMarkers[newIndex];
-        const originalIndex = actionMarkers.findIndex(
-          (m) => m.id === newMarker.id
-        );
-
-        if (originalIndex >= 0) {
+      // Find current marker
+      const currentMarker = actionMarkers.find(
+        (m) => m.id === state.selectedMarkerId
+      );
+      if (!currentMarker) {
+        // If no marker is selected, select the first one
+        if (actionMarkers.length > 0) {
           dispatch({
-            type: "SET_SELECTED_MARKER_INDEX",
-            payload: originalIndex,
+            type: "SET_SELECTED_MARKER_ID",
+            payload: actionMarkers[0].id,
           });
         }
         return;
       }
-
-      const currentMarker = actionMarkers[state.selectedMarkerIndex];
-      if (!currentMarker) return;
 
       // Find current marker in markersWithTracks
       const currentMarkerWithTrack = markersWithTracks.find(
@@ -1721,23 +1594,32 @@ function MarkerPageContent() {
             : currentIndex;
       }
 
-      if (targetIndex === currentIndex) return; // No movement possible
+      if (targetIndex === currentIndex) return;
 
       const targetMarker = swimlaneMarkers[targetIndex];
-
-      // Find this marker in the original actionMarkers array
-      const newIndex = actionMarkers.findIndex((m) => m.id === targetMarker.id);
-      if (newIndex >= 0) {
-        dispatch({ type: "SET_SELECTED_MARKER_INDEX", payload: newIndex });
-      }
+      dispatch({ type: "SET_SELECTED_MARKER_ID", payload: targetMarker.id });
     },
-    [markersWithTracks, actionMarkers, state.selectedMarkerIndex, dispatch]
+    [
+      markersWithTracks,
+      actionMarkers,
+      state.selectedMarkerId,
+      dispatch,
+      navigateChronologically,
+    ]
   );
 
   // Fresh keyboard layout with logical groupings
   const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      console.log("Key pressed:", event.key);
+    async (event: KeyboardEvent) => {
+      // Only log key press if it's not a modifier key by itself
+      if (!["Control", "Alt", "Shift", "Meta"].includes(event.key)) {
+        console.log(
+          `Key pressed: ${event.key}${event.shiftKey ? " + Shift" : ""}${
+            event.ctrlKey || event.metaKey ? " + Ctrl" : ""
+          }${event.altKey ? " + Alt" : ""}`
+        );
+      }
+
       // Ignore keyboard shortcuts if we're typing in an input field
       if (
         event.target instanceof HTMLInputElement ||
@@ -1778,50 +1660,19 @@ function MarkerPageContent() {
       ];
 
       // Check if current modifier combination is allowed
-      console.log("Checking modifiers:", {
-        hasCtrl,
-        hasAlt,
-        hasShift,
-        key: event.key,
-      });
-
       const isAllowedCombination = allowedModifierCombinations.some((combo) => {
-        const ctrlMatch = combo.ctrl === hasCtrl;
-        const altMatch = combo.alt === hasAlt;
-        const shiftMatch = combo.shift === hasShift;
-
-        if (combo.keys) {
-          // If specific keys are defined, check if current key is in the list
-          const isAllowed =
-            ctrlMatch &&
-            altMatch &&
-            shiftMatch &&
-            combo.keys.includes(event.key);
-          console.log("Checking combo with keys:", {
-            combo,
-            ctrlMatch,
-            altMatch,
-            shiftMatch,
-            keyInList: combo.keys.includes(event.key),
-            isAllowed,
-          });
-          return isAllowed;
-        } else {
-          // If no specific keys defined, just check modifiers
-          const isAllowed = ctrlMatch && altMatch && shiftMatch;
-          console.log("Checking combo without keys:", {
-            combo,
-            ctrlMatch,
-            altMatch,
-            shiftMatch,
-            isAllowed,
-          });
-          return isAllowed;
+        if (
+          combo.ctrl === hasCtrl &&
+          combo.alt === hasAlt &&
+          combo.shift === hasShift
+        ) {
+          return !combo.keys || combo.keys.includes(event.key);
         }
+        return false;
       });
 
       if (!isAllowedCombination) {
-        console.log("Key combination not allowed, ignoring");
+        console.log("Key combination not allowed");
         return;
       }
 
@@ -1905,10 +1756,22 @@ function MarkerPageContent() {
                 );
                 const targetIndex = newIndex >= 0 ? newIndex : 0;
 
-                dispatch({
-                  type: "SET_SELECTED_MARKER_INDEX",
-                  payload: targetIndex,
-                });
+                if (newIndex >= 0) {
+                  dispatch({
+                    type: "SET_SELECTED_MARKER_ID",
+                    payload: newFilteredMarkers[newIndex].id,
+                  });
+                } else if (newFilteredMarkers.length > 0) {
+                  dispatch({
+                    type: "SET_SELECTED_MARKER_ID",
+                    payload: newFilteredMarkers[0].id,
+                  });
+                } else {
+                  dispatch({
+                    type: "SET_SELECTED_MARKER_ID",
+                    payload: null,
+                  });
+                }
               }, 0);
             }
           } else if (state.filteredSwimlane) {
@@ -1928,14 +1791,6 @@ function MarkerPageContent() {
             dispatch({
               type: "SET_MARKERS",
               payload: realMarkers,
-            });
-            const newIndex = Math.min(
-              state.selectedMarkerIndex,
-              realMarkers.length - 1
-            );
-            dispatch({
-              type: "SET_SELECTED_MARKER_INDEX",
-              payload: newIndex,
             });
             dispatch({ type: "SET_CREATING_MARKER", payload: false });
             dispatch({ type: "SET_DUPLICATING_MARKER", payload: false });
@@ -1983,12 +1838,42 @@ function MarkerPageContent() {
         case "z":
         case "Z":
           event.preventDefault();
-          confirmCurrentMarker();
+          {
+            const markerToConfirm = actionMarkers.find(
+              (m) => m.id === state.selectedMarkerId
+            );
+            if (markerToConfirm) {
+              await markerOps.confirmMarker(markerToConfirm.id);
+              // Find and select next unprocessed marker in the same swimlane
+              const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
+              if (nextMarkerId) {
+                dispatch({
+                  type: "SET_SELECTED_MARKER_ID",
+                  payload: nextMarkerId,
+                });
+              }
+            }
+          }
           break;
         case "x":
         case "X":
           event.preventDefault();
-          rejectCurrentMarker();
+          {
+            const markerToReject = actionMarkers.find(
+              (m) => m.id === state.selectedMarkerId
+            );
+            if (markerToReject) {
+              await markerOps.rejectMarker(markerToReject.id);
+              // Find and select next unprocessed marker in the same swimlane
+              const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
+              if (nextMarkerId) {
+                dispatch({
+                  type: "SET_SELECTED_MARKER_ID",
+                  payload: nextMarkerId,
+                });
+              }
+            }
+          }
           break;
         case "c":
         case "C":
@@ -2040,28 +1925,48 @@ function MarkerPageContent() {
         case "n":
         case "N":
           event.preventDefault();
-          const prevUnprocessedIdx = hasShift
-            ? findPreviousUnprocessedMarker() // Shift+N: Global search
-            : findPreviousUnprocessedMarkerInSwimlane(); // N: Swimlane search
-          if (prevUnprocessedIdx >= 0) {
-            dispatch({
-              type: "SET_SELECTED_MARKER_INDEX",
-              payload: prevUnprocessedIdx,
-            });
+          if (hasShift) {
+            // Shift+N: Global search
+            const prevMarkerId = findPreviousUnprocessedMarker();
+            if (prevMarkerId) {
+              dispatch({
+                type: "SET_SELECTED_MARKER_ID",
+                payload: prevMarkerId,
+              });
+            }
+          } else {
+            // N: Swimlane search
+            const prevMarkerId = findPreviousUnprocessedMarkerInSwimlane();
+            if (prevMarkerId) {
+              dispatch({
+                type: "SET_SELECTED_MARKER_ID",
+                payload: prevMarkerId,
+              });
+            }
           }
           break;
 
         case "m":
         case "M":
           event.preventDefault();
-          const nextUnprocessedIdx = hasShift
-            ? findNextUnprocessedMarker() // Shift+M: Global search
-            : findNextUnprocessedMarkerInSwimlane(); // M: Swimlane search
-          if (nextUnprocessedIdx >= 0) {
-            dispatch({
-              type: "SET_SELECTED_MARKER_INDEX",
-              payload: nextUnprocessedIdx,
-            });
+          if (hasShift) {
+            // Shift+M: Global search
+            const nextMarkerId = findNextUnprocessedMarker();
+            if (nextMarkerId) {
+              dispatch({
+                type: "SET_SELECTED_MARKER_ID",
+                payload: nextMarkerId,
+              });
+            }
+          } else {
+            // M: Swimlane search
+            const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
+            if (nextMarkerId) {
+              dispatch({
+                type: "SET_SELECTED_MARKER_ID",
+                payload: nextMarkerId,
+              });
+            }
           }
           break;
 
@@ -2074,9 +1979,13 @@ function MarkerPageContent() {
         case "d":
         case "D":
           event.preventDefault();
-          // Duplicate current marker
-          if (actionMarkers[state.selectedMarkerIndex]) {
-            createOrDuplicateMarker(actionMarkers[state.selectedMarkerIndex]);
+          {
+            const markerToDuplicate = actionMarkers.find(
+              (m) => m.id === state.selectedMarkerId
+            );
+            if (markerToDuplicate) {
+              createOrDuplicateMarker(markerToDuplicate);
+            }
           }
           break;
 
@@ -2084,30 +1993,53 @@ function MarkerPageContent() {
         case "q":
         case "Q":
           event.preventDefault();
-          if (actionMarkers[state.selectedMarkerIndex]) {
-            handleEditMarker(actionMarkers[state.selectedMarkerIndex]);
+          {
+            const markerToEdit = actionMarkers.find(
+              (m) => m.id === state.selectedMarkerId
+            );
+            if (markerToEdit) {
+              handleEditMarker(markerToEdit);
+            }
           }
           break;
         case "w":
         case "W":
           event.preventDefault();
-          // Set marker start time to current video position
-          if (state.videoElement && actionMarkers[state.selectedMarkerIndex]) {
-            const marker = actionMarkers[state.selectedMarkerIndex];
-            const newStartTime = state.videoElement.currentTime;
-            const newEndTime = marker.end_seconds ?? null;
-            updateMarkerTimes(marker.id, newStartTime, newEndTime);
+          {
+            if (state.videoElement) {
+              const markerToUpdate = actionMarkers.find(
+                (m) => m.id === state.selectedMarkerId
+              );
+              if (markerToUpdate) {
+                const newStartTime = state.videoElement.currentTime;
+                const newEndTime = markerToUpdate.end_seconds ?? null;
+                markerOps.updateMarkerTimes(
+                  markerToUpdate.id,
+                  newStartTime,
+                  newEndTime
+                );
+              }
+            }
           }
           break;
         case "e":
         case "E":
           event.preventDefault();
-          // Set marker end time to current video position
-          if (state.videoElement && actionMarkers[state.selectedMarkerIndex]) {
-            const marker = actionMarkers[state.selectedMarkerIndex];
-            const newStartTime = marker.seconds;
-            const newEndTime = state.videoElement.currentTime;
-            updateMarkerTimes(marker.id, newStartTime, newEndTime);
+          {
+            if (state.videoElement) {
+              const markerToSetEnd = actionMarkers.find(
+                (m) => m.id === state.selectedMarkerId
+              );
+              if (markerToSetEnd) {
+                const newStartTime = markerToSetEnd.seconds;
+                const newEndTime = state.videoElement.currentTime;
+                markerOps.updateMarkerTimes(
+                  markerToSetEnd.id,
+                  newStartTime,
+                  newEndTime
+                );
+              }
+            }
           }
           break;
         case "t":
@@ -2294,28 +2226,48 @@ function MarkerPageContent() {
         case "n":
         case "N":
           event.preventDefault();
-          const prevMarkerIndex = hasShift
-            ? findPreviousUnprocessedMarker() // Shift+N: Global search
-            : findPreviousUnprocessedMarkerInSwimlane(); // N: Swimlane search
-          if (prevMarkerIndex >= 0) {
-            dispatch({
-              type: "SET_SELECTED_MARKER_INDEX",
-              payload: prevMarkerIndex,
-            });
+          if (hasShift) {
+            // Shift+N: Global search
+            const prevMarkerId = findPreviousUnprocessedMarker();
+            if (prevMarkerId) {
+              dispatch({
+                type: "SET_SELECTED_MARKER_ID",
+                payload: prevMarkerId,
+              });
+            }
+          } else {
+            // N: Swimlane search
+            const prevMarkerId = findPreviousUnprocessedMarkerInSwimlane();
+            if (prevMarkerId) {
+              dispatch({
+                type: "SET_SELECTED_MARKER_ID",
+                payload: prevMarkerId,
+              });
+            }
           }
           break;
 
         case "m":
         case "M":
           event.preventDefault();
-          const nextMarkerIndex = hasShift
-            ? findNextUnprocessedMarker() // Shift+M: Global search
-            : findNextUnprocessedMarkerInSwimlane(); // M: Swimlane search
-          if (nextMarkerIndex >= 0) {
-            dispatch({
-              type: "SET_SELECTED_MARKER_INDEX",
-              payload: nextMarkerIndex,
-            });
+          if (hasShift) {
+            // Shift+M: Global search
+            const nextMarkerId = findNextUnprocessedMarker();
+            if (nextMarkerId) {
+              dispatch({
+                type: "SET_SELECTED_MARKER_ID",
+                payload: nextMarkerId,
+              });
+            }
+          } else {
+            // M: Swimlane search
+            const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
+            if (nextMarkerId) {
+              dispatch({
+                type: "SET_SELECTED_MARKER_ID",
+                payload: nextMarkerId,
+              });
+            }
           }
           break;
 
@@ -2347,8 +2299,7 @@ function MarkerPageContent() {
       navigateBetweenSwimlanes,
       navigateChronologically,
       navigateWithinSwimlane,
-      confirmCurrentMarker,
-      rejectCurrentMarker,
+
       findNextUnprocessedMarker,
       findPreviousUnprocessedMarker,
       findNextUnprocessedMarkerInSwimlane,
@@ -2356,7 +2307,7 @@ function MarkerPageContent() {
       handleCreateMarker,
       splitCurrentMarker,
       handleEditMarker,
-      updateMarkerTimes,
+      markerOps,
       copyMarkerTimes,
       pasteMarkerTimes,
       zoomIn,
@@ -2452,14 +2403,13 @@ function MarkerPageContent() {
 
   // Scroll selected marker into view
   useEffect(() => {
-    if (markerListRef.current && state.selectedMarkerIndex >= 0) {
+    if (markerListRef.current && state.selectedMarkerId) {
       // Longer delay to ensure all state updates have completed and DOM has updated
       const timeoutId = setTimeout(() => {
         if (markerListRef.current) {
-          const markerElements = markerListRef.current.children;
-          const selectedElement = markerElements[
-            state.selectedMarkerIndex
-          ] as HTMLElement;
+          const selectedElement = markerListRef.current.querySelector(
+            `[data-marker-id="${state.selectedMarkerId}"]`
+          ) as HTMLElement;
 
           if (selectedElement) {
             selectedElement.scrollIntoView({
@@ -2472,7 +2422,7 @@ function MarkerPageContent() {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [state.selectedMarkerIndex, actionMarkers.length]); // Also depend on actionMarkers.length to ensure it runs after markers are updated
+  }, [state.selectedMarkerId]); // Also depend on actionMarkers.length to ensure it runs after markers are updated
 
   // Update video duration and current time
   useEffect(() => {
@@ -2951,7 +2901,7 @@ function MarkerPageContent() {
                     getActionMarkers().map(
                       (marker: SceneMarker, index: number) => {
                         const isEditing = editingMarkerId === marker.id;
-                        const isSelected = index === state.selectedMarkerIndex;
+                        const isSelected = marker.id === state.selectedMarkerId;
                         const isTemp =
                           marker.id === "temp-new" ||
                           marker.id === "temp-duplicate";
@@ -2959,6 +2909,7 @@ function MarkerPageContent() {
                         return (
                           <div
                             key={marker.id}
+                            data-marker-id={marker.id}
                             className={`p-2 border-l-4 ${
                               isTemp
                                 ? "bg-blue-800 border-blue-400"
@@ -3056,8 +3007,8 @@ function MarkerPageContent() {
                                           newMarkerIndex
                                         );
                                         dispatch({
-                                          type: "SET_SELECTED_MARKER_INDEX",
-                                          payload: newMarkerIndex,
+                                          type: "SET_SELECTED_MARKER_ID",
+                                          payload: createdMarker.id,
                                         });
                                       } else {
                                         console.error(
@@ -3107,15 +3058,19 @@ function MarkerPageContent() {
                                     type: "SET_MARKERS",
                                     payload: realMarkers,
                                   });
-                                  // Reset selected marker index to a valid position
-                                  const newIndex = Math.min(
-                                    state.selectedMarkerIndex,
-                                    getActionMarkers().length - 1
-                                  );
-                                  dispatch({
-                                    type: "SET_SELECTED_MARKER_INDEX",
-                                    payload: newIndex,
-                                  });
+                                  // Reset selected marker to first marker
+                                  const actionMarkers = getActionMarkers();
+                                  if (actionMarkers.length > 0) {
+                                    dispatch({
+                                      type: "SET_SELECTED_MARKER_ID",
+                                      payload: actionMarkers[0].id,
+                                    });
+                                  } else {
+                                    dispatch({
+                                      type: "SET_SELECTED_MARKER_ID",
+                                      payload: null,
+                                    });
+                                  }
                                   dispatch({
                                     type: "SET_CREATING_MARKER",
                                     payload: false,
@@ -3176,6 +3131,9 @@ function MarkerPageContent() {
                                       <>
                                         <span className="font-bold mr-2">
                                           {marker.primary_tag.name}
+                                        </span>
+                                        <span className="text-xs text-gray-400">
+                                          (ID: {marker.id})&nbsp;
                                         </span>
                                         <span className="text-xs text-gray-400">
                                           {marker.end_seconds
@@ -3268,11 +3226,13 @@ function MarkerPageContent() {
                 selectedMarker={
                   actionMarkers &&
                   actionMarkers.length > 0 &&
-                  state.selectedMarkerIndex >= 0 &&
-                  state.selectedMarkerIndex < actionMarkers.length
-                    ? actionMarkers[state.selectedMarkerIndex]
+                  state.selectedMarkerId
+                    ? actionMarkers.find(
+                        (m) => m.id === state.selectedMarkerId
+                      ) || null
                     : null
                 }
+                selectedMarkerId={state.selectedMarkerId}
                 videoDuration={state.videoDuration}
                 currentTime={state.currentVideoTime}
                 onMarkerClick={handleMarkerClick}

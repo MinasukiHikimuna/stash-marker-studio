@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, ReactNode } from "react";
 import { MarkerState, MarkerAction } from "../core/marker/types";
+import { stashappService } from "../services/StashappService";
 
 // Initial state
 const initialState: MarkerState = {
@@ -9,7 +10,8 @@ const initialState: MarkerState = {
   sceneId: null,
   sceneTitle: null,
   scene: null,
-  selectedMarkerIndex: 0,
+  selectedMarkerId: null,
+  selectedMarkerIndex: 0, // Keep for backwards compatibility
   isEditingMarker: false,
   isCreatingMarker: false,
   isDuplicatingMarker: false,
@@ -39,13 +41,41 @@ const initialState: MarkerState = {
   isCollectingModalOpen: false,
 };
 
+// Helper function to find marker index by ID
+const findMarkerIndex = (markers: any[], markerId: string | null) => {
+  if (!markerId || !markers.length) return -1;
+  return markers.findIndex((m) => m.id === markerId);
+};
+
 // Reducer function
 function markerReducer(state: MarkerState, action: MarkerAction): MarkerState {
   switch (action.type) {
     case "SET_MARKERS":
-      return { ...state, markers: action.payload };
+      console.log("Updating markers in state:", {
+        oldCount: state.markers.length,
+        newCount: action.payload.length,
+        oldSelectedId: state.selectedMarkerId,
+      });
+
+      // Keep the same marker selected if it still exists
+      const selectedMarkerStillExists = action.payload.some(
+        (m) => m.id === state.selectedMarkerId
+      );
+      const newSelectedId = selectedMarkerStillExists
+        ? state.selectedMarkerId
+        : null;
+      const newSelectedIndex = findMarkerIndex(action.payload, newSelectedId);
+
+      return {
+        ...state,
+        markers: action.payload,
+        selectedMarkerId: newSelectedId,
+        selectedMarkerIndex: newSelectedIndex >= 0 ? newSelectedIndex : 0,
+      };
+
     case "SET_AVAILABLE_TAGS":
       return { ...state, availableTags: action.payload };
+
     case "SET_SCENE":
       return {
         ...state,
@@ -53,13 +83,39 @@ function markerReducer(state: MarkerState, action: MarkerAction): MarkerState {
         sceneId: action.payload?.id ?? null,
         sceneTitle: action.payload?.title ?? null,
       };
+
     case "SET_SCENE_DATA":
       return {
         ...state,
         scene: action.payload,
       };
-    case "SET_SELECTED_MARKER_INDEX":
-      return { ...state, selectedMarkerIndex: action.payload };
+
+    case "SET_SELECTED_MARKER_ID": {
+      console.log("Changing selected marker by ID:", {
+        oldId: state.selectedMarkerId,
+        newId: action.payload,
+      });
+
+      // Find the marker in the list
+      const marker = state.markers.find((m) => m.id === action.payload);
+
+      // Ensure we don't select a shot boundary marker
+      if (marker?.primary_tag.id === stashappService.MARKER_SHOT_BOUNDARY) {
+        console.log("Prevented selection of shot boundary marker");
+        return state;
+      }
+
+      // Find the index for backwards compatibility
+      const markerIndex = findMarkerIndex(state.markers, action.payload);
+
+      return {
+        ...state,
+        selectedMarkerId: action.payload,
+        selectedMarkerIndex:
+          markerIndex >= 0 ? markerIndex : state.selectedMarkerIndex,
+      };
+    }
+
     case "SET_EDITING_MARKER":
       return { ...state, isEditingMarker: action.payload };
     case "SET_CREATING_MARKER":

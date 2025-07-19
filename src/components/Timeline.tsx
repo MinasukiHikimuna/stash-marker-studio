@@ -129,7 +129,7 @@ type TimelineProps = {
   currentTime: number;
   onMarkerClick: (marker: SceneMarker) => void;
   videoRef: React.RefObject<HTMLVideoElement>;
-  selectedMarkerIndex: number;
+  selectedMarkerId: string | null; // Add this prop
   isCreatingMarker?: boolean;
   newMarkerStartTime?: number | null;
   newMarkerEndTime?: number | null;
@@ -330,7 +330,7 @@ export default function Timeline({
   currentTime,
   onMarkerClick,
   videoRef,
-  selectedMarkerIndex,
+  selectedMarkerId,
   isCreatingMarker = false,
   newMarkerStartTime = null,
   newMarkerEndTime = null,
@@ -635,13 +635,7 @@ export default function Timeline({
         });
       }
     }
-  }, [
-    selectedMarker,
-    selectedMarkerIndex,
-    pixelsPerSecond,
-    isEditingMarker,
-    videoDuration,
-  ]);
+  }, [selectedMarker, pixelsPerSecond, isEditingMarker, videoDuration]);
 
   const getMarkerColor = (marker: SceneMarker, isCreating: boolean = false) => {
     if (isCreating) {
@@ -988,8 +982,7 @@ export default function Timeline({
 
                     {/* Markers in this swimlane */}
                     {groupMarkers.map((marker) => {
-                      const isSelected =
-                        selectedMarker && marker.id === selectedMarker.id;
+                      const isSelected = marker.id === selectedMarkerId;
 
                       return (
                         <div
@@ -1016,6 +1009,12 @@ export default function Timeline({
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
+                            console.log("Timeline marker click:", {
+                              markerId: marker.id,
+                              markerTag: marker.primary_tag.name,
+                              markerStart: marker.seconds,
+                              markerEnd: marker.end_seconds,
+                            });
                             onMarkerClick(marker);
                           }}
                           onMouseEnter={(e) =>
@@ -1101,6 +1100,9 @@ export default function Timeline({
           <div className="space-y-2">
             <div className="font-bold text-lg">
               {markerTooltip.marker.primary_tag.name}
+            </div>
+            <div className="text-sm text-gray-400">
+              ID: {markerTooltip.marker.id}
             </div>
 
             {markerTooltip.marker.primary_tag.description && (
