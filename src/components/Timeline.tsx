@@ -16,7 +16,13 @@ import {
 import { stashappService } from "../services/StashappService";
 import SpritePreview from "./SpritePreview";
 import { MarkerWithTrack, TagGroup } from "../core/marker/types";
-import { isMarkerManual } from "../core/marker/markerLogic";
+import {
+  getMarkerStatus,
+  isMarkerManual,
+  isMarkerConfirmed,
+  isMarkerRejected,
+} from "../core/marker/markerLogic";
+import { MarkerStatus } from "../core/marker/types";
 
 // Add new type for marker group info
 type MarkerGroupInfo = {
@@ -194,7 +200,9 @@ async function groupMarkersByTags(markers: SceneMarker[]): Promise<TagGroup[]> {
       const sortedMarkers = markers.sort((a, b) => a.seconds - b.seconds);
 
       // A group is considered rejected only if ALL markers in it are rejected
-      const isRejected = sortedMarkers.every(isMarkerRejected);
+      const isRejected = sortedMarkers.every(
+        (marker) => getMarkerStatus(marker) === MarkerStatus.REJECTED
+      );
 
       // Get unique tags from markers
       const uniqueTags = Array.from(
@@ -312,19 +320,6 @@ function assignTracksWithinSwimlanes(tagGroups: TagGroup[]): MarkerWithTrack[] {
 // Helper function to check if marker is a shot boundary
 const isShotBoundaryMarker = (marker: SceneMarker) => {
   return marker.primary_tag.id === "8836";
-};
-
-// Helper functions to check marker status
-const isMarkerConfirmed = (marker: SceneMarker) => {
-  return marker.tags.some(
-    (tag: { id: string }) => tag.id === stashappService.MARKER_STATUS_CONFIRMED
-  );
-};
-
-const isMarkerRejected = (marker: SceneMarker) => {
-  return marker.tags.some(
-    (tag: { id: string }) => tag.id === stashappService.MARKER_STATUS_REJECTED
-  );
 };
 
 export default function Timeline({

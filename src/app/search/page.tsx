@@ -9,11 +9,8 @@ import {
 } from "@/services/StashappService";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import {
-  isMarkerConfirmed,
-  isMarkerManual,
-  isMarkerRejected,
-} from "@/core/marker/markerLogic";
+import { getMarkerStatus } from "../../core/marker/markerLogic";
+import { MarkerStatus } from "../../core/marker/types";
 
 // Extend the Scene type to include scene_markers
 type SceneWithMarkers = Scene & {
@@ -81,12 +78,17 @@ const calculateMarkerStats = (markers: SceneMarker[]): MarkerStats => {
 
   return actionMarkers.reduce(
     (stats, marker) => {
-      if (isMarkerRejected(marker)) {
-        stats.rejected++;
-      } else if (isMarkerConfirmed(marker) || isMarkerManual(marker)) {
-        stats.confirmed++;
-      } else {
-        stats.unknown++;
+      const status = getMarkerStatus(marker);
+      switch (status) {
+        case MarkerStatus.REJECTED:
+          stats.rejected++;
+          break;
+        case MarkerStatus.CONFIRMED:
+        case MarkerStatus.MANUAL:
+          stats.confirmed++;
+          break;
+        default:
+          stats.unknown++;
       }
       return stats;
     },

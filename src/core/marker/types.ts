@@ -145,3 +145,10 @@ export type TagAutocompleteProps = {
   onSave?: (tagId?: string) => void;
   onCancel?: () => void;
 };
+
+export enum MarkerStatus {
+  CONFIRMED = "confirmed",
+  REJECTED = "rejected",
+  MANUAL = "manual",
+  UNPROCESSED = "unprocessed",
+}

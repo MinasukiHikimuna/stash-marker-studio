@@ -2,7 +2,10 @@ import { useMarker } from "../../../contexts/MarkerContext";
 import { useConfig } from "@/contexts/ConfigContext";
 import { useRouter } from "next/navigation";
 import { useMarkerOperations } from "@/hooks/useMarkerOperations";
-import { isMarkerRejected } from "@/core/marker/markerLogic";
+import {
+  isMarkerConfirmed,
+  isMarkerRejected,
+} from "../../../core/marker/markerLogic";
 
 interface MarkerHeaderProps {
   className?: string;
@@ -92,26 +95,21 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
             disabled={state.isLoading}
             className={`px-3 py-1.5 rounded-sm text-sm font-medium transition-colors ${
               !state.markers?.every(
-                (m) =>
-                  isMarkerRejected(m) ||
-                  m.primary_tag.name.endsWith("_CONFIRMED")
+                (m) => isMarkerRejected(m) || isMarkerConfirmed(m)
               )
                 ? "bg-yellow-600 hover:bg-yellow-700 text-white"
                 : "bg-green-600 hover:bg-green-700 text-white"
             } disabled:bg-gray-600 disabled:cursor-not-allowed`}
             title={
               !state.markers?.every(
-                (m) =>
-                  isMarkerRejected(m) ||
-                  m.primary_tag.name.endsWith("_CONFIRMED")
+                (m) => isMarkerRejected(m) || isMarkerConfirmed(m)
               )
                 ? "Complete scene (some markers not approved - warnings will be shown)"
                 : "Complete scene (generate markers, mark as reviewed, and clean up AI tags)"
             }
           >
             {!state.markers?.every(
-              (m) =>
-                isMarkerRejected(m) || m.primary_tag.name.endsWith("_CONFIRMED")
+              (m) => isMarkerRejected(m) || isMarkerConfirmed(m)
             )
               ? "⚠️ Complete"
               : "Complete"}

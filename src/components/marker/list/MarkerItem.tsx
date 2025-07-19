@@ -1,11 +1,13 @@
 import { SceneMarker } from "../../../services/StashappService";
 import { useMarker } from "../../../contexts/MarkerContext";
 import {
+  getMarkerStatus,
   formatSeconds,
   isMarkerConfirmed,
   isMarkerRejected,
   isMarkerManual,
 } from "../../../core/marker/markerLogic";
+import { MarkerStatus } from "../../../core/marker/types";
 
 interface MarkerItemProps {
   marker: SceneMarker;
@@ -24,23 +26,29 @@ export function MarkerItem({ marker, index, isSelected }: MarkerItemProps) {
   };
 
   const getMarkerStatusClass = () => {
-    if (isMarkerRejected(marker)) {
-      return "bg-red-900 text-red-100";
+    const status = getMarkerStatus(marker);
+    switch (status) {
+      case MarkerStatus.REJECTED:
+        return "bg-red-900 text-red-100";
+      case MarkerStatus.CONFIRMED:
+      case MarkerStatus.MANUAL:
+        return "bg-green-900 text-green-100";
+      default:
+        return "bg-gray-700 text-gray-100";
     }
-    if (isMarkerConfirmed(marker) || isMarkerManual(marker)) {
-      return "bg-green-900 text-green-100";
-    }
-    return "bg-gray-700 text-gray-100";
   };
 
   const getMarkerStatusIcon = () => {
-    if (isMarkerRejected(marker)) {
-      return "✗";
+    const status = getMarkerStatus(marker);
+    switch (status) {
+      case MarkerStatus.REJECTED:
+        return "✗";
+      case MarkerStatus.CONFIRMED:
+      case MarkerStatus.MANUAL:
+        return "✓";
+      default:
+        return "?";
     }
-    if (isMarkerConfirmed(marker) || isMarkerManual(marker)) {
-      return "✓";
-    }
-    return "?";
   };
 
   return (

@@ -20,8 +20,16 @@ import {
   formatSeconds,
   formatTimeColonDot,
   parseTimeColonDot,
-} from "@/utils/timeFormatting";
-import { isMarkerManual, isUnprocessed } from "@/core/marker/markerLogic";
+  isMarkerConfirmed,
+  isMarkerRejected,
+  isMarkerManual,
+  isShotBoundaryMarker,
+  isUnprocessed,
+  filterUnprocessedMarkers,
+  getMarkerStatus,
+  calculateMarkerSummary,
+} from "../../core/marker/markerLogic";
+import { MarkerStatus } from "../../core/marker/types";
 
 // Add this type definition at the top of the file
 type MarkerSummary = {
@@ -335,11 +343,6 @@ function MarkerPageContent() {
       window.removeEventListener("popstate", handlePopState);
     };
   }, [fetchData]);
-
-  // Helper function to check if marker is a shot boundary
-  const isShotBoundaryMarker = (marker: SceneMarker) => {
-    return marker.primary_tag.id === stashappService.MARKER_SHOT_BOUNDARY;
-  };
 
   // Get action markers (non-shot boundary) for display and navigation
   const actionMarkers = useMemo(() => {
@@ -695,38 +698,23 @@ function MarkerPageContent() {
     createOrDuplicateMarker();
   }, [createOrDuplicateMarker]);
 
-  // Helper functions to check marker status
-  const isMarkerConfirmed = useCallback((marker: SceneMarker) => {
-    return marker.tags.some(
-      (tag) => tag.id === stashappService.MARKER_STATUS_CONFIRMED
-    );
-  }, []);
-
-  const isMarkerRejected = useCallback((marker: SceneMarker) => {
-    return marker.tags.some(
-      (tag) => tag.id === stashappService.MARKER_STATUS_REJECTED
-    );
-  }, []);
-
-  // Update the marker summary calculation to only count action markers
-  const calculateMarkerSummary = useCallback((): MarkerSummary => {
+  // Update calculateMarkerSummary to use imported functions
+  const getMarkerSummary = useCallback((): MarkerSummary => {
     const actionMarkers = getActionMarkers();
     if (!actionMarkers.length) return { confirmed: 0, rejected: 0, unknown: 0 };
 
-    return actionMarkers.reduce(
-      (acc: MarkerSummary, marker: SceneMarker) => {
-        if (isMarkerRejected(marker)) {
-          acc.rejected++;
-        } else if (isMarkerConfirmed(marker) || isMarkerManual(marker)) {
-          acc.confirmed++;
-        } else {
-          acc.unknown++;
-        }
-        return acc;
-      },
-      { confirmed: 0, rejected: 0, unknown: 0 }
-    );
-  }, [getActionMarkers, isMarkerConfirmed, isMarkerRejected]);
+    return calculateMarkerSummary(actionMarkers);
+  }, [getActionMarkers]);
+
+  // Update handleDeleteRejectedMarkers to use imported function
+  const handleDeleteRejectedMarkers = useCallback(async () => {
+    const actionMarkers = getActionMarkers();
+    if (!actionMarkers) return;
+
+    const rejected = actionMarkers.filter(isMarkerRejected);
+    dispatch({ type: "SET_REJECTED_MARKERS", payload: rejected });
+    dispatch({ type: "SET_DELETING_REJECTED", payload: true });
+  }, [getActionMarkers, dispatch]);
 
   // Toast helper function
   const showToast = useCallback(
@@ -809,15 +797,6 @@ function MarkerPageContent() {
     showToast,
   ]);
 
-  const handleDeleteRejectedMarkers = useCallback(async () => {
-    const actionMarkers = getActionMarkers();
-    if (!actionMarkers) return;
-
-    const rejected = actionMarkers.filter(isMarkerRejected);
-    dispatch({ type: "SET_REJECTED_MARKERS", payload: rejected });
-    dispatch({ type: "SET_DELETING_REJECTED", payload: true });
-  }, [getActionMarkers, dispatch, isMarkerRejected]);
-
   const confirmDeleteRejectedMarkers = useCallback(async () => {
     try {
       await stashappService.deleteMarkers(
@@ -874,15 +853,8 @@ function MarkerPageContent() {
     const actionMarkers = getActionMarkers();
     if (!actionMarkers || actionMarkers.length === 0) return true;
 
-    const unapprovedMarkers = actionMarkers.filter(
-      (marker) =>
-        !isMarkerConfirmed(marker) &&
-        !isMarkerRejected(marker) &&
-        !isMarkerManual(marker)
-    );
-
-    return unapprovedMarkers.length === 0;
-  }, [getActionMarkers, isMarkerConfirmed, isMarkerRejected]);
+    return filterUnprocessedMarkers(actionMarkers).length === 0;
+  }, [getActionMarkers]);
 
   // Helper function to identify AI tags that should be removed from the scene
   const identifyAITagsToRemove = useCallback(
@@ -955,14 +927,11 @@ function MarkerPageContent() {
     const warnings: string[] = [];
 
     // Check if all markers are approved
-    if (!checkAllMarkersApproved()) {
-      const unapprovedCount = actionMarkers.filter(
-        (marker) =>
-          !isMarkerConfirmed(marker) &&
-          !isMarkerRejected(marker) &&
-          !isMarkerManual(marker)
-      ).length;
-      warnings.push(`${unapprovedCount} marker(s) are not yet approved`);
+    const unprocessedMarkers = filterUnprocessedMarkers(actionMarkers);
+    if (unprocessedMarkers.length > 0) {
+      warnings.push(
+        `${unprocessedMarkers.length} marker(s) are not yet approved`
+      );
     }
 
     // Get Video Cut markers (shot boundaries) to delete
@@ -981,8 +950,10 @@ function MarkerPageContent() {
     console.log("=== End Video Cut Markers ===");
 
     // Calculate AI tags to remove and primary tags to add for preview
-    const confirmedMarkers = actionMarkers.filter(
-      (marker) => isMarkerConfirmed(marker) || isMarkerManual(marker)
+    const confirmedMarkers = actionMarkers.filter((marker) =>
+      [MarkerStatus.CONFIRMED, MarkerStatus.MANUAL].includes(
+        getMarkerStatus(marker)
+      )
     );
 
     let aiTagsToRemove: Tag[] = [];
@@ -1052,12 +1023,9 @@ function MarkerPageContent() {
     setIsCompletionModalOpen(true);
   }, [
     getActionMarkers,
-    checkAllMarkersApproved,
-    identifyAITagsToRemove,
     getShotBoundaries,
     state.scene,
-    isMarkerConfirmed,
-    isMarkerRejected,
+    identifyAITagsToRemove,
   ]);
 
   // Execute the completion process
@@ -1149,7 +1117,6 @@ function MarkerPageContent() {
     refreshMarkersOnly,
     state.scene,
     identifyAITagsToRemove,
-    isMarkerConfirmed,
     dispatch,
   ]);
 
@@ -1246,16 +1213,14 @@ function MarkerPageContent() {
 
     // Look for next unprocessed marker starting from current position
     for (let i = currentIndex + 1; i < actionMarkers.length; i++) {
-      const marker = actionMarkers[i];
-      if (isUnprocessed(marker)) {
+      if (isUnprocessed(actionMarkers[i])) {
         return i;
       }
     }
 
     // If no unprocessed found after current, search from beginning
     for (let i = 0; i < currentIndex; i++) {
-      const marker = actionMarkers[i];
-      if (isUnprocessed(marker)) {
+      if (isUnprocessed(actionMarkers[i])) {
         return i;
       }
     }
@@ -1270,31 +1235,20 @@ function MarkerPageContent() {
 
     // Look for previous unprocessed marker starting from current position
     for (let i = currentIndex - 1; i >= 0; i--) {
-      const marker = actionMarkers[i];
-      if (
-        !isMarkerConfirmed(marker) &&
-        !isMarkerRejected(marker) &&
-        !isMarkerManual(marker)
-      ) {
+      if (isUnprocessed(actionMarkers[i])) {
         return i;
       }
     }
 
     // If no unprocessed found before current, search from end
     for (let i = actionMarkers.length - 1; i > currentIndex; i--) {
-      const marker = actionMarkers[i];
-      if (isUnprocessed(marker)) {
+      if (isUnprocessed(actionMarkers[i])) {
         return i;
       }
     }
 
     return -1; // No unprocessed markers found
-  }, [
-    getActionMarkers,
-    state.selectedMarkerIndex,
-    isMarkerConfirmed,
-    isMarkerRejected,
-  ]);
+  }, [getActionMarkers, state.selectedMarkerIndex]);
 
   // Helper function to find next unprocessed marker in current swimlane
   const findNextUnprocessedMarkerInSwimlane = useCallback(() => {
@@ -2653,19 +2607,19 @@ function MarkerPageContent() {
                     <div className="flex items-center">
                       <span className="text-green-400 mr-1">✓</span>
                       <span className="text-white">
-                        {calculateMarkerSummary().confirmed}
+                        {getMarkerSummary().confirmed}
                       </span>
                     </div>
                     <div className="flex items-center">
                       <span className="text-red-400 mr-1">✗</span>
                       <span className="text-white">
-                        {calculateMarkerSummary().rejected}
+                        {getMarkerSummary().rejected}
                       </span>
                     </div>
                     <div className="flex items-center">
                       <span className="text-yellow-400 mr-1">?</span>
                       <span className="text-white">
-                        {calculateMarkerSummary().unknown}
+                        {getMarkerSummary().unknown}
                       </span>
                     </div>
                     {getShotBoundaries().length > 0 && (

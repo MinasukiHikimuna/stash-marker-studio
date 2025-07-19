@@ -1,13 +1,23 @@
-import { SceneMarker } from "../../services/StashappService";
-import { MarkerSummary, MarkerWithTrack } from "./types";
-import { stashappService } from "../../services/StashappService";
+import {
+  type SceneMarker,
+  stashappService,
+} from "../../services/StashappService";
+import { MarkerSummary, MarkerWithTrack, MarkerStatus } from "./types";
 
 export const isMarkerRejected = (marker: SceneMarker): boolean => {
-  return marker.primary_tag.name.endsWith("_REJECTED");
+  return (
+    marker.tags?.some(
+      (tag) => tag.id === stashappService.MARKER_STATUS_REJECTED
+    ) ?? false
+  );
 };
 
 export const isMarkerConfirmed = (marker: SceneMarker): boolean => {
-  return marker.primary_tag.name.endsWith("_CONFIRMED");
+  return (
+    marker.tags?.some(
+      (tag) => tag.id === stashappService.MARKER_STATUS_CONFIRMED
+    ) ?? false
+  );
 };
 
 export const isMarkerManual = (marker: SceneMarker): boolean => {
@@ -26,10 +36,39 @@ export const isUnprocessed = (marker: SceneMarker): boolean => {
   );
 };
 
+/**
+ * Returns true if a marker has been processed (confirmed, rejected, or manual)
+ */
+export const isProcessed = (marker: SceneMarker): boolean => {
+  return (
+    isMarkerConfirmed(marker) ||
+    isMarkerRejected(marker) ||
+    isMarkerManual(marker)
+  );
+};
+
+/**
+ * Returns the current status of a marker
+ * Priority order: REJECTED > MANUAL > CONFIRMED > UNPROCESSED
+ */
+export const getMarkerStatus = (marker: SceneMarker): MarkerStatus => {
+  if (isMarkerRejected(marker)) return MarkerStatus.REJECTED;
+  if (isMarkerManual(marker)) return MarkerStatus.MANUAL;
+  if (isMarkerConfirmed(marker)) return MarkerStatus.CONFIRMED;
+  return MarkerStatus.UNPROCESSED;
+};
+
+/**
+ * Filters an array of markers to return only unprocessed markers
+ */
+export const filterUnprocessedMarkers = (
+  markers: SceneMarker[]
+): SceneMarker[] => {
+  return markers.filter(isUnprocessed);
+};
+
 export const isShotBoundaryMarker = (marker: SceneMarker): boolean => {
-  // Note: This assumes stashappService.MARKER_SHOT_BOUNDARY is available in the context
-  // We'll need to inject this dependency
-  return marker.primary_tag.id === "shot-boundary-tag-id"; // TODO: Make this configurable
+  return marker.primary_tag.id === stashappService.MARKER_SHOT_BOUNDARY;
 };
 
 export const calculateMarkerSummary = (
