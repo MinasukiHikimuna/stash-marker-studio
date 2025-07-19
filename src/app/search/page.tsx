@@ -327,8 +327,7 @@ export default function SearchPage() {
                 <Image
                   src={stashappService.addApiKeyToUrl(scene.paths.screenshot)}
                   alt={scene.title}
-                  layout="fill"
-                  objectFit="cover"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover rounded"
                 />
                 {scene.scene_markers && scene.scene_markers.length > 0 && (
