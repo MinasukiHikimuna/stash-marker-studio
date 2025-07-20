@@ -1,42 +1,100 @@
 import { useEffect, useRef } from "react";
-import { useMarker } from "../../../contexts/MarkerContext";
 import { useConfig } from "@/contexts/ConfigContext";
-import { useVideoControls } from "@/hooks/useVideoControls";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import {
+  selectScene,
+  selectPendingSeek,
+  selectPendingPlayPause,
+  setVideoDuration,
+  setCurrentVideoTime,
+  setVideoPlaying,
+  clearPendingSeek,
+  clearPendingPlayPause,
+} from "@/store/slices/markerSlice";
 
 interface VideoPlayerProps {
   className?: string;
 }
 
 export function VideoPlayer({ className = "" }: VideoPlayerProps) {
-  const { state, dispatch } = useMarker();
+  const dispatch = useAppDispatch();
+  const scene = useAppSelector(selectScene);
+  const pendingSeek = useAppSelector(selectPendingSeek);
+  const pendingPlayPause = useAppSelector(selectPendingPlayPause);
   const { STASH_URL, STASH_API_KEY } = useConfig();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { setupVideoEventListeners } = useVideoControls({ state, dispatch });
 
+  // Handle pending seek commands from Redux
   useEffect(() => {
-    if (videoRef.current && !state.videoElement) {
-      dispatch({ type: "SET_VIDEO_ELEMENT", payload: videoRef.current });
+    if (pendingSeek && videoRef.current) {
+      const video = videoRef.current;
+      const clampedTime = Math.max(0, Math.min(pendingSeek.time, video.duration || pendingSeek.time));
+      video.currentTime = clampedTime;
+      dispatch(clearPendingSeek());
     }
-  }, [dispatch, state.videoElement]);
+  }, [pendingSeek, dispatch]);
 
+  // Handle pending play/pause commands from Redux
   useEffect(() => {
-    if (videoRef.current) {
-      const cleanup = setupVideoEventListeners(videoRef.current);
-      return () => {
-        cleanup();
-        dispatch({ type: "SET_VIDEO_ELEMENT", payload: null });
-      };
+    if (pendingPlayPause && videoRef.current) {
+      const video = videoRef.current;
+      if (pendingPlayPause.action === 'play') {
+        video.play().catch(console.error);
+      } else {
+        video.pause();
+      }
+      dispatch(clearPendingPlayPause());
     }
-  }, [dispatch, setupVideoEventListeners]);
+  }, [pendingPlayPause, dispatch]);
 
-  if (!state.scene) {
+  // Set up video event listeners to dispatch metadata updates to Redux
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleLoadedMetadata = () => {
+      dispatch(setVideoDuration(video.duration));
+    };
+
+    const handleTimeUpdate = () => {
+      dispatch(setCurrentVideoTime(video.currentTime));
+    };
+
+    const handlePlay = () => {
+      dispatch(setVideoPlaying(true));
+    };
+
+    const handlePause = () => {
+      dispatch(setVideoPlaying(false));
+    };
+
+    // Add all event listeners
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('seeking', handleTimeUpdate);
+    video.addEventListener('seeked', handleTimeUpdate);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+
+    // Cleanup function
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('seeking', handleTimeUpdate);
+      video.removeEventListener('seeked', handleTimeUpdate);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+    };
+  }, [dispatch]); // Include dispatch in dependencies
+
+  if (!scene) {
     return null;
   }
 
   return (
     <video
       ref={videoRef}
-      src={`${STASH_URL}/scene/${state.scene.id}/stream?apikey=${STASH_API_KEY}`}
+      src={`${STASH_URL}/scene/${scene.id}/stream?apikey=${STASH_API_KEY}`}
       controls
       className={`w-full h-full object-contain ${className}`}
       tabIndex={-1}

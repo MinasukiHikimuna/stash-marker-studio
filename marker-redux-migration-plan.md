@@ -105,9 +105,70 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
 
 #### Step 3.3: Complex Components (High Risk)
 
-- [ ] **VideoPlayer**: Video state management
-  - Migrate video time and duration to Redux
-  - Handle video element reference carefully
+- [x] **VideoPlayer**: Video state management ✅ COMPLETED
+  - **ARCHITECTURE DECISION**: Video element stays local, metadata goes to Redux, commands flow through Redux actions
+  - **Current Problems**:
+    - `video.element: HTMLVideoElement` stored in Redux (serialization workaround needed)
+    - Timeline has direct access to `videoRef` prop and manipulates it directly
+    - Tight coupling between components via prop drilling
+    - Mixed patterns: some actions via Redux, some via direct DOM manipulation
+  - **Proposed Video Architecture**:
+    - **Core Principle**: Video element stays local, metadata goes to Redux, commands flow through Redux actions
+    - **Video State in Redux (Metadata Only)**:
+      ```typescript
+      video: {
+        // Metadata only - no DOM elements
+        currentTime: number;
+        duration: number | null;
+        isPlaying: boolean;
+        volume: number;
+        playbackRate: number;
+        
+        // Command state (for component communication)
+        pendingSeek: { time: number; requestId: string } | null;
+        pendingPlayPause: { action: 'play' | 'pause'; requestId: string } | null;
+      }
+      ```
+    - **Communication Flow**:
+      - **Video Metadata Updates (VideoPlayer → Redux → Timeline)**:
+        ```
+        VideoPlayer (timeupdate event) → dispatch(setCurrentTime) → Redux → Timeline (useSelector)
+        ```
+      - **Video Commands (Timeline → Redux → VideoPlayer)**:
+        ```
+        Timeline (click) → dispatch(seekToTime) → Redux → VideoPlayer (useEffect listener) → video.currentTime = x
+        ```
+    - **VideoPlayer Responsibilities**:
+      - Hold video element as local `useRef`
+      - Listen to Redux for command actions (`pendingSeek`, `pendingPlayPause`)
+      - Dispatch metadata updates to Redux
+      - Handle all direct DOM video manipulation
+    - **Timeline Responsibilities**:
+      - Read video metadata from Redux selectors
+      - Dispatch video command actions
+      - No direct video element access
+    - **Implementation Steps**:
+      1. Update Redux slice to remove video element, add command state
+      2. Refactor VideoPlayer to be command-driven
+      3. Refactor Timeline to use Redux commands instead of direct video access
+      4. Update useVideoControls to work with new pattern
+    - **Benefits**:
+      - Video element never leaves VideoPlayer component
+      - All video state flows through Redux predictably
+      - Components communicate via actions, not direct DOM access
+      - Easy to test and reason about
+  - **Implementation Complete**: All 4 implementation steps successfully completed:
+    1. ✅ Updated Redux slice to remove video element, add command state
+    2. ✅ Refactored VideoPlayer to be command-driven
+    3. ✅ Refactored Timeline to use Redux commands instead of direct video access
+    4. ✅ Updated useVideoControls to work with new pattern
+  - **Key Changes Made**:
+    - Removed `video.element` from Redux state, replaced with metadata + command pattern
+    - VideoPlayer now listens to `pendingSeek` and `pendingPlayPause` Redux state
+    - Timeline dispatches `seekToTime()` action instead of `videoRef.current.currentTime = x`
+    - useVideoControls completely refactored to dispatch Redux actions
+    - Removed serialization workarounds from store configuration
+    - All video communication now flows: Component → Redux → VideoPlayer → DOM
 - [ ] **Timeline**: Complex visualization component
   - Update to use Redux selectors for timeline data
   - Ensure performance with proper memoization

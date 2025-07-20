@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk, PayloadAction, current } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { SceneMarker, Scene, Tag, stashappService } from '@/services/StashappService';
 import type { IncorrectMarker } from '@/utils/incorrectMarkerStorage';
 
@@ -49,9 +49,15 @@ export interface MarkerState {
   
   // Video state
   video: {
-    duration: number;
+    duration: number | null;
     currentTime: number;
-    element: HTMLVideoElement | null;
+    isPlaying: boolean;
+    volume: number;
+    playbackRate: number;
+    
+    // Command state for component communication
+    pendingSeek: { time: number; requestId: string } | null;
+    pendingPlayPause: { action: 'play' | 'pause'; requestId: string } | null;
   };
   
   // Operation state
@@ -111,11 +117,15 @@ const initialState: MarkerState = {
     },
   },
   
-  // Video state
+  // Video state - metadata only, no DOM elements
   video: {
-    duration: 0,
+    duration: null,
     currentTime: 0,
-    element: null,
+    isPlaying: false,
+    volume: 1,
+    playbackRate: 1,
+    pendingSeek: null,
+    pendingPlayPause: null,
   },
   
   // Operation state
@@ -774,7 +784,8 @@ const markerSlice = createSlice({
     },
     
     // Video actions
-    setVideoDuration: (state, action: PayloadAction<number>) => {
+    // Video metadata actions (VideoPlayer -> Redux -> Timeline)
+    setVideoDuration: (state, action: PayloadAction<number | null>) => {
       state.video.duration = action.payload;
     },
     
@@ -782,15 +793,55 @@ const markerSlice = createSlice({
       state.video.currentTime = action.payload;
     },
     
-    setVideoElement: (state, action: PayloadAction<HTMLVideoElement | null>) => {
-      // Use return to create a new state object for DOM elements
-      return {
-        ...current(state),
-        video: {
-          ...current(state).video,
-          element: action.payload,
-        },
+    setVideoPlaying: (state, action: PayloadAction<boolean>) => {
+      state.video.isPlaying = action.payload;
+    },
+    
+    setVideoVolume: (state, action: PayloadAction<number>) => {
+      state.video.volume = action.payload;
+    },
+    
+    setVideoPlaybackRate: (state, action: PayloadAction<number>) => {
+      state.video.playbackRate = action.payload;
+    },
+    
+    // Video command actions (Timeline -> Redux -> VideoPlayer)
+    seekToTime: (state, action: PayloadAction<number>) => {
+      state.video.pendingSeek = {
+        time: action.payload,
+        requestId: `seek-${Date.now()}-${Math.random()}`,
       };
+    },
+    
+    playVideo: (state) => {
+      state.video.pendingPlayPause = {
+        action: 'play',
+        requestId: `play-${Date.now()}-${Math.random()}`,
+      };
+    },
+    
+    pauseVideo: (state) => {
+      state.video.pendingPlayPause = {
+        action: 'pause',
+        requestId: `pause-${Date.now()}-${Math.random()}`,
+      };
+    },
+    
+    togglePlayPause: (state) => {
+      const action = state.video.isPlaying ? 'pause' : 'play';
+      state.video.pendingPlayPause = {
+        action,
+        requestId: `toggle-${Date.now()}-${Math.random()}`,
+      };
+    },
+    
+    // Clear command actions after VideoPlayer processes them
+    clearPendingSeek: (state) => {
+      state.video.pendingSeek = null;
+    },
+    
+    clearPendingPlayPause: (state) => {
+      state.video.pendingPlayPause = null;
     },
     
     // Filter actions
@@ -1112,7 +1163,15 @@ export const {
   setIncorrectMarkers,
   setVideoDuration,
   setCurrentVideoTime,
-  setVideoElement,
+  setVideoPlaying,
+  setVideoVolume,
+  setVideoPlaybackRate,
+  seekToTime,
+  playVideo,
+  pauseVideo,
+  togglePlayPause,
+  clearPendingSeek,
+  clearPendingPlayPause,
   setFilteredSwimlane,
   clearError,
   resetState,
@@ -1152,10 +1211,16 @@ export const selectNewMarkerEndTime = (state: { marker: MarkerState }) => state.
 export const selectDuplicateStartTime = (state: { marker: MarkerState }) => state.marker.ui.editing.duplicateStartTime;
 export const selectDuplicateEndTime = (state: { marker: MarkerState }) => state.marker.ui.editing.duplicateEndTime;
 
-// Video selectors
+// Video selectors - metadata only
 export const selectVideoDuration = (state: { marker: MarkerState }) => state.marker.video.duration;
 export const selectCurrentVideoTime = (state: { marker: MarkerState }) => state.marker.video.currentTime;
-export const selectVideoElement = (state: { marker: MarkerState }) => state.marker.video.element;
+export const selectVideoIsPlaying = (state: { marker: MarkerState }) => state.marker.video.isPlaying;
+export const selectVideoVolume = (state: { marker: MarkerState }) => state.marker.video.volume;
+export const selectVideoPlaybackRate = (state: { marker: MarkerState }) => state.marker.video.playbackRate;
+
+// Video command selectors (for VideoPlayer to listen to)
+export const selectPendingSeek = (state: { marker: MarkerState }) => state.marker.video.pendingSeek;
+export const selectPendingPlayPause = (state: { marker: MarkerState }) => state.marker.video.pendingPlayPause;
 
 // Operations selectors
 export const selectGenerationJobId = (state: { marker: MarkerState }) => state.marker.operations.generationJobId;

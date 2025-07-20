@@ -55,11 +55,6 @@ export function MarkerLayout() {
           onMarkerClick={(marker: SceneMarker) => {
             dispatch({ type: "SET_SELECTED_MARKER_ID", payload: marker.id });
           }}
-          videoRef={
-            {
-              current: state.videoElement,
-            } as React.RefObject<HTMLVideoElement>
-          }
           selectedMarkerId={state.selectedMarkerId}
           isCreatingMarker={state.isCreatingMarker}
           newMarkerStartTime={state.newMarkerStartTime}

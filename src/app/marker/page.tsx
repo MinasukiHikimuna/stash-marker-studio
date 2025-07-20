@@ -3127,11 +3127,6 @@ function MarkerPageContent() {
                 videoDuration={state.videoDuration}
                 currentTime={state.currentVideoTime}
                 onMarkerClick={handleMarkerClick}
-                videoRef={
-                  {
-                    current: state.videoElement,
-                  } as React.RefObject<HTMLVideoElement>
-                }
                 isCreatingMarker={false}
                 newMarkerStartTime={null}
                 newMarkerEndTime={null}

@@ -9,7 +9,7 @@ export const useMarkerKeyboardShortcuts = (
   { state, dispatch }: MarkerContextType,
   markersWithTracks: MarkerWithTrack[]
 ) => {
-  const videoControls = useVideoControls({ state, dispatch });
+  const videoControls = useVideoControls();
   const timelineNavigation = useTimelineNavigation(
     { state, dispatch },
     markersWithTracks

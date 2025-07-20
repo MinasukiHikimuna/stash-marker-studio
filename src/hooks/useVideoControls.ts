@@ -1,94 +1,64 @@
 import { useCallback } from "react";
-import { MarkerContextType } from "../core/marker/types";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import {
+  seekToTime as seekToTimeAction,
+  togglePlayPause as togglePlayPauseAction,
+  pauseVideo,
+  selectCurrentVideoTime,
+  selectVideoDuration,
+} from "../store/slices/markerSlice";
 
-export const useVideoControls = ({ state, dispatch }: MarkerContextType) => {
-  const updateCurrentTime = useCallback(() => {
-    if (state.videoElement) {
-      dispatch({
-        type: "SET_CURRENT_VIDEO_TIME",
-        payload: state.videoElement.currentTime,
-      });
-    }
-  }, [state.videoElement, dispatch]);
+/**
+ * Hook that provides video control functions using Redux commands
+ * instead of direct video element manipulation.
+ * 
+ * This replaces the old pattern where video controls had direct access
+ * to the video element. Now all video operations flow through Redux.
+ */
+export const useVideoControls = () => {
+  const dispatch = useAppDispatch();
+  const currentTime = useAppSelector(selectCurrentVideoTime);
+  const duration = useAppSelector(selectVideoDuration);
 
   const seekToTime = useCallback(
     (time: number) => {
-      if (state.videoElement) {
-        state.videoElement.currentTime = Math.max(
-          0,
-          Math.min(time, state.videoDuration)
-        );
-        updateCurrentTime();
-      }
+      // Clamp time to video duration bounds (if duration is available)
+      const clampedTime = duration 
+        ? Math.max(0, Math.min(time, duration))
+        : Math.max(0, time);
+      dispatch(seekToTimeAction(clampedTime));
     },
-    [state.videoElement, state.videoDuration, updateCurrentTime]
+    [dispatch, duration]
   );
 
   const seekRelative = useCallback(
     (offset: number) => {
-      if (state.videoElement) {
-        seekToTime(state.videoElement.currentTime + offset);
-      }
+      const newTime = currentTime + offset;
+      seekToTime(newTime);
     },
-    [state.videoElement, seekToTime]
+    [currentTime, seekToTime]
   );
 
   const frameStep = useCallback(
     (forward: boolean) => {
-      if (state.videoElement) {
-        // Assuming 30fps - can be made configurable if needed
-        const frameTime = 1 / 30;
-        seekRelative(forward ? frameTime : -frameTime);
-      }
+      // Assuming 30fps - can be made configurable if needed
+      const frameTime = 1 / 30;
+      seekRelative(forward ? frameTime : -frameTime);
     },
-    [state.videoElement, seekRelative]
+    [seekRelative]
   );
 
   const togglePlayPause = useCallback(() => {
-    if (state.videoElement) {
-      if (state.videoElement.paused) {
-        state.videoElement.play();
-      } else {
-        state.videoElement.pause();
-      }
-    }
-  }, [state.videoElement]);
+    dispatch(togglePlayPauseAction());
+  }, [dispatch]);
 
   const jumpToMarkerTime = useCallback(
     (seconds: number) => {
-      if (state.videoElement) {
-        state.videoElement.pause();
-        seekToTime(seconds);
-      }
+      // Pause video first, then seek to the marker time
+      dispatch(pauseVideo());
+      seekToTime(seconds);
     },
-    [state.videoElement, seekToTime]
-  );
-
-  const setupVideoEventListeners = useCallback(
-    (videoElement: HTMLVideoElement) => {
-      const handleLoadedMetadata = () => {
-        dispatch({
-          type: "SET_VIDEO_DURATION",
-          payload: videoElement.duration,
-        });
-      };
-
-      videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
-      videoElement.addEventListener("timeupdate", updateCurrentTime);
-      videoElement.addEventListener("seeking", updateCurrentTime);
-      videoElement.addEventListener("seeked", updateCurrentTime);
-
-      return () => {
-        videoElement.removeEventListener(
-          "loadedmetadata",
-          handleLoadedMetadata
-        );
-        videoElement.removeEventListener("timeupdate", updateCurrentTime);
-        videoElement.removeEventListener("seeking", updateCurrentTime);
-        videoElement.removeEventListener("seeked", updateCurrentTime);
-      };
-    },
-    [dispatch, updateCurrentTime]
+    [dispatch, seekToTime]
   );
 
   return {
@@ -97,7 +67,5 @@ export const useVideoControls = ({ state, dispatch }: MarkerContextType) => {
     frameStep,
     togglePlayPause,
     jumpToMarkerTime,
-    setupVideoEventListeners,
-    updateCurrentTime,
   };
 };

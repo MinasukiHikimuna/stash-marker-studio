@@ -22,6 +22,8 @@ import {
   isMarkerRejected,
 } from "../core/marker/markerLogic";
 import { MarkerStatus } from "../core/marker/types";
+import { useAppDispatch } from "../store/hooks";
+import { seekToTime } from "../store/slices/markerSlice";
 
 // Add new type for marker group info
 type MarkerGroupInfo = {
@@ -127,7 +129,6 @@ type TimelineProps = {
   videoDuration: number;
   currentTime: number;
   onMarkerClick: (marker: SceneMarker) => void;
-  videoRef: React.RefObject<HTMLVideoElement>;
   selectedMarkerId: string | null; // Add this prop
   isCreatingMarker?: boolean;
   newMarkerStartTime?: number | null;
@@ -328,7 +329,6 @@ export default function Timeline({
   videoDuration,
   currentTime,
   onMarkerClick,
-  videoRef,
   selectedMarkerId,
   isCreatingMarker = false,
   newMarkerStartTime = null,
@@ -342,6 +342,7 @@ export default function Timeline({
   zoom = 1,
   onZoomChange: _onZoomChange,
 }: TimelineProps) {
+  const dispatch = useAppDispatch();
   const timelineRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [tagGroups, setTagGroups] = useState<TagGroup[]>([]);
@@ -574,7 +575,7 @@ export default function Timeline({
   // Handle click-to-seek on timeline header
   const handleTimelineClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!timelineRef.current || !videoRef.current) return;
+      if (!timelineRef.current) return;
 
       const rect = timelineRef.current.getBoundingClientRect();
       const mouseXInDiv = e.clientX - rect.left;
@@ -583,9 +584,9 @@ export default function Timeline({
 
       // Clamp time to video duration bounds
       const seekTime = Math.max(0, Math.min(time, videoDuration));
-      videoRef.current.currentTime = seekTime;
+      dispatch(seekToTime(seekTime));
     },
-    [pixelsPerSecond, videoDuration, videoRef]
+    [pixelsPerSecond, videoDuration, dispatch]
   );
 
   // Note: Playhead auto-scroll disabled for professional NLE behavior
@@ -841,9 +842,7 @@ export default function Timeline({
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (videoRef.current) {
-                      videoRef.current.currentTime = marker.seconds;
-                    }
+                    dispatch(seekToTime(marker.seconds));
                   }}
                   title={`Shot boundary: ${formatTime(marker.seconds)}`}
                 >

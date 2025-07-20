@@ -13,10 +13,6 @@ export const store = configureStore({
       serializableCheck: {
         // Ignore these action types
         ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
-        // Ignore these field paths in all actions
-        ignoredActionsPaths: ['payload.element'],
-        // Ignore these paths in the state
-        ignoredPaths: ['marker.video.element'],
       },
     }).concat(persistenceMiddleware),
 });
