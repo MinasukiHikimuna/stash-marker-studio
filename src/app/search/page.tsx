@@ -1,20 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import {
-  Scene,
-  Tag,
-  SceneMarker,
-  stashappService,
-} from "@/services/StashappService";
+import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import {
+  initializeSearch,
+  searchScenes,
+  setQuery,
+  setSortField,
+  toggleSortDirection,
+  addSelectedTag,
+  removeSelectedTag,
+  setTagSearchQuery,
+  updateTagSuggestions,
+  selectSearchState,
+  selectInitialized,
+  selectInitializing,
+  selectInitializationError,
+  selectHasSearched,
+  SortField,
+} from "@/store/slices/searchSlice";
+import { stashappService, Tag } from "@/services/StashappService";
 import { calculateMarkerSummary } from "../../core/marker/markerLogic";
-
-// Extend the Scene type to include scene_markers
-type SceneWithMarkers = Scene & {
-  scene_markers?: SceneMarker[];
-};
 
 const SORT_OPTIONS = {
   bitrate: "Bit Rate",
@@ -48,142 +56,144 @@ const SORT_OPTIONS = {
   updated_at: "Updated At",
 } as const;
 
-type SortField = keyof typeof SORT_OPTIONS;
-
-// Define the type for our search parameters
-type SearchParams = {
-  query: string;
-  tags: Tag[];
-  sortField: SortField;
-  sortDirection: "ASC" | "DESC";
-};
-
-// Constants for localStorage
-const STORAGE_KEY = "stash_marker_search_params";
-
 export default function SearchPage() {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
-  const [tagSuggestions, setTagSuggestions] = useState<Tag[]>([]);
-  const [tagSearchQuery, setTagSearchQuery] = useState("");
-  const [scenes, setScenes] = useState<SceneWithMarkers[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [allTags, setAllTags] = useState<Tag[]>([]);
-  const [sortField, setSortField] = useState<SortField>("title");
-  const [sortDirection, setSortDirection] = useState<"ASC" | "DESC">("ASC");
+  const dispatch = useAppDispatch();
+  const {
+    query,
+    selectedTags,
+    sortField,
+    sortDirection,
+    tagSearchQuery,
+    tagSuggestions,
+    scenes,
+    loading,
+    error,
+  } = useAppSelector(selectSearchState);
+  
+  const initialized = useAppSelector(selectInitialized);
+  const initializing = useAppSelector(selectInitializing);
+  const initializationError = useAppSelector(selectInitializationError);
+  const hasSearched = useAppSelector(selectHasSearched);
 
-  // Load all tags and handle localStorage operations only after tags are loaded
+  // Single initialization effect - much cleaner!
   useEffect(() => {
-    const loadTags = async () => {
-      try {
-        const response = await stashappService.getAllTags();
-        setAllTags(response.findTags.tags);
+    if (!initialized && !initializing) {
+      dispatch(initializeSearch());
+    }
+  }, [dispatch, initialized, initializing]);
 
-        // Now that we have tags, try to load saved search params
-        const savedParams = localStorage.getItem(STORAGE_KEY);
-
-        if (savedParams) {
-          const params: SearchParams = JSON.parse(savedParams);
-          setSearchQuery(params.query);
-          // Match saved tag IDs with loaded tag data
-          const matchedTags = params.tags
-            .map((savedTag) => {
-              const match = response.findTags.tags.find(
-                (tag) => tag.id === savedTag.id
-              );
-              if (!match) {
-                console.log("Could not find matching tag for:", savedTag);
-              }
-              return match;
-            })
-            .filter((tag): tag is Tag => tag !== undefined);
-
-          setSelectedTags(matchedTags);
-          setSortField(params.sortField);
-          setSortDirection(params.sortDirection);
-        }
-      } catch (error) {
-        console.error("Error loading tags or search parameters:", error);
-      }
-    };
-    loadTags();
-  }, []);
-
-  // Save search parameters to localStorage only after initial load
+  // Update tag suggestions when needed
   useEffect(() => {
-    if (allTags.length === 0) {
-      // Don't save until we have tags loaded
-      return;
+    if (initialized) {
+      dispatch(updateTagSuggestions());
     }
+  }, [tagSearchQuery, selectedTags, initialized, dispatch]);
 
-    try {
-      const searchParams: SearchParams = {
-        query: searchQuery,
-        tags: selectedTags,
-        sortField,
-        sortDirection,
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(searchParams));
-    } catch (error) {
-      console.error("Error saving search parameters:", error);
-    }
-  }, [searchQuery, selectedTags, sortField, sortDirection, allTags]);
-
-  // Filter tag suggestions based on search query
+  // Debounced search effect - only after initialization
   useEffect(() => {
-    if (tagSearchQuery) {
-      const suggestions = allTags
-        .filter(
-          (tag) =>
-            tag.name.toLowerCase().includes(tagSearchQuery.toLowerCase()) &&
-            !selectedTags.some((selected) => selected.id === tag.id)
-        )
-        .slice(0, 10);
-      setTagSuggestions(suggestions);
-    } else {
-      setTagSuggestions([]);
-    }
-  }, [tagSearchQuery, allTags, selectedTags]);
-
-  const handleSearch = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await stashappService.searchScenes(
-        searchQuery,
-        selectedTags.map((tag) => tag.id),
-        sortField,
-        sortDirection
-      );
-      setScenes(result.findScenes.scenes);
-    } catch (error) {
-      console.error("Error searching scenes:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [searchQuery, selectedTags, sortField, sortDirection]);
-
-  // Add useEffect to trigger search when tags or search query changes
-  useEffect(() => {
+    if (!initialized) return;
+    
     const timeoutId = setTimeout(() => {
-      handleSearch();
-    }, 500); // Debounce search for 500ms
+      dispatch(
+        searchScenes({
+          query,
+          tagIds: selectedTags.map((tag) => tag.id),
+          sortField,
+          sortDirection,
+        })
+      );
+    }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [selectedTags, searchQuery, handleSearch]);
+  }, [query, selectedTags, sortField, sortDirection, initialized, dispatch]);
 
-  const handleTagSelect = (tag: Tag) => {
-    setSelectedTags((prev) => [...prev, tag]);
-    setTagSearchQuery("");
-  };
+  const handleQueryChange = useCallback(
+    (value: string) => {
+      dispatch(setQuery(value));
+    },
+    [dispatch]
+  );
 
-  const handleTagRemove = (tagId: string) => {
-    setSelectedTags((prev) => prev.filter((tag) => tag.id !== tagId));
-  };
+  const handleSortFieldChange = useCallback(
+    (value: SortField) => {
+      dispatch(setSortField(value));
+    },
+    [dispatch]
+  );
 
-  const handleSceneClick = (sceneId: string) => {
-    router.push(`/marker?sceneId=${sceneId}`);
-  };
+  const handleSortDirectionToggle = useCallback(() => {
+    dispatch(toggleSortDirection());
+  }, [dispatch]);
+
+  const handleTagSelect = useCallback(
+    (tag: Tag) => {
+      dispatch(addSelectedTag(tag));
+      dispatch(setTagSearchQuery(""));
+    },
+    [dispatch]
+  );
+
+  const handleTagRemove = useCallback(
+    (tagId: string) => {
+      dispatch(removeSelectedTag(tagId));
+    },
+    [dispatch]
+  );
+
+  const handleTagSearchChange = useCallback(
+    (value: string) => {
+      dispatch(setTagSearchQuery(value));
+    },
+    [dispatch]
+  );
+
+  const handleManualSearch = useCallback(() => {
+    dispatch(
+      searchScenes({
+        query,
+        tagIds: selectedTags.map((tag) => tag.id),
+        sortField,
+        sortDirection,
+      })
+    );
+  }, [dispatch, query, selectedTags, sortField, sortDirection]);
+
+  const handleSceneClick = useCallback(
+    (sceneId: string) => {
+      router.push(`/marker?sceneId=${sceneId}`);
+    },
+    [router]
+  );
+
+  // Show loading state during initialization
+  if (initializing) {
+    return (
+      <div className="container mx-auto p-4">
+        <div className="text-center text-white">Initializing search...</div>
+      </div>
+    );
+  }
+
+  // Show initialization error if it occurred
+  if (initializationError) {
+    return (
+      <div className="container mx-auto p-4">
+        <div className="text-center text-red-400">
+          Failed to initialize search: {initializationError}
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render the main UI until initialized
+  if (!initialized) {
+    return (
+      <div className="container mx-auto p-4">
+        <div className="text-center text-white">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4">
@@ -191,15 +201,17 @@ export default function SearchPage() {
         <div className="flex gap-4 mb-4">
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={query}
+            onChange={(e) => handleQueryChange(e.target.value)}
             placeholder="Search scenes..."
             className="flex-1 p-2 border rounded bg-gray-800 text-white border-gray-600 placeholder-gray-400"
           />
           <div className="flex gap-2">
             <select
               value={sortField}
-              onChange={(e) => setSortField(e.target.value as SortField)}
+              onChange={(e) =>
+                handleSortFieldChange(e.target.value as SortField)
+              }
               className="p-2 border rounded bg-gray-800 text-white border-gray-600"
             >
               {Object.entries(SORT_OPTIONS).map(([value, label]) => (
@@ -209,19 +221,20 @@ export default function SearchPage() {
               ))}
             </select>
             <button
-              onClick={() =>
-                setSortDirection((prev) => (prev === "ASC" ? "DESC" : "ASC"))
-              }
+              onClick={handleSortDirectionToggle}
               className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600"
             >
               {sortDirection === "ASC" ? "↑" : "↓"}
             </button>
           </div>
           <button
-            onClick={handleSearch}
+            onClick={handleManualSearch}
             disabled={loading}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
           >
+            {loading && (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            )}
             {loading ? "Searching..." : "Search"}
           </button>
         </div>
@@ -230,7 +243,7 @@ export default function SearchPage() {
           <input
             type="text"
             value={tagSearchQuery}
-            onChange={(e) => setTagSearchQuery(e.target.value)}
+            onChange={(e) => handleTagSearchChange(e.target.value)}
             placeholder="Search tags..."
             className="w-full p-2 border rounded bg-gray-800 text-white border-gray-600 placeholder-gray-400"
           />
@@ -267,60 +280,78 @@ export default function SearchPage() {
             ))}
           </div>
         )}
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-800 text-red-200 rounded">
+            Error: {error}
+          </div>
+        )}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {scenes.map((scene) => {
-          console.log("Scene data:", {
-            id: scene.id,
-            title: scene.title,
-            paths: scene.paths,
-            markers: scene.scene_markers,
-          });
 
-          if (!scene.paths?.screenshot) {
-            console.log("Missing screenshot path for scene:", scene.id);
-            return null;
-          }
+      {/* Results section with loading indicator */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+          <p className="text-gray-400">Searching for scenes...</p>
+        </div>
+      ) : scenes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="text-6xl text-gray-600 mb-4">🔍</div>
+          <p className="text-gray-400 text-center">
+            {hasSearched 
+              ? "No scenes found matching your search criteria"
+              : "Enter a search term or select tags to find scenes"
+            }
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {scenes.map((scene) => {
+            if (!scene.paths?.screenshot) {
+              console.log("Missing screenshot path for scene:", scene.id);
+              return null;
+            }
 
-          return (
-            <div
-              key={scene.id}
-              onClick={() => handleSceneClick(scene.id)}
-              className="cursor-pointer hover:opacity-80 transition-opacity"
-            >
-              <div className="aspect-video relative mb-2">
-                <Image
-                  src={stashappService.addApiKeyToUrl(scene.paths.screenshot)}
-                  alt={scene.title}
-                  fill
-                  className="absolute inset-0 w-full h-full object-cover rounded"
-                />
-                {scene.scene_markers && scene.scene_markers.length > 0 && (
-                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-2 flex justify-around text-xs">
-                    {(() => {
-                      const stats = calculateMarkerSummary(scene.scene_markers);
-                      return (
-                        <>
-                          <span className="text-green-400">
-                            ✓ {stats.confirmed}
-                          </span>
-                          <span className="text-red-400">
-                            ✗ {stats.rejected}
-                          </span>
-                          <span className="text-yellow-400">
-                            ? {stats.unknown}
-                          </span>
-                        </>
-                      );
-                    })()}
-                  </div>
-                )}
+            return (
+              <div
+                key={scene.id}
+                onClick={() => handleSceneClick(scene.id)}
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+              >
+                <div className="aspect-video relative mb-2">
+                  <Image
+                    src={stashappService.addApiKeyToUrl(scene.paths.screenshot)}
+                    alt={scene.title}
+                    fill
+                    className="absolute inset-0 w-full h-full object-cover rounded"
+                  />
+                  {scene.scene_markers && scene.scene_markers.length > 0 && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-2 flex justify-around text-xs">
+                      {(() => {
+                        const stats = calculateMarkerSummary(scene.scene_markers);
+                        return (
+                          <>
+                            <span className="text-green-400">
+                              ✓ {stats.confirmed}
+                            </span>
+                            <span className="text-red-400">
+                              ✗ {stats.rejected}
+                            </span>
+                            <span className="text-yellow-400">
+                              ? {stats.unknown}
+                            </span>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+                <h3 className="text-sm truncate text-white">{scene.title}</h3>
               </div>
-              <h3 className="text-sm truncate text-white">{scene.title}</h3>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
