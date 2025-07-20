@@ -1843,14 +1843,22 @@ function MarkerPageContent() {
               (m) => m.id === state.selectedMarkerId
             );
             if (markerToConfirm) {
-              await markerOps.confirmMarker(markerToConfirm.id);
-              // Find and select next unprocessed marker in the same swimlane
-              const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
-              if (nextMarkerId) {
-                dispatch({
-                  type: "SET_SELECTED_MARKER_ID",
-                  payload: nextMarkerId,
-                });
+              const isAlreadyConfirmed = markerToConfirm.tags.some(
+                (tag) => tag.id === stashappService.MARKER_STATUS_CONFIRMED
+              );
+
+              if (isAlreadyConfirmed) {
+                await markerOps.resetMarker(markerToConfirm.id);
+              } else {
+                await markerOps.confirmMarker(markerToConfirm.id);
+                // Find and select next unprocessed marker in the same swimlane
+                const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
+                if (nextMarkerId) {
+                  dispatch({
+                    type: "SET_SELECTED_MARKER_ID",
+                    payload: nextMarkerId,
+                  });
+                }
               }
             }
           }
@@ -1859,18 +1867,26 @@ function MarkerPageContent() {
         case "X":
           event.preventDefault();
           {
-            const markerToReject = actionMarkers.find(
+            const markerToHandle = actionMarkers.find(
               (m) => m.id === state.selectedMarkerId
             );
-            if (markerToReject) {
-              await markerOps.rejectMarker(markerToReject.id);
-              // Find and select next unprocessed marker in the same swimlane
-              const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
-              if (nextMarkerId) {
-                dispatch({
-                  type: "SET_SELECTED_MARKER_ID",
-                  payload: nextMarkerId,
-                });
+            if (markerToHandle) {
+              const isAlreadyRejected = markerToHandle.tags.some(
+                (tag) => tag.id === stashappService.MARKER_STATUS_REJECTED
+              );
+
+              if (isAlreadyRejected) {
+                await markerOps.resetMarker(markerToHandle.id);
+              } else {
+                await markerOps.rejectMarker(markerToHandle.id);
+                // Find and select next unprocessed marker in the same swimlane
+                const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
+                if (nextMarkerId) {
+                  dispatch({
+                    type: "SET_SELECTED_MARKER_ID",
+                    payload: nextMarkerId,
+                  });
+                }
               }
             }
           }

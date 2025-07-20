@@ -288,6 +288,56 @@ export class StashappService {
     );
   }
 
+  async resetMarker(markerId: string, sceneId: string): Promise<SceneMarker> {
+    // First, fetch the current marker data
+    const currentMarker = await this.getSceneMarkerFromScene(markerId, sceneId);
+
+    if (!currentMarker) {
+      throw new Error(`Marker with ID ${markerId} not found`);
+    }
+
+    // Filter out both status tags
+    const newTagIds = currentMarker.tags
+      .map((tag) => tag.id)
+      .filter(
+        (id) =>
+          id !== StashappService.MARKER_STATUS_CONFIRMED &&
+          id !== StashappService.MARKER_STATUS_REJECTED
+      );
+
+    // Update the marker
+    const mutation = `
+      mutation SceneMarkerUpdate($input: SceneMarkerUpdateInput!) {
+        sceneMarkerUpdate(input: $input) {
+          id
+          title
+          seconds
+          created_at
+          updated_at
+          stream
+          preview
+          screenshot
+          tags {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      input: {
+        id: markerId,
+        tag_ids: newTagIds,
+      },
+    };
+
+    const result = await this.fetchGraphQL<{
+      data: { sceneMarkerUpdate: SceneMarker };
+    }>(mutation, variables);
+    return result.data.sceneMarkerUpdate;
+  }
+
   private async updateMarkerStatus(
     markerId: string,
     statusTagId: string,

@@ -297,6 +297,25 @@ export const useMarkerOperations = ({ state, dispatch }: MarkerContextType) => {
     ]
   );
 
+  const resetMarker = useCallback(
+    async (markerId: string) => {
+      if (!state.scene?.id) return;
+
+      try {
+        console.log("Resetting marker:", markerId);
+        await stashappService.resetMarker(markerId, state.scene.id);
+        await refreshMarkersOnly();
+      } catch (err) {
+        console.error("Error resetting marker:", err);
+        dispatch({
+          type: "SET_ERROR",
+          payload: "Failed to reset marker",
+        });
+      }
+    },
+    [state.scene?.id, dispatch, refreshMarkersOnly]
+  );
+
   return {
     refreshMarkersOnly,
     updateMarkerTimes,
@@ -305,5 +324,6 @@ export const useMarkerOperations = ({ state, dispatch }: MarkerContextType) => {
     createMarker,
     confirmMarker,
     rejectMarker,
+    resetMarker,
   };
 };
