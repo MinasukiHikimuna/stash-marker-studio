@@ -11,7 +11,6 @@ const initialState: MarkerState = {
   sceneTitle: null,
   scene: null,
   selectedMarkerId: null,
-  selectedMarkerIndex: 0, // Keep for backwards compatibility
   isEditingMarker: false,
   isCreatingMarker: false,
   isDuplicatingMarker: false,
@@ -42,12 +41,6 @@ const initialState: MarkerState = {
   isCollectingModalOpen: false,
 };
 
-// Helper function to find marker index by ID
-const findMarkerIndex = (markers: SceneMarker[], markerId: string | null) => {
-  if (!markerId || !markers.length) return -1;
-  return markers.findIndex((m) => m.id === markerId);
-};
-
 // Reducer function
 function markerReducer(state: MarkerState, action: MarkerAction): MarkerState {
   switch (action.type) {
@@ -65,13 +58,11 @@ function markerReducer(state: MarkerState, action: MarkerAction): MarkerState {
       const newSelectedId = selectedMarkerStillExists
         ? state.selectedMarkerId
         : null;
-      const newSelectedIndex = findMarkerIndex(action.payload, newSelectedId);
 
       return {
         ...state,
         markers: action.payload,
         selectedMarkerId: newSelectedId,
-        selectedMarkerIndex: newSelectedIndex >= 0 ? newSelectedIndex : 0,
       };
 
     case "SET_AVAILABLE_TAGS":
@@ -106,14 +97,9 @@ function markerReducer(state: MarkerState, action: MarkerAction): MarkerState {
         return state;
       }
 
-      // Find the index for backwards compatibility
-      const markerIndex = findMarkerIndex(state.markers, action.payload);
-
       return {
         ...state,
         selectedMarkerId: action.payload,
-        selectedMarkerIndex:
-          markerIndex >= 0 ? markerIndex : state.selectedMarkerIndex,
       };
     }
 

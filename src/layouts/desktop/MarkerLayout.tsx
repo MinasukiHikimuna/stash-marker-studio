@@ -60,7 +60,6 @@ export function MarkerLayout() {
               current: state.videoElement,
             } as React.RefObject<HTMLVideoElement>
           }
-          selectedMarkerIndex={state.selectedMarkerIndex}
           selectedMarkerId={state.selectedMarkerId}
           isCreatingMarker={state.isCreatingMarker}
           newMarkerStartTime={state.newMarkerStartTime}

@@ -10,7 +10,6 @@ export const initialMarkerState: MarkerState = {
 
   // UI state
   selectedMarkerId: null,
-  selectedMarkerIndex: -1, // Keep for backwards compatibility
   isEditingMarker: false,
   isCreatingMarker: false,
   isDuplicatingMarker: false,
@@ -83,13 +82,9 @@ export const markerReducer = (
         return state;
       }
 
-      // Find the index for backwards compatibility
-      const markerIndex = marker ? state.markers.indexOf(marker) : -1;
-
       return {
         ...state,
         selectedMarkerId: action.payload,
-        selectedMarkerIndex: markerIndex,
       };
     }
     case "SET_VIDEO_ELEMENT":

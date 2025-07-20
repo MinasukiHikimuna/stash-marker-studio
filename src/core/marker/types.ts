@@ -35,7 +35,6 @@ export type MarkerState = {
 
   // UI state
   selectedMarkerId: string | null; // Primary selection mechanism
-  selectedMarkerIndex: number; // Keep for backwards compatibility
   isEditingMarker: boolean;
   isCreatingMarker: boolean;
   isDuplicatingMarker: boolean;

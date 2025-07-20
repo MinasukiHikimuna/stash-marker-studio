@@ -151,27 +151,25 @@ export const useMarkerKeyboardShortcuts = (
         case "z":
         case "Z":
           event.preventDefault();
-          if (state.selectedMarkerIndex >= 0) {
-            const actionMarkers = getActionMarkers(
-              state.markers || [],
-              state.filteredSwimlane
-            );
-            const currentMarker = actionMarkers.find(
-              (m) => m.id === state.selectedMarkerId
-            );
-            if (!currentMarker) {
-              console.log("Cannot confirm marker: No current marker found");
-              return;
-            }
-            await markerOperations.confirmMarker(currentMarker.id);
+          const actionMarkers = getActionMarkers(
+            state.markers || [],
+            state.filteredSwimlane
+          );
+          const currentMarker = actionMarkers.find(
+            (m) => m.id === state.selectedMarkerId
+          );
+          if (!currentMarker) {
+            console.log("Cannot confirm marker: No current marker found");
+            return;
           }
+          await markerOperations.confirmMarker(currentMarker.id);
           break;
         case "x":
         case "X":
           event.preventDefault();
           if (event.shiftKey) {
             await markerOperations.deleteRejectedMarkers();
-          } else if (state.selectedMarkerIndex >= 0) {
+          } else if (state.selectedMarkerId) {
             const actionMarkers = getActionMarkers(
               state.markers || [],
               state.filteredSwimlane
@@ -236,7 +234,7 @@ export const useMarkerKeyboardShortcuts = (
           event.preventDefault();
           if (event.shiftKey) {
             videoControls.seekToTime(0);
-          } else if (state.selectedMarkerIndex >= 0) {
+          } else if (state.selectedMarkerId) {
             const actionMarkers = getActionMarkers(
               state.markers || [],
               state.filteredSwimlane
@@ -257,7 +255,7 @@ export const useMarkerKeyboardShortcuts = (
           event.preventDefault();
           if (event.shiftKey && state.videoDuration) {
             videoControls.seekToTime(state.videoDuration);
-          } else if (state.selectedMarkerIndex >= 0) {
+          } else if (state.selectedMarkerId) {
             const actionMarkers = getActionMarkers(
               state.markers || [],
               state.filteredSwimlane
@@ -279,12 +277,12 @@ export const useMarkerKeyboardShortcuts = (
     },
     [
       state.markers,
-      state.selectedMarkerIndex,
       state.videoElement,
       state.videoDuration,
       state.filteredSwimlane,
       state.isCreatingMarker,
       state.isDuplicatingMarker,
+      state.selectedMarkerId,
       dispatch,
       videoControls,
       timelineNavigation,
