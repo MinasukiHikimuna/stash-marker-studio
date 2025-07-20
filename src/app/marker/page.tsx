@@ -764,10 +764,6 @@ function MarkerPageContent() {
         });
       }
 
-      const tempIndex = updatedActionMarkers.findIndex(
-        (m) => m.id === tempMarker.id
-      );
-
       dispatch({
         type: "SET_MARKERS",
         payload: updatedMarkers,
