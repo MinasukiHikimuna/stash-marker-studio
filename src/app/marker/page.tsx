@@ -2193,8 +2193,10 @@ function MarkerPageContent() {
               state.videoElement.currentTime = 0;
             } else {
               // I: Jump to start of current marker
-              if (actionMarkers[state.selectedMarkerIndex]) {
-                const marker = actionMarkers[state.selectedMarkerIndex];
+              const marker = actionMarkers.find(
+                (m) => m.id === state.selectedMarkerId
+              );
+              if (marker) {
                 state.videoElement.currentTime = marker.seconds;
               }
             }
@@ -2211,8 +2213,10 @@ function MarkerPageContent() {
               }
             } else {
               // O: Jump to end of current marker
-              if (actionMarkers[state.selectedMarkerIndex]) {
-                const marker = actionMarkers[state.selectedMarkerIndex];
+              const marker = actionMarkers.find(
+                (m) => m.id === state.selectedMarkerId
+              );
+              if (marker) {
                 const endTime = marker.end_seconds ?? marker.seconds + 1;
                 state.videoElement.currentTime = endTime;
               }
@@ -2235,10 +2239,14 @@ function MarkerPageContent() {
         // Enter key - Start playback from current marker
         case "Enter":
           event.preventDefault();
-          if (state.videoElement && actionMarkers[state.selectedMarkerIndex]) {
-            const marker = actionMarkers[state.selectedMarkerIndex];
-            state.videoElement.currentTime = marker.seconds;
-            state.videoElement.play();
+          if (state.videoElement) {
+            const marker = actionMarkers.find(
+              (m) => m.id === state.selectedMarkerId
+            );
+            if (marker) {
+              state.videoElement.currentTime = marker.seconds;
+              state.videoElement.play();
+            }
           }
           break;
 
