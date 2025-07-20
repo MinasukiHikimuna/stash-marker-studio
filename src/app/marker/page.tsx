@@ -407,20 +407,6 @@ function MarkerPageContent() {
     return actionMarkers;
   }, [actionMarkers]);
 
-  const logMarkerSelection = useCallback(
-    (index: number, reason: string) => {
-      const marker = actionMarkers[index];
-      console.log("Selecting marker:", {
-        index,
-        markerId: marker?.id,
-        markerStart: marker?.seconds,
-        markerEnd: marker?.end_seconds,
-        reason,
-      });
-    },
-    [actionMarkers]
-  );
-
   // Effect to update selected marker when filtering changes to ensure it's valid
   useEffect(() => {
     if (actionMarkers.length > 0) {
