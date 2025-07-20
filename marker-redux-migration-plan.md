@@ -98,9 +98,10 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
   - Updated to use Redux selectors (selectMarkers, selectFilteredSwimlane, selectSelectedMarkerId)
   - Replaced useMarker hook with useAppSelector
   - Maintained scroll-to-selected functionality
-- [ ] **MarkerItem**: Individual marker rendering
-  - Update to use Redux actions for marker operations
-  - Handle edit mode state through Redux
+- [x] **MarkerItem**: Individual marker rendering ✅ COMPLETED
+  - Updated to use Redux selectors (selectVideoElement) and actions (setSelectedMarkerId)
+  - Removed MarkerContext dependency and replaced with useAppDispatch/useAppSelector
+  - Maintained all existing functionality including marker selection and video seeking
 
 #### Step 3.3: Complex Components (High Risk)
 

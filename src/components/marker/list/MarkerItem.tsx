@@ -1,4 +1,5 @@
-import { useMarker } from "../../../contexts/MarkerContext";
+import { useAppDispatch, useAppSelector } from "../../../store/hooks";
+import { setSelectedMarkerId, selectVideoElement } from "../../../store/slices/markerSlice";
 import { type SceneMarker } from "../../../services/StashappService";
 import { getMarkerStatus } from "../../../core/marker/markerLogic";
 import { MarkerStatus } from "../../../core/marker/types";
@@ -10,7 +11,8 @@ type MarkerItemProps = {
 };
 
 export function MarkerItem({ marker, isSelected }: MarkerItemProps) {
-  const { state, dispatch } = useMarker();
+  const dispatch = useAppDispatch();
+  const videoElement = useAppSelector(selectVideoElement);
 
   const handleClick = () => {
     console.log("Selecting marker:", {
@@ -20,9 +22,9 @@ export function MarkerItem({ marker, isSelected }: MarkerItemProps) {
       markerEnd: marker.end_seconds,
       reason: "marker list click",
     });
-    dispatch({ type: "SET_SELECTED_MARKER_ID", payload: marker.id });
-    if (state.videoElement) {
-      state.videoElement.currentTime = marker.seconds;
+    dispatch(setSelectedMarkerId(marker.id));
+    if (videoElement) {
+      videoElement.currentTime = marker.seconds;
     }
   };
 
