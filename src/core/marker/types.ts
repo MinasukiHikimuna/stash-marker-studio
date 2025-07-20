@@ -77,7 +77,7 @@ export type MarkerState = {
 
 export type MarkerAction =
   | { type: "SET_SCENE"; payload: Scene | null }
-  | { type: "SET_SCENE_DATA"; payload: { id: string; title: string } }
+  | { type: "SET_SCENE_DATA"; payload: Scene }
   | { type: "SET_MARKERS"; payload: SceneMarker[] }
   | { type: "SET_AVAILABLE_TAGS"; payload: Tag[] }
   | { type: "SET_SELECTED_MARKER_ID"; payload: string | null }

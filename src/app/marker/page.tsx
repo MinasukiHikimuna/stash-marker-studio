@@ -1130,7 +1130,12 @@ function MarkerPageContent() {
       const scene = {
         id: state.scene.id,
         title: state.scene.title,
-        paths: { preview: "" },
+        paths: {
+          preview: "",
+          vtt: "",
+          sprite: "",
+          screenshot: "",
+        },
         tags: [],
         performers: [],
       };
