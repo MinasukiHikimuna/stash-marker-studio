@@ -156,8 +156,14 @@ export const useMarkerKeyboardShortcuts = (
               state.markers || [],
               state.filteredSwimlane
             );
-            const marker = actionMarkers[state.selectedMarkerIndex];
-            await markerOperations.confirmMarker(marker.id);
+            const currentMarker = actionMarkers.find(
+              (m) => m.id === state.selectedMarkerId
+            );
+            if (!currentMarker) {
+              console.log("Cannot confirm marker: No current marker found");
+              return;
+            }
+            await markerOperations.confirmMarker(currentMarker.id);
           }
           break;
         case "x":
@@ -170,8 +176,14 @@ export const useMarkerKeyboardShortcuts = (
               state.markers || [],
               state.filteredSwimlane
             );
-            const marker = actionMarkers[state.selectedMarkerIndex];
-            await markerOperations.rejectMarker(marker.id);
+            const currentMarker = actionMarkers.find(
+              (m) => m.id === state.selectedMarkerId
+            );
+            if (!currentMarker) {
+              console.log("Cannot reject marker: No current marker found");
+              return;
+            }
+            await markerOperations.rejectMarker(currentMarker.id);
           }
           break;
         case "a":
@@ -229,10 +241,17 @@ export const useMarkerKeyboardShortcuts = (
               state.markers || [],
               state.filteredSwimlane
             );
-            const marker = actionMarkers[state.selectedMarkerIndex];
+            const currentMarker = actionMarkers.find(
+              (m) => m.id === state.selectedMarkerId
+            );
+            if (!currentMarker) {
+              console.log("Cannot jump to marker: No current marker found");
+              return;
+            }
+
             videoControls.jumpToMarkerTime(
-              marker.seconds,
-              marker.end_seconds || null
+              currentMarker.seconds,
+              currentMarker.end_seconds || null
             );
           }
           break;
@@ -246,9 +265,16 @@ export const useMarkerKeyboardShortcuts = (
               state.markers || [],
               state.filteredSwimlane
             );
-            const marker = actionMarkers[state.selectedMarkerIndex];
-            if (marker.end_seconds) {
-              videoControls.jumpToMarkerTime(marker.end_seconds, null);
+            const currentMarker = actionMarkers.find(
+              (m) => m.id === state.selectedMarkerId
+            );
+            if (!currentMarker) {
+              console.log("Cannot jump to marker: No current marker found");
+              return;
+            }
+
+            if (currentMarker.end_seconds) {
+              videoControls.jumpToMarkerTime(currentMarker.end_seconds, null);
             }
           }
           break;

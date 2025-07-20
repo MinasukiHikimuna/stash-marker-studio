@@ -501,7 +501,14 @@ function MarkerPageContent() {
       return;
     }
 
-    const currentMarker = actionMarkers[state.selectedMarkerIndex];
+    const currentMarker = actionMarkers.find(
+      (m) => m.id === state.selectedMarkerId
+    );
+    if (!currentMarker) {
+      console.log("Cannot split marker: No current marker found");
+      return;
+    }
+
     const currentTime = state.videoElement.currentTime;
 
     console.log("Attempting to split marker:", {
@@ -863,8 +870,13 @@ function MarkerPageContent() {
     const actionMarkers = getActionMarkers();
     if (!actionMarkers || state.selectedMarkerIndex < 0) return;
 
-    const currentMarker = actionMarkers[state.selectedMarkerIndex];
-    if (!currentMarker) return;
+    const currentMarker = actionMarkers.find(
+      (m) => m.id === state.selectedMarkerId
+    );
+    if (!currentMarker) {
+      console.log("Cannot paste marker times: No current marker found");
+      return;
+    }
 
     try {
       await markerOps.updateMarkerTimes(
@@ -1711,69 +1723,72 @@ function MarkerPageContent() {
           event.preventDefault();
           // Filter by current marker's swimlane, or clear if no markers are visible due to filtering
           if (actionMarkers.length > 0 && state.selectedMarkerIndex >= 0) {
-            const currentMarker = actionMarkers[state.selectedMarkerIndex];
-            if (currentMarker) {
-              // Remember the current marker ID to preserve selection after filtering
-              const currentMarkerId = currentMarker.id;
-
-              // Use the same tag grouping logic as the timeline
-              const tagGroupName = currentMarker.primary_tag.name.endsWith(
-                "_AI"
-              )
-                ? currentMarker.primary_tag.name.replace("_AI", "")
-                : currentMarker.primary_tag.name;
-
-              // Toggle filter: if already filtered by this swimlane, clear it; otherwise set it
-              const newFilter =
-                state.filteredSwimlane === tagGroupName ? null : tagGroupName;
-
-              // Apply the filter
-              dispatch({ type: "SET_FILTERED_SWIMLANE", payload: newFilter });
-
-              // After filtering, find and select the same marker in the new filtered/unfiltered list
-              setTimeout(() => {
-                // Calculate what the new actionMarkers will be
-                if (!state.markers) return;
-
-                let newFilteredMarkers = state.markers.filter((marker) => {
-                  if (marker.id.startsWith("temp-")) return true;
-                  return !isShotBoundaryMarker(marker);
-                });
-
-                // Apply swimlane filter if active
-                if (newFilter) {
-                  newFilteredMarkers = newFilteredMarkers.filter((marker) => {
-                    const tagGroupName = marker.primary_tag.name.endsWith("_AI")
-                      ? marker.primary_tag.name.replace("_AI", "")
-                      : marker.primary_tag.name;
-                    return tagGroupName === newFilter;
-                  });
-                }
-
-                // Find the current marker in the new list
-                const newIndex = newFilteredMarkers.findIndex(
-                  (m) => m.id === currentMarkerId
-                );
-                const targetIndex = newIndex >= 0 ? newIndex : 0;
-
-                if (newIndex >= 0) {
-                  dispatch({
-                    type: "SET_SELECTED_MARKER_ID",
-                    payload: newFilteredMarkers[newIndex].id,
-                  });
-                } else if (newFilteredMarkers.length > 0) {
-                  dispatch({
-                    type: "SET_SELECTED_MARKER_ID",
-                    payload: newFilteredMarkers[0].id,
-                  });
-                } else {
-                  dispatch({
-                    type: "SET_SELECTED_MARKER_ID",
-                    payload: null,
-                  });
-                }
-              }, 0);
+            const currentMarker = actionMarkers.find(
+              (m) => m.id === state.selectedMarkerId
+            );
+            if (!currentMarker) {
+              console.log("Cannot split marker: No current marker found");
+              return;
             }
+
+            // Remember the current marker ID to preserve selection after filtering
+            const currentMarkerId = currentMarker.id;
+
+            // Use the same tag grouping logic as the timeline
+            const tagGroupName = currentMarker.primary_tag.name.endsWith("_AI")
+              ? currentMarker.primary_tag.name.replace("_AI", "")
+              : currentMarker.primary_tag.name;
+
+            // Toggle filter: if already filtered by this swimlane, clear it; otherwise set it
+            const newFilter =
+              state.filteredSwimlane === tagGroupName ? null : tagGroupName;
+
+            // Apply the filter
+            dispatch({ type: "SET_FILTERED_SWIMLANE", payload: newFilter });
+
+            // After filtering, find and select the same marker in the new filtered/unfiltered list
+            setTimeout(() => {
+              // Calculate what the new actionMarkers will be
+              if (!state.markers) return;
+
+              let newFilteredMarkers = state.markers.filter((marker) => {
+                if (marker.id.startsWith("temp-")) return true;
+                return !isShotBoundaryMarker(marker);
+              });
+
+              // Apply swimlane filter if active
+              if (newFilter) {
+                newFilteredMarkers = newFilteredMarkers.filter((marker) => {
+                  const tagGroupName = marker.primary_tag.name.endsWith("_AI")
+                    ? marker.primary_tag.name.replace("_AI", "")
+                    : marker.primary_tag.name;
+                  return tagGroupName === newFilter;
+                });
+              }
+
+              // Find the current marker in the new list
+              const newIndex = newFilteredMarkers.findIndex(
+                (m) => m.id === currentMarkerId
+              );
+              const targetIndex = newIndex >= 0 ? newIndex : 0;
+
+              if (newIndex >= 0) {
+                dispatch({
+                  type: "SET_SELECTED_MARKER_ID",
+                  payload: newFilteredMarkers[newIndex].id,
+                });
+              } else if (newFilteredMarkers.length > 0) {
+                dispatch({
+                  type: "SET_SELECTED_MARKER_ID",
+                  payload: newFilteredMarkers[0].id,
+                });
+              } else {
+                dispatch({
+                  type: "SET_SELECTED_MARKER_ID",
+                  payload: null,
+                });
+              }
+            }, 0);
           } else if (state.filteredSwimlane) {
             // If no action markers are visible but a filter is applied, pressing F clears the filter.
             dispatch({ type: "SET_FILTERED_SWIMLANE", payload: null });
@@ -2736,11 +2751,16 @@ function MarkerPageContent() {
                     <button
                       onClick={() => {
                         const actionMarkers = getActionMarkers();
-                        if (actionMarkers[state.selectedMarkerIndex]) {
-                          createOrDuplicateMarker(
-                            actionMarkers[state.selectedMarkerIndex]
+                        const currentMarker = actionMarkers.find(
+                          (m) => m.id === state.selectedMarkerId
+                        );
+                        if (!currentMarker) {
+                          console.log(
+                            "Cannot duplicate marker: No current marker found"
                           );
+                          return;
                         }
+                        createOrDuplicateMarker(currentMarker);
                       }}
                       disabled={
                         state.isCreatingMarker ||
@@ -3163,7 +3183,6 @@ function MarkerPageContent() {
                     current: state.videoElement,
                   } as React.RefObject<HTMLVideoElement>
                 }
-                selectedMarkerIndex={state.selectedMarkerIndex}
                 isCreatingMarker={false}
                 newMarkerStartTime={null}
                 newMarkerEndTime={null}
