@@ -1679,7 +1679,7 @@ function MarkerPageContent() {
         case "F":
           event.preventDefault();
           // Filter by current marker's swimlane, or clear if no markers are visible due to filtering
-          if (actionMarkers.length > 0 && state.selectedMarkerIndex >= 0) {
+          if (actionMarkers.length > 0) {
             const currentMarker = actionMarkers.find(
               (m) => m.id === state.selectedMarkerId
             );
