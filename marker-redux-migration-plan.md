@@ -27,16 +27,16 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
 ### Phase 1: Redux Slice Setup
 **Goal**: Create the foundation without breaking existing functionality
 
-#### Step 1.1: Create Marker Slice Structure
-- [ ] Create `src/store/slices/markerSlice.ts`
-- [ ] Define TypeScript interfaces for marker state
-- [ ] Set up initial state structure following search slice patterns
-- [ ] Create basic sync actions (setters, UI state toggles)
+#### Step 1.1: Create Marker Slice Structure ✅ COMPLETED
+- [x] Create `src/store/slices/markerSlice.ts`
+- [x] Define TypeScript interfaces for marker state
+- [x] Set up initial state structure following search slice patterns
+- [x] Create basic sync actions (setters, UI state toggles)
 
-#### Step 1.2: Add to Store Configuration
-- [ ] Update `src/store/index.ts` to include marker reducer
-- [ ] Ensure type safety with updated `RootState` type
-- [ ] Test that store setup doesn't break existing search functionality
+#### Step 1.2: Add to Store Configuration ✅ COMPLETED
+- [x] Update `src/store/index.ts` to include marker reducer
+- [x] Ensure type safety with updated `RootState` type
+- [x] Test that store setup doesn't break existing search functionality
 
 ### Phase 2: Async Operations Migration
 **Goal**: Move complex operations from custom hooks to Redux thunks
@@ -229,9 +229,56 @@ Follow search slice patterns:
 
 **Total**: 12-17 days (2-3 weeks)
 
+## Phase 1 Implementation Notes & Findings
+
+### ✅ Completed Successfully (Commit: e8ba629)
+
+**Key Implementation Decisions:**
+1. **State Organization**: Organized 42+ MarkerContext properties into logical groups:
+   - `ui.modals`: All modal states (8 boolean flags)
+   - `ui.editing`: Temporary editing state and form fields
+   - `ui.selectedMarkerId`: Primary selection mechanism
+   - `video`: Duration, currentTime, element reference
+   - `operations`: Background operations (generation, AI conversion, etc.)
+   - `filters`: Display filtering state
+
+2. **HTMLVideoElement Handling**: Resolved Redux serialization issue by:
+   - Adding `ignoredPaths: ['marker.video.element']` to store config
+   - Using `current()` helper in setVideoElement reducer for proper immer handling
+   - No `any` types or ESLint rule disabling required
+
+3. **Pattern Consistency**: Followed search slice patterns for:
+   - Async thunk structure with pending/fulfilled/rejected states
+   - Selector naming conventions (`selectMarkerX`)
+   - Action naming patterns (`setX`, `clearError`, `resetState`)
+
+### Critical Findings for Next Phases
+
+**MarkerContext Analysis:**
+- 42+ state properties across 8 components (MarkerLayout, MarkerList, MarkerHeader, MarkerItem, VideoPlayer, MarkerSummary, Timeline, main page)
+- Complex selection logic with shot boundary prevention (`MARKER_SHOT_BOUNDARY` filtering)
+- Heavy use of temporary state for multi-step operations (duplicate, create, edit flows)
+
+**Redux Store Integration:**
+- Successfully integrated without breaking search functionality
+- All tests pass, linting clean, build successful
+- Type safety maintained with proper `RootState` updates
+
+**Next Phase Readiness:**
+- Basic slice structure ready for async thunk expansion
+- Store configuration handles non-serializable DOM elements properly
+- Foundation supports incremental component migration
+
+### Potential Issues Identified
+
+1. **Video Element Management**: Need careful handling during component migration since DOM refs shouldn't persist in Redux
+2. **Selection Logic**: Complex `selectedMarkerId` logic with shot boundary filtering must be preserved
+3. **Temporary State**: Many editing fields are temporary - consider if they belong in Redux long-term
+
 ## Notes
 
 - Each phase should be completed and tested before moving to the next
 - Consider creating feature branch for each major phase
 - Regular testing with full application to ensure no regressions
 - Document any deviations from this plan as they occur
+- **Phase 1 Complete**: Ready to proceed with async operations migration
