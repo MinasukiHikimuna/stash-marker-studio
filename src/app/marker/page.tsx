@@ -1743,16 +1743,10 @@ function MarkerPageContent() {
                 });
               }
 
-              // Find the current marker in the new list
-              const newIndex = newFilteredMarkers.findIndex(
-                (m) => m.id === currentMarkerId
-              );
-              const targetIndex = newIndex >= 0 ? newIndex : 0;
-
-              if (newIndex >= 0) {
+              if (currentMarkerId) {
                 dispatch({
                   type: "SET_SELECTED_MARKER_ID",
-                  payload: newFilteredMarkers[newIndex].id,
+                  payload: currentMarkerId,
                 });
               } else if (newFilteredMarkers.length > 0) {
                 dispatch({
