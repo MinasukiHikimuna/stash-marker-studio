@@ -115,7 +115,11 @@ export const useMarkerOperations = ({ state, dispatch }: MarkerContextType) => {
           state.scene.id,
           tagId,
           startTime,
-          endTime
+          endTime,
+          [
+            stashappService.MARKER_SOURCE_MANUAL,
+            stashappService.MARKER_STATUS_CONFIRMED,
+          ]
         );
         await refreshMarkersOnly();
       } catch (err) {
