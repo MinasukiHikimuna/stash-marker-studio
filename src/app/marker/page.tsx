@@ -1903,24 +1903,28 @@ function MarkerPageContent() {
             }
           } else {
             // C: Mark/unmark current marker as incorrect
-            const currentMarker = actionMarkers[state.selectedMarkerIndex];
-            if (currentMarker && state.scene?.id) {
+            const markerToHandle = actionMarkers.find(
+              (m) => m.id === state.selectedMarkerId
+            );
+            if (markerToHandle && state.scene?.id) {
               const isIncorrect = state.incorrectMarkers.some(
-                (m) => m.markerId === currentMarker.id
+                (m) => m.markerId === markerToHandle.id
               );
 
               if (isIncorrect) {
+                await markerOps.resetMarker(markerToHandle.id);
                 incorrectMarkerStorage.removeIncorrectMarker(
                   state.scene.id,
-                  currentMarker.id
+                  markerToHandle.id
                 );
                 showToast("Removed incorrect marker feedback", "success");
               } else {
+                await markerOps.rejectMarker(markerToHandle.id);
                 incorrectMarkerStorage.addIncorrectMarker(state.scene.id, {
-                  markerId: currentMarker.id,
-                  tagName: currentMarker.primary_tag.name,
-                  startTime: currentMarker.seconds,
-                  endTime: currentMarker.end_seconds || null,
+                  markerId: markerToHandle.id,
+                  tagName: markerToHandle.primary_tag.name,
+                  startTime: markerToHandle.seconds,
+                  endTime: markerToHandle.end_seconds || null,
                   timestamp: new Date().toISOString(),
                   sceneId: state.scene.id,
                   sceneTitle: state.scene.title || "Untitled Scene",
