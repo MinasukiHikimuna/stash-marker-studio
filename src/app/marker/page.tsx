@@ -836,7 +836,7 @@ function MarkerPageContent() {
       `Copied times: ${formatSeconds(copiedTimes.start, true)} - ${endTimeStr}`,
       "success"
     );
-  }, [getActionMarkers, state.selectedMarkerIndex, dispatch, showToast]);
+  }, [getActionMarkers, state.selectedMarkerId, dispatch, showToast]);
 
   // Paste marker times function
   const pasteMarkerTimes = useCallback(async () => {
