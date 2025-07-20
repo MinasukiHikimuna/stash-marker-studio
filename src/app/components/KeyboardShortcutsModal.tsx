@@ -102,7 +102,6 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
                 <li>Shift+I: Jump to scene start</li>
                 <li>O: Jump to marker end</li>
                 <li>Shift+O: Jump to scene end</li>
-                <li>P: Move marker to current time</li>
                 <li>
                   <strong>Navigation:</strong>
                 </li>
