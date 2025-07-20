@@ -1,0 +1,14 @@
+- I see you have the AI_Reviewed tag. I wonder if you'd like me to treat that tag specially in my plugin?
+- the other thing is you mention in your intro docs to create these new tags and put the id's in the env file. Maybe something on how to find the id's of those might be useful to more casual users
+  - or perhaps they could insert the name of the tag instead of the ID.
+  - or maybe an option that creates tags with default names and saves them or something
+  - in any case as a more advanced user tool its probably fine for now
+- PySceneDetect script should indicate if scenedetect is not found and how it can be installed with pip
+- Merging two markers
+- Change the top buttons to always work and the modal dialogs would contain documentation about how it is used
+- Settings for converting the tags, removing AI tags, generating markers. Maybe these could be just checkboxes in the dialog and when those are changed, it would persist the values in JSON.
+- Persisting settings in JSON file
+- Configurable keyboard shortcuts
+- Also if this is an option, perhaps zooming in/out will automatically lower the seek time window
+- Document how AI Collection works
+- Remove references in comments to manual being its own state
