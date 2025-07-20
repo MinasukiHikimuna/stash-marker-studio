@@ -59,6 +59,7 @@ export const useMarkerKeyboardShortcuts = (
       state.isDuplicatingMarker,
       state.isAIConversionModalOpen,
       state.isCollectingModalOpen,
+      state.isKeyboardShortcutsModalOpen,
       dispatch,
     ]
   );
