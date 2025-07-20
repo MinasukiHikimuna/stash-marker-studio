@@ -6,11 +6,10 @@ import { formatSeconds } from "../../../core/marker/markerLogic";
 
 type MarkerItemProps = {
   marker: SceneMarker;
-  index: number;
   isSelected: boolean;
 };
 
-export function MarkerItem({ marker, index, isSelected }: MarkerItemProps) {
+export function MarkerItem({ marker, isSelected }: MarkerItemProps) {
   const { state, dispatch } = useMarker();
 
   const handleClick = () => {

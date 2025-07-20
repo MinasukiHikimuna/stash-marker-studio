@@ -53,11 +53,10 @@ export function MarkerList({ className = "" }: MarkerListProps) {
       className={`overflow-y-auto flex-1 px-4 min-h-0 ${className}`}
       data-testid="marker-list"
     >
-      {actionMarkers.map((marker, index) => (
+      {actionMarkers.map((marker) => (
         <MarkerItem
           key={marker.id}
           marker={marker}
-          index={index}
           isSelected={marker.id === state.selectedMarkerId}
         />
       ))}
