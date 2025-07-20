@@ -2794,179 +2794,64 @@ function MarkerPageContent() {
                       No markers
                     </div>
                   ) : (
-                    getActionMarkers().map(
-                      (marker: SceneMarker, index: number) => {
-                        const isEditing = editingMarkerId === marker.id;
-                        const isSelected = marker.id === state.selectedMarkerId;
-                        const isTemp =
-                          marker.id === "temp-new" ||
-                          marker.id === "temp-duplicate";
+                    getActionMarkers().map((marker: SceneMarker) => {
+                      const isEditing = editingMarkerId === marker.id;
+                      const isSelected = marker.id === state.selectedMarkerId;
+                      const isTemp =
+                        marker.id === "temp-new" ||
+                        marker.id === "temp-duplicate";
 
-                        return (
-                          <div
-                            key={marker.id}
-                            data-marker-id={marker.id}
-                            className={`p-2 border-l-4 ${
-                              isTemp
-                                ? "bg-blue-800 border-blue-400"
-                                : isSelected
-                                ? "bg-gray-700 text-white border-blue-500"
-                                : state.incorrectMarkers.some(
-                                    (m) => m.markerId === marker.id
-                                  )
-                                ? "bg-purple-900/50 border-purple-500 hover:bg-purple-800"
-                                : "hover:bg-gray-600 hover:text-white border-transparent"
-                            }`}
-                            onClick={() => handleMarkerClick(marker)}
-                            onMouseEnter={() => {}}
-                            onMouseLeave={() => {}}
-                          >
-                            {isTemp ? (
-                              <TempMarkerForm
-                                marker={marker}
-                                availableTags={state.availableTags}
-                                videoElement={state.videoElement}
-                                onSave={async (newStart, newEnd, newTagId) => {
-                                  try {
-                                    // Create the marker and get the response with the new marker data
-                                    const createdMarker =
-                                      await stashappService.createSceneMarker(
-                                        marker.scene.id,
-                                        newTagId,
-                                        newStart,
-                                        newEnd ?? null
-                                      );
-
-                                    console.log(
-                                      "Created marker:",
-                                      createdMarker
+                      return (
+                        <div
+                          key={marker.id}
+                          data-marker-id={marker.id}
+                          className={`p-2 border-l-4 ${
+                            isTemp
+                              ? "bg-blue-800 border-blue-400"
+                              : isSelected
+                              ? "bg-gray-700 text-white border-blue-500"
+                              : state.incorrectMarkers.some(
+                                  (m) => m.markerId === marker.id
+                                )
+                              ? "bg-purple-900/50 border-purple-500 hover:bg-purple-800"
+                              : "hover:bg-gray-600 hover:text-white border-transparent"
+                          }`}
+                          onClick={() => handleMarkerClick(marker)}
+                          onMouseEnter={() => {}}
+                          onMouseLeave={() => {}}
+                        >
+                          {isTemp ? (
+                            <TempMarkerForm
+                              marker={marker}
+                              availableTags={state.availableTags}
+                              videoElement={state.videoElement}
+                              onSave={async (newStart, newEnd, newTagId) => {
+                                try {
+                                  // Create the marker and get the response with the new marker data
+                                  const createdMarker =
+                                    await stashappService.createSceneMarker(
+                                      marker.scene.id,
+                                      newTagId,
+                                      newStart,
+                                      newEnd ?? null
                                     );
 
-                                    // Remove temp markers and add the newly created marker in one atomic operation
-                                    const realMarkers = state.markers.filter(
-                                      (m) => !m.id.startsWith("temp-")
-                                    );
-                                    const updatedMarkers = [
-                                      ...realMarkers,
-                                      createdMarker,
-                                    ].sort((a, b) => a.seconds - b.seconds);
+                                  console.log("Created marker:", createdMarker);
 
-                                    // Update state with new markers and clear creating flags atomically
-                                    dispatch({
-                                      type: "SET_MARKERS",
-                                      payload: updatedMarkers,
-                                    });
-                                    dispatch({
-                                      type: "SET_CREATING_MARKER",
-                                      payload: false,
-                                    });
-                                    dispatch({
-                                      type: "SET_DUPLICATING_MARKER",
-                                      payload: false,
-                                    });
-
-                                    // Use setTimeout to ensure markers state has been updated before updating selected index
-                                    setTimeout(() => {
-                                      // Filter to get action markers from the updated data
-                                      const updatedActionMarkers =
-                                        updatedMarkers.filter((m) => {
-                                          // Always include temp markers regardless of their primary tag
-                                          if (m.id.startsWith("temp-")) {
-                                            return true;
-                                          }
-                                          // Filter out shot boundary markers for non-temp markers
-                                          return !isShotBoundaryMarker(m);
-                                        });
-
-                                      console.log(
-                                        "Looking for new marker ID:",
-                                        createdMarker.id,
-                                        "in",
-                                        updatedActionMarkers.length,
-                                        "action markers"
-                                      );
-
-                                      // Find the newly created marker in the updated action markers
-                                      const newMarkerIndex =
-                                        updatedActionMarkers.findIndex(
-                                          (m) => m.id === createdMarker.id
-                                        );
-
-                                      console.log(
-                                        "Found marker at index:",
-                                        newMarkerIndex
-                                      );
-
-                                      if (newMarkerIndex >= 0) {
-                                        console.log(
-                                          "Selecting marker at index:",
-                                          newMarkerIndex
-                                        );
-                                        dispatch({
-                                          type: "SET_SELECTED_MARKER_ID",
-                                          payload: createdMarker.id,
-                                        });
-                                      } else {
-                                        console.error(
-                                          "Created marker not found in action markers list"
-                                        );
-                                        // This should not happen with this approach, but log for debugging
-                                        console.log(
-                                          "Created marker:",
-                                          createdMarker
-                                        );
-                                        console.log(
-                                          "Is shot boundary?",
-                                          isShotBoundaryMarker(createdMarker)
-                                        );
-                                      }
-                                    }, 50); // Small delay to ensure state has been updated
-                                  } catch (error) {
-                                    console.error(
-                                      "Error creating marker:",
-                                      error
-                                    );
-
-                                    // Clean up on error - remove temp markers and clear flags
-                                    const realMarkers = state.markers.filter(
-                                      (m) => !m.id.startsWith("temp-")
-                                    );
-                                    dispatch({
-                                      type: "SET_MARKERS",
-                                      payload: realMarkers,
-                                    });
-                                    dispatch({
-                                      type: "SET_CREATING_MARKER",
-                                      payload: false,
-                                    });
-                                    dispatch({
-                                      type: "SET_DUPLICATING_MARKER",
-                                      payload: false,
-                                    });
-                                  }
-                                }}
-                                onCancel={() => {
-                                  // Remove temp marker
+                                  // Remove temp markers and add the newly created marker in one atomic operation
                                   const realMarkers = state.markers.filter(
                                     (m) => !m.id.startsWith("temp-")
                                   );
+                                  const updatedMarkers = [
+                                    ...realMarkers,
+                                    createdMarker,
+                                  ].sort((a, b) => a.seconds - b.seconds);
+
+                                  // Update state with new markers and clear creating flags atomically
                                   dispatch({
                                     type: "SET_MARKERS",
-                                    payload: realMarkers,
+                                    payload: updatedMarkers,
                                   });
-                                  // Reset selected marker to first marker
-                                  const actionMarkers = getActionMarkers();
-                                  if (actionMarkers.length > 0) {
-                                    dispatch({
-                                      type: "SET_SELECTED_MARKER_ID",
-                                      payload: actionMarkers[0].id,
-                                    });
-                                  } else {
-                                    dispatch({
-                                      type: "SET_SELECTED_MARKER_ID",
-                                      payload: null,
-                                    });
-                                  }
                                   dispatch({
                                     type: "SET_CREATING_MARKER",
                                     payload: false,
@@ -2975,123 +2860,228 @@ function MarkerPageContent() {
                                     type: "SET_DUPLICATING_MARKER",
                                     payload: false,
                                   });
-                                }}
-                                isDuplicate={marker.id === "temp-duplicate"}
-                              />
-                            ) : (
-                              <div className="flex items-center justify-between">
-                                <div
-                                  className="flex-1 cursor-pointer"
-                                  onClick={() =>
-                                    !isEditing && handleMarkerClick(marker)
-                                  }
-                                >
-                                  <div className="flex items-center">
-                                    {isMarkerRejected(marker) && (
-                                      <span className="text-red-500 mr-2">
-                                        ✗
+
+                                  // Use setTimeout to ensure markers state has been updated before updating selected index
+                                  setTimeout(() => {
+                                    // Filter to get action markers from the updated data
+                                    const updatedActionMarkers =
+                                      updatedMarkers.filter((m) => {
+                                        // Always include temp markers regardless of their primary tag
+                                        if (m.id.startsWith("temp-")) {
+                                          return true;
+                                        }
+                                        // Filter out shot boundary markers for non-temp markers
+                                        return !isShotBoundaryMarker(m);
+                                      });
+
+                                    console.log(
+                                      "Looking for new marker ID:",
+                                      createdMarker.id,
+                                      "in",
+                                      updatedActionMarkers.length,
+                                      "action markers"
+                                    );
+
+                                    // Find the newly created marker in the updated action markers
+                                    const newMarkerIndex =
+                                      updatedActionMarkers.findIndex(
+                                        (m) => m.id === createdMarker.id
+                                      );
+
+                                    console.log(
+                                      "Found marker at index:",
+                                      newMarkerIndex
+                                    );
+
+                                    if (newMarkerIndex >= 0) {
+                                      console.log(
+                                        "Selecting marker at index:",
+                                        newMarkerIndex
+                                      );
+                                      dispatch({
+                                        type: "SET_SELECTED_MARKER_ID",
+                                        payload: createdMarker.id,
+                                      });
+                                    } else {
+                                      console.error(
+                                        "Created marker not found in action markers list"
+                                      );
+                                      // This should not happen with this approach, but log for debugging
+                                      console.log(
+                                        "Created marker:",
+                                        createdMarker
+                                      );
+                                      console.log(
+                                        "Is shot boundary?",
+                                        isShotBoundaryMarker(createdMarker)
+                                      );
+                                    }
+                                  }, 50); // Small delay to ensure state has been updated
+                                } catch (error) {
+                                  console.error(
+                                    "Error creating marker:",
+                                    error
+                                  );
+
+                                  // Clean up on error - remove temp markers and clear flags
+                                  const realMarkers = state.markers.filter(
+                                    (m) => !m.id.startsWith("temp-")
+                                  );
+                                  dispatch({
+                                    type: "SET_MARKERS",
+                                    payload: realMarkers,
+                                  });
+                                  dispatch({
+                                    type: "SET_CREATING_MARKER",
+                                    payload: false,
+                                  });
+                                  dispatch({
+                                    type: "SET_DUPLICATING_MARKER",
+                                    payload: false,
+                                  });
+                                }
+                              }}
+                              onCancel={() => {
+                                // Remove temp marker
+                                const realMarkers = state.markers.filter(
+                                  (m) => !m.id.startsWith("temp-")
+                                );
+                                dispatch({
+                                  type: "SET_MARKERS",
+                                  payload: realMarkers,
+                                });
+                                // Reset selected marker to first marker
+                                const actionMarkers = getActionMarkers();
+                                if (actionMarkers.length > 0) {
+                                  dispatch({
+                                    type: "SET_SELECTED_MARKER_ID",
+                                    payload: actionMarkers[0].id,
+                                  });
+                                } else {
+                                  dispatch({
+                                    type: "SET_SELECTED_MARKER_ID",
+                                    payload: null,
+                                  });
+                                }
+                                dispatch({
+                                  type: "SET_CREATING_MARKER",
+                                  payload: false,
+                                });
+                                dispatch({
+                                  type: "SET_DUPLICATING_MARKER",
+                                  payload: false,
+                                });
+                              }}
+                              isDuplicate={marker.id === "temp-duplicate"}
+                            />
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <div
+                                className="flex-1 cursor-pointer"
+                                onClick={() =>
+                                  !isEditing && handleMarkerClick(marker)
+                                }
+                              >
+                                <div className="flex items-center">
+                                  {isMarkerRejected(marker) && (
+                                    <span className="text-red-500 mr-2">✗</span>
+                                  )}
+                                  {!isMarkerRejected(marker) &&
+                                    isMarkerConfirmed(marker) && (
+                                      <span className="text-green-500 mr-2">
+                                        ✓
                                       </span>
                                     )}
-                                    {!isMarkerRejected(marker) &&
-                                      isMarkerConfirmed(marker) && (
-                                        <span className="text-green-500 mr-2">
-                                          ✓
-                                        </span>
-                                      )}
-                                    {!isMarkerRejected(marker) &&
-                                      !isMarkerConfirmed(marker) && (
-                                        <span className="text-yellow-500 mr-2">
-                                          ?
-                                        </span>
-                                      )}
-
-                                    {isEditing ? (
-                                      <div className="flex items-center space-x-2 flex-1">
-                                        <TagAutocomplete
-                                          value={editingTagId}
-                                          onChange={setEditingTagId}
-                                          availableTags={state.availableTags}
-                                          placeholder="Type to search tags..."
-                                          className="flex-1"
-                                          autoFocus={isEditing}
-                                          onSave={(tagId) =>
-                                            void handleSaveEditWithTagId(
-                                              marker,
-                                              tagId
-                                            )
-                                          }
-                                          onCancel={handleCancelEdit}
-                                        />
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <span className="font-bold mr-2">
-                                          {marker.primary_tag.name}
-                                        </span>
-                                        <span className="text-xs text-gray-400">
-                                          {marker.end_seconds
-                                            ? `${formatSeconds(
-                                                marker.seconds,
-                                                true
-                                              )} - ${formatSeconds(
-                                                marker.end_seconds,
-                                                true
-                                              )}`
-                                            : formatSeconds(
-                                                marker.seconds,
-                                                true
-                                              )}
-                                        </span>
-                                      </>
+                                  {!isMarkerRejected(marker) &&
+                                    !isMarkerConfirmed(marker) && (
+                                      <span className="text-yellow-500 mr-2">
+                                        ?
+                                      </span>
                                     )}
-                                  </div>
-                                  {!isEditing && (
-                                    <p className="text-xs mt-1 text-gray-600">
-                                      {marker.tags
-                                        .filter(
-                                          (tag) =>
-                                            tag.id !==
-                                              stashappService.MARKER_STATUS_CONFIRMED &&
-                                            tag.id !==
-                                              stashappService.MARKER_STATUS_REJECTED
-                                        )
-                                        .map((tag) => tag.name)
-                                        .join(", ")}
-                                    </p>
+
+                                  {isEditing ? (
+                                    <div className="flex items-center space-x-2 flex-1">
+                                      <TagAutocomplete
+                                        value={editingTagId}
+                                        onChange={setEditingTagId}
+                                        availableTags={state.availableTags}
+                                        placeholder="Type to search tags..."
+                                        className="flex-1"
+                                        autoFocus={isEditing}
+                                        onSave={(tagId) =>
+                                          void handleSaveEditWithTagId(
+                                            marker,
+                                            tagId
+                                          )
+                                        }
+                                        onCancel={handleCancelEdit}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <span className="font-bold mr-2">
+                                        {marker.primary_tag.name}
+                                      </span>
+                                      <span className="text-xs text-gray-400">
+                                        {marker.end_seconds
+                                          ? `${formatSeconds(
+                                              marker.seconds,
+                                              true
+                                            )} - ${formatSeconds(
+                                              marker.end_seconds,
+                                              true
+                                            )}`
+                                          : formatSeconds(marker.seconds, true)}
+                                      </span>
+                                    </>
                                   )}
                                 </div>
                                 {!isEditing && (
-                                  <div className="flex items-center space-x-1 ml-2">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEditMarker(marker);
-                                      }}
-                                      className="text-gray-400 hover:text-white p-1"
-                                      title="Edit marker (Q)"
-                                    >
-                                      <svg
-                                        className="w-4 h-4"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth={2}
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                                        />
-                                      </svg>
-                                    </button>
-                                  </div>
+                                  <p className="text-xs mt-1 text-gray-600">
+                                    {marker.tags
+                                      .filter(
+                                        (tag) =>
+                                          tag.id !==
+                                            stashappService.MARKER_STATUS_CONFIRMED &&
+                                          tag.id !==
+                                            stashappService.MARKER_STATUS_REJECTED
+                                      )
+                                      .map((tag) => tag.name)
+                                      .join(", ")}
+                                  </p>
                                 )}
                               </div>
-                            )}
-                          </div>
-                        );
-                      }
-                    )
+                              {!isEditing && (
+                                <div className="flex items-center space-x-1 ml-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditMarker(marker);
+                                    }}
+                                    className="text-gray-400 hover:text-white p-1"
+                                    title="Edit marker (Q)"
+                                  >
+                                    <svg
+                                      className="w-4 h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth={2}
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                                      />
+                                    </svg>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </div>
