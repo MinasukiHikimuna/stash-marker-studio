@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plan outlines the step-by-step migration of the Marker page from React Context (`MarkerContext`) to Redux, following the established patterns from the Search page. The migration will be done incrementally to minimize disruption and ensure stability. This file must be kept up-to-date when proceeding with the plan.
+This plan outlines the step-by-step migration of the Marker page from React Context (`MarkerContext`) to Redux, following the established patterns from the Search page. The migration will be done incrementally to minimize disruption and ensure stability. This file must be kept up-to-date when proceeding with the plan. Always check after completing a checkbox if a git commit should be made.
 
 ## Current State Analysis
 
@@ -84,7 +84,7 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
 
 #### Step 3.1: Core Data Components (Low Risk)
 
-- [ ] **MarkerSummary**: Simple read-only component
+- [x] **MarkerSummary**: Simple read-only component ✅ COMPLETED
   - Update to use `useAppSelector` for marker counts
   - Remove MarkerContext dependency
 - [ ] **MarkerHeader**: Basic UI state management
@@ -311,6 +311,7 @@ Follow search slice patterns:
 **Key Implementation Decisions:**
 
 1. **Comprehensive Async Thunk Coverage**: Implemented all core CRUD operations with proper error handling:
+
    - Full initialization workflow (`initializeMarkerPage`)
    - Marker CRUD operations (create, update times, update tags, delete, bulk delete)
    - Marker status operations (confirm, reject, reset)
@@ -318,13 +319,15 @@ Follow search slice patterns:
    - Advanced operations (duplicate, merge, split, export) with placeholder implementations
 
 2. **Error Handling & Loading States**: All thunks follow consistent patterns:
+
    - Use `rejectWithValue` for proper error handling
    - Loading states managed in extraReducers
    - Automatic marker refresh after mutations
 
 3. **Service Integration**: Fixed method name discrepancies:
+
    - `getScene()` instead of `findScene()`
-   - `getAllTags()` instead of `findTags()`  
+   - `getAllTags()` instead of `findTags()`
    - `convertConfirmedAIMarkers(markers[])` instead of `findConfirmedAIMarkers(sceneId)`
 
 4. **Complete State Management**: Added all missing sync actions and selectors:
@@ -336,9 +339,10 @@ Follow search slice patterns:
 ### Phase 2 Achievements:
 
 **✅ All Original useMarkerOperations Functions Replicated:**
+
 - `refreshMarkersOnly` → `loadMarkers`
 - `updateMarkerTimes` → `updateMarkerTimes`
-- `updateMarkerTag` → `updateMarkerTag` 
+- `updateMarkerTag` → `updateMarkerTag`
 - `deleteRejectedMarkers` → `deleteRejectedMarkers`
 - `createMarker` → `createMarker`
 - `confirmMarker` → `confirmMarker`
@@ -346,12 +350,14 @@ Follow search slice patterns:
 - `resetMarker` → `resetMarker`
 
 **✅ Enhanced with Additional Operations:**
+
 - Full initialization workflow
 - Tag management operations
 - AI marker conversion workflow
 - Advanced operations (placeholders for future development)
 
 **✅ Build & Type Safety:**
+
 - All code compiles successfully
 - Full TypeScript type safety maintained
 - ESLint clean with no warnings
@@ -360,6 +366,7 @@ Follow search slice patterns:
 ### Ready for Phase 3:
 
 The marker slice is now complete with:
+
 - 15+ async thunks covering all marker operations
 - 25+ sync actions for UI and temporary state
 - 35+ selectors for all state access patterns

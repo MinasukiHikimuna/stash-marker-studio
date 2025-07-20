@@ -1,4 +1,5 @@
-import { useMarker } from "../../../contexts/MarkerContext";
+import { useAppSelector, useAppDispatch } from "../../../store/hooks";
+import { selectMarkers, selectFilteredSwimlane, setFilteredSwimlane } from "../../../store/slices/markerSlice";
 import {
   getActionMarkers,
   calculateMarkerSummary,
@@ -9,11 +10,13 @@ interface MarkerSummaryProps {
 }
 
 export function MarkerSummary({ className = "" }: MarkerSummaryProps) {
-  const { state, dispatch } = useMarker();
+  const dispatch = useAppDispatch();
+  const markers = useAppSelector(selectMarkers);
+  const filteredSwimlane = useAppSelector(selectFilteredSwimlane);
 
   const actionMarkers = getActionMarkers(
-    state.markers || [],
-    state.filteredSwimlane
+    markers || [],
+    filteredSwimlane
   );
   const summary = calculateMarkerSummary(actionMarkers);
 
@@ -23,14 +26,12 @@ export function MarkerSummary({ className = "" }: MarkerSummaryProps) {
       data-testid="marker-summary"
     >
       <div className="flex items-center space-x-4">
-        {state.filteredSwimlane && (
+        {filteredSwimlane && (
           <div className="flex items-center bg-yellow-600 text-yellow-100 px-2 py-1 rounded-sm text-xs">
             <span className="mr-1">🔍</span>
-            <span>Filtered: {state.filteredSwimlane}</span>
+            <span>Filtered: {filteredSwimlane}</span>
             <button
-              onClick={() =>
-                dispatch({ type: "SET_FILTERED_SWIMLANE", payload: null })
-              }
+              onClick={() => dispatch(setFilteredSwimlane(null))}
               className="ml-2 text-yellow-200 hover:text-white"
               title="Clear filter"
             >
