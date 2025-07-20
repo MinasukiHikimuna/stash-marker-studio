@@ -144,13 +144,7 @@ export const useMarkerOperations = ({ state, dispatch }: MarkerContextType) => {
         });
       }
     },
-    [
-      state.scene?.id,
-      state.markers,
-      state.filteredSwimlane,
-      dispatch,
-      refreshMarkersOnly,
-    ]
+    [state.scene?.id, dispatch, refreshMarkersOnly]
   );
 
   const rejectMarker = useCallback(
@@ -169,13 +163,7 @@ export const useMarkerOperations = ({ state, dispatch }: MarkerContextType) => {
         });
       }
     },
-    [
-      state.scene?.id,
-      state.markers,
-      state.filteredSwimlane,
-      dispatch,
-      refreshMarkersOnly,
-    ]
+    [state.scene?.id, dispatch, refreshMarkersOnly]
   );
 
   const resetMarker = useCallback(
