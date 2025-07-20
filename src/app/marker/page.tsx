@@ -3133,9 +3133,6 @@ function MarkerPageContent() {
                                           {marker.primary_tag.name}
                                         </span>
                                         <span className="text-xs text-gray-400">
-                                          (ID: {marker.id})&nbsp;
-                                        </span>
-                                        <span className="text-xs text-gray-400">
                                           {marker.end_seconds
                                             ? `${formatSeconds(
                                                 marker.seconds,
