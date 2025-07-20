@@ -1,7 +1,17 @@
-import { useMarker } from "../../../contexts/MarkerContext";
 import { useConfig } from "@/contexts/ConfigContext";
 import { useRouter } from "next/navigation";
-import { useMarkerOperations } from "@/hooks/useMarkerOperations";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import {
+  selectMarkers,
+  selectScene,
+  selectMarkerLoading,
+  selectIncorrectMarkers,
+  deleteRejectedMarkers,
+  setAIConversionModalOpen,
+  setCollectingModalOpen,
+  setGeneratingMarkers,
+  selectSceneId,
+} from "@/store/slices/markerSlice";
 import {
   isMarkerConfirmed,
   isMarkerRejected,
@@ -12,23 +22,33 @@ interface MarkerHeaderProps {
 }
 
 export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
-  const { state, dispatch } = useMarker();
+  const dispatch = useAppDispatch();
   const { STASH_URL } = useConfig();
   const router = useRouter();
-  const { deleteRejectedMarkers } = useMarkerOperations({ state, dispatch });
+  
+  // Redux selectors
+  const markers = useAppSelector(selectMarkers);
+  const scene = useAppSelector(selectScene);
+  const sceneId = useAppSelector(selectSceneId);
+  const isLoading = useAppSelector(selectMarkerLoading);
+  const incorrectMarkers = useAppSelector(selectIncorrectMarkers);
 
   const handleDeleteRejectedMarkers = async () => {
-    if (state.markers?.some(isMarkerRejected)) {
-      await deleteRejectedMarkers();
+    const rejectedMarkerIds = markers
+      .filter(isMarkerRejected)
+      .map(m => m.id);
+      
+    if (rejectedMarkerIds.length > 0 && sceneId) {
+      await dispatch(deleteRejectedMarkers({ sceneId, rejectedMarkerIds }));
     }
   };
 
   const handleAIConversion = () => {
-    dispatch({ type: "SET_AI_CONVERSION_MODAL_OPEN", payload: true });
+    dispatch(setAIConversionModalOpen(true));
   };
 
   const handleComplete = () => {
-    dispatch({ type: "SET_GENERATING_MARKERS", payload: true });
+    dispatch(setGeneratingMarkers(true));
   };
 
   return (
@@ -39,11 +59,11 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
         <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-bold">
-              {state.scene ? state.scene.title : "Scene Markers"}
+              {scene ? scene.title : "Scene Markers"}
             </h1>
-            {state.scene && (
+            {scene && (
               <a
-                href={`${STASH_URL}/scenes/${state.scene.id}`}
+                href={`${STASH_URL}/scenes/${scene.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-400 hover:text-blue-300 text-sm"
@@ -62,27 +82,25 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
           </button>
           <button
             onClick={handleDeleteRejectedMarkers}
-            disabled={state.isLoading || !state.markers?.some(isMarkerRejected)}
+            disabled={isLoading || !markers?.some(isMarkerRejected)}
             title="Delete All Rejected Markers"
             className="bg-red-500 hover:bg-red-700 text-white px-3 py-1.5 rounded-sm text-sm transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
           >
             Delete Rejected
           </button>
           <button
-            onClick={() =>
-              dispatch({ type: "SET_COLLECTING_MODAL_OPEN", payload: true })
-            }
+            onClick={() => dispatch(setCollectingModalOpen(true))}
             className={`px-3 py-1.5 rounded-sm text-sm font-medium transition-colors
               ${
-                state.incorrectMarkers.length > 0
+                incorrectMarkers.length > 0
                   ? "bg-purple-600 hover:bg-purple-700"
                   : "bg-gray-600"
               } text-white`}
-            disabled={state.incorrectMarkers.length === 0}
+            disabled={incorrectMarkers.length === 0}
           >
             Collect AI Feedback{" "}
-            {state.incorrectMarkers.length > 0 &&
-              `(${state.incorrectMarkers.length})`}
+            {incorrectMarkers.length > 0 &&
+              `(${incorrectMarkers.length})`}
           </button>
           <button
             onClick={handleAIConversion}
@@ -92,23 +110,23 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
           </button>
           <button
             onClick={handleComplete}
-            disabled={state.isLoading}
+            disabled={isLoading}
             className={`px-3 py-1.5 rounded-sm text-sm font-medium transition-colors ${
-              !state.markers?.every(
+              !markers?.every(
                 (m) => isMarkerRejected(m) || isMarkerConfirmed(m)
               )
                 ? "bg-yellow-600 hover:bg-yellow-700 text-white"
                 : "bg-green-600 hover:bg-green-700 text-white"
             } disabled:bg-gray-600 disabled:cursor-not-allowed`}
             title={
-              !state.markers?.every(
+              !markers?.every(
                 (m) => isMarkerRejected(m) || isMarkerConfirmed(m)
               )
                 ? "Complete scene (some markers not approved - warnings will be shown)"
                 : "Complete scene (generate markers, mark as reviewed, and clean up AI tags)"
             }
           >
-            {!state.markers?.every(
+            {!markers?.every(
               (m) => isMarkerRejected(m) || isMarkerConfirmed(m)
             )
               ? "⚠️ Complete"

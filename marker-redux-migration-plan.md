@@ -87,9 +87,10 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
 - [x] **MarkerSummary**: Simple read-only component ✅ COMPLETED
   - Update to use `useAppSelector` for marker counts
   - Remove MarkerContext dependency
-- [ ] **MarkerHeader**: Basic UI state management
-  - Migrate filter state to Redux
-  - Update modal toggles to use Redux actions
+- [x] **MarkerHeader**: Basic UI state management ✅ COMPLETED
+  - Migrated to use Redux selectors (selectMarkers, selectScene, selectMarkerLoading, selectIncorrectMarkers)
+  - Updated modal toggles to use Redux actions (setAIConversionModalOpen, setCollectingModalOpen, setGeneratingMarkers)
+  - Replaced useMarkerOperations with direct Redux thunk dispatch (deleteRejectedMarkers)
 
 #### Step 3.2: List Components (Medium Risk)
 
