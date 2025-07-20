@@ -28,7 +28,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
 
   return (
     <div
-      className={`fixed bottom-4 right-4 p-4 rounded-md shadow-md ${bgColor} text-white`}
+      className={`fixed bottom-4 right-4 p-4 rounded-md shadow-md ${bgColor} text-white z-[9999]`}
     >
       {message}
     </div>

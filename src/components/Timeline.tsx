@@ -677,7 +677,7 @@ export default function Timeline({
       }}
     >
       {/* Left sidebar with sticky tag names */}
-      <div className="flex-shrink-0 w-60 bg-gray-900 border-r border-gray-600 relative z-10">
+      <div className="flex-shrink-0 w-60 bg-gray-900 border-r border-gray-600 relative z-[100]">
         {/* Time area spacer */}
         <div className="h-8 bg-gray-700 border-b border-gray-600"></div>
 
@@ -891,7 +891,7 @@ export default function Timeline({
 
           {/* Current time indicator */}
           <div
-            className="absolute h-full w-0.5 bg-red-500 z-30"
+            className="absolute h-full w-0.5 bg-red-500 z-[30]"
             style={{
               left: `${currentTime * pixelsPerSecond}px`,
               top: "0px",
@@ -1089,7 +1089,7 @@ export default function Timeline({
       {/* Marker tooltip */}
       {markerTooltip && (
         <div
-          className="fixed z-50 bg-gray-900 text-white p-3 rounded-lg shadow-lg border border-gray-600 max-w-md"
+          className="fixed z-[9000] bg-gray-900 text-white p-3 rounded-lg shadow-lg border border-gray-600 max-w-md"
           style={{
             left: `${markerTooltip.x}px`,
             top: `${markerTooltip.y}px`,
