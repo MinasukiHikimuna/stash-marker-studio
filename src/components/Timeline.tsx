@@ -676,7 +676,7 @@ export default function Timeline({
       }}
     >
       {/* Left sidebar with sticky tag names */}
-      <div className="flex-shrink-0 w-60 bg-gray-900 border-r border-gray-600 relative z-[100]">
+      <div className="flex-shrink-0 w-60 bg-gray-900 border-r border-gray-600 relative">
         {/* Time area spacer */}
         <div className="h-8 bg-gray-700 border-b border-gray-600"></div>
 
