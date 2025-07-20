@@ -882,8 +882,7 @@ function MarkerPageContent() {
   }, [
     state.copiedMarkerTimes,
     getActionMarkers,
-    state.selectedMarkerIndex,
-
+    state.selectedMarkerId,
     showToast,
   ]);
 
