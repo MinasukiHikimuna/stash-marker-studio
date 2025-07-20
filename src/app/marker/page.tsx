@@ -823,7 +823,9 @@ function MarkerPageContent() {
     }
 
     const actionMarkers = getActionMarkers();
-    if (!actionMarkers || state.selectedMarkerIndex < 0) return;
+    if (!actionMarkers) {
+      return;
+    }
 
     const currentMarker = actionMarkers.find(
       (m) => m.id === state.selectedMarkerId
@@ -857,6 +859,7 @@ function MarkerPageContent() {
       showToast("Failed to paste marker times", "error");
     }
   }, [
+    markerOps,
     state.copiedMarkerTimes,
     getActionMarkers,
     state.selectedMarkerId,
