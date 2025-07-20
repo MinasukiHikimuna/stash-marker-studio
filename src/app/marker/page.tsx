@@ -741,29 +741,6 @@ function MarkerPageContent() {
         (a, b) => a.seconds - b.seconds
       );
 
-      // Calculate the correct index in actionMarkers (not all markers)
-      // Filter the updated markers to get action markers (same logic as actionMarkers useMemo)
-      let updatedActionMarkers = updatedMarkers.filter((marker) => {
-        // Always include temp markers regardless of their primary tag
-        if (marker.id.startsWith("temp-")) {
-          return true;
-        }
-        // Filter out shot boundary markers for non-temp markers
-        return !isShotBoundaryMarker(marker);
-      });
-
-      // Apply swimlane filter if active (same logic as actionMarkers useMemo)
-      if (state.filteredSwimlane) {
-        updatedActionMarkers = updatedActionMarkers.filter((marker) => {
-          // Handle AI tag grouping - if the marker's tag name ends with "_AI",
-          // group it with the base tag name for filtering
-          const tagGroupName = marker.primary_tag.name.endsWith("_AI")
-            ? marker.primary_tag.name.replace("_AI", "")
-            : marker.primary_tag.name;
-          return tagGroupName === state.filteredSwimlane;
-        });
-      }
-
       dispatch({
         type: "SET_MARKERS",
         payload: updatedMarkers,
