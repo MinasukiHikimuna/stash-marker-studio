@@ -94,9 +94,10 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
 
 #### Step 3.2: List Components (Medium Risk)
 
-- [ ] **MarkerList**: Main list rendering
-  - Update to use Redux selectors for filtered markers
-  - Replace context dispatch with Redux dispatch
+- [x] **MarkerList**: Main list rendering ✅ COMPLETED
+  - Updated to use Redux selectors (selectMarkers, selectFilteredSwimlane, selectSelectedMarkerId)
+  - Replaced useMarker hook with useAppSelector
+  - Maintained scroll-to-selected functionality
 - [ ] **MarkerItem**: Individual marker rendering
   - Update to use Redux actions for marker operations
   - Handle edit mode state through Redux

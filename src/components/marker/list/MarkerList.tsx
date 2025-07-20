@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { useMarker } from "../../../contexts/MarkerContext";
+import { useAppSelector } from "../../../store/hooks";
+import { selectMarkers, selectFilteredSwimlane, selectSelectedMarkerId } from "../../../store/slices/markerSlice";
 import { getActionMarkers } from "../../../core/marker/markerLogic";
 import { MarkerItem } from "./MarkerItem";
 
@@ -8,22 +9,24 @@ type MarkerListProps = {
 };
 
 export function MarkerList({ className = "" }: MarkerListProps) {
-  const { state } = useMarker();
+  const markers = useAppSelector(selectMarkers);
+  const filteredSwimlane = useAppSelector(selectFilteredSwimlane);
+  const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
   const listRef = useRef<HTMLDivElement>(null);
 
   const actionMarkers = getActionMarkers(
-    state.markers || [],
-    state.filteredSwimlane
+    markers || [],
+    filteredSwimlane
   );
 
   // Scroll selected marker into view
   useEffect(() => {
-    if (listRef.current && state.selectedMarkerId) {
+    if (listRef.current && selectedMarkerId) {
       // Longer delay to ensure all state updates have completed and DOM has updated
       const timeoutId = setTimeout(() => {
         if (listRef.current) {
           const selectedElement = listRef.current.querySelector(
-            `[data-marker-id="${state.selectedMarkerId}"]`
+            `[data-marker-id="${selectedMarkerId}"]`
           ) as HTMLElement;
 
           if (selectedElement) {
@@ -37,7 +40,7 @@ export function MarkerList({ className = "" }: MarkerListProps) {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [state.selectedMarkerId]);
+  }, [selectedMarkerId]);
 
   if (!actionMarkers.length) {
     return (
@@ -57,7 +60,7 @@ export function MarkerList({ className = "" }: MarkerListProps) {
         <MarkerItem
           key={marker.id}
           marker={marker}
-          isSelected={marker.id === state.selectedMarkerId}
+          isSelected={marker.id === selectedMarkerId}
         />
       ))}
     </div>
