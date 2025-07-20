@@ -46,11 +46,14 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
                 <li>
                   <strong>Review:</strong>
                 </li>
-                <li>Z: Accept/Confirm</li>
-                <li>X: Reject</li>
+                <li>Z: Confirm. Press again to unconfirm.</li>
+                <li>X: Reject. Press again to unreject.</li>
                 <li>Shift+X: Delete rejected</li>
-                <li>C: Mark/unmark incorrect marker</li>
-                <li>Shift+C: Collect incorrect markers</li>
+                <li>
+                  C: Mark an incorrect marker for AI feedback. Press again to
+                  unmark.
+                </li>
+                <li>Shift+C: Collect incorrect markers for AI feedback.</li>
                 <li>
                   <strong>Create:</strong>
                 </li>
