@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import { useConfig } from "@/contexts/ConfigContext";
+import { useMarker } from "@/contexts/MarkerContext";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
-  selectScene,
   selectPendingSeek,
   selectPendingPlayPause,
   setVideoDuration,
@@ -18,9 +18,10 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({ className = "" }: VideoPlayerProps) {
   const dispatch = useAppDispatch();
-  const scene = useAppSelector(selectScene);
+  const { state, dispatch: markerDispatch } = useMarker(); // Use MarkerContext for scene during migration
   const pendingSeek = useAppSelector(selectPendingSeek);
   const pendingPlayPause = useAppSelector(selectPendingPlayPause);
+  
   const { STASH_URL, STASH_API_KEY } = useConfig();
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -28,7 +29,10 @@ export function VideoPlayer({ className = "" }: VideoPlayerProps) {
   useEffect(() => {
     if (pendingSeek && videoRef.current) {
       const video = videoRef.current;
-      const clampedTime = Math.max(0, Math.min(pendingSeek.time, video.duration || pendingSeek.time));
+      const clampedTime = Math.max(
+        0,
+        Math.min(pendingSeek.time, video.duration || pendingSeek.time)
+      );
       video.currentTime = clampedTime;
       dispatch(clearPendingSeek());
     }
@@ -38,7 +42,7 @@ export function VideoPlayer({ className = "" }: VideoPlayerProps) {
   useEffect(() => {
     if (pendingPlayPause && videoRef.current) {
       const video = videoRef.current;
-      if (pendingPlayPause.action === 'play') {
+      if (pendingPlayPause.action === "play") {
         video.play().catch(console.error);
       } else {
         video.pause();
@@ -47,17 +51,31 @@ export function VideoPlayer({ className = "" }: VideoPlayerProps) {
     }
   }, [pendingPlayPause, dispatch]);
 
+  // Set video element in MarkerContext (for compatibility during migration)
+  useEffect(() => {
+    if (videoRef.current) {
+      markerDispatch({ type: "SET_VIDEO_ELEMENT", payload: videoRef.current });
+    }
+    return () => {
+      markerDispatch({ type: "SET_VIDEO_ELEMENT", payload: null });
+    };
+  }, [markerDispatch]);
+
   // Set up video event listeners to dispatch metadata updates to Redux
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     const handleLoadedMetadata = () => {
+      // Update both Redux and MarkerContext during migration period
       dispatch(setVideoDuration(video.duration));
+      markerDispatch({ type: "SET_VIDEO_DURATION", payload: video.duration });
     };
 
     const handleTimeUpdate = () => {
+      // Update both Redux and MarkerContext during migration period
       dispatch(setCurrentVideoTime(video.currentTime));
+      markerDispatch({ type: "SET_CURRENT_VIDEO_TIME", payload: video.currentTime });
     };
 
     const handlePlay = () => {
@@ -69,32 +87,32 @@ export function VideoPlayer({ className = "" }: VideoPlayerProps) {
     };
 
     // Add all event listeners
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('seeking', handleTimeUpdate);
-    video.addEventListener('seeked', handleTimeUpdate);
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
+    video.addEventListener("loadedmetadata", handleLoadedMetadata);
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("seeking", handleTimeUpdate);
+    video.addEventListener("seeked", handleTimeUpdate);
+    video.addEventListener("play", handlePlay);
+    video.addEventListener("pause", handlePause);
 
     // Cleanup function
     return () => {
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('seeking', handleTimeUpdate);
-      video.removeEventListener('seeked', handleTimeUpdate);
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
+      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("seeking", handleTimeUpdate);
+      video.removeEventListener("seeked", handleTimeUpdate);
+      video.removeEventListener("play", handlePlay);
+      video.removeEventListener("pause", handlePause);
     };
-  }, [dispatch]); // Include dispatch in dependencies
+  }, [dispatch, markerDispatch]); // Include both dispatchers in dependencies
 
-  if (!scene) {
+  if (!state.scene) {
     return null;
   }
 
   return (
     <video
       ref={videoRef}
-      src={`${STASH_URL}/scene/${scene.id}/stream?apikey=${STASH_API_KEY}`}
+      src={`${STASH_URL}/scene/${state.scene.id}/stream?apikey=${STASH_API_KEY}`}
       controls
       className={`w-full h-full object-contain ${className}`}
       tabIndex={-1}

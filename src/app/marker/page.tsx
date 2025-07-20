@@ -8,6 +8,7 @@ import {
 } from "../../services/StashappService";
 import { KeyboardShortcutsModal } from "../components/KeyboardShortcutsModal";
 import Timeline from "../../components/Timeline";
+import { VideoPlayer } from "../../components/marker/video/VideoPlayer";
 import { MarkerWithTrack, TagGroup } from "../../core/marker/types";
 import { AITagConversionModal } from "../components/AITagConversionModal";
 import { useMarker, MarkerProvider } from "../../contexts/MarkerContext";
@@ -48,7 +49,7 @@ function MarkerPageContent() {
   const { state, dispatch } = useMarker();
   const markerListRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { STASH_URL, STASH_API_KEY } = useConfig();
+  const { STASH_URL } = useConfig(); // STASH_API_KEY removed - now handled in VideoPlayer
 
   const [toastState, setToastState] = useState<ToastState>(null);
   const showToast = useCallback(
@@ -269,13 +270,7 @@ function MarkerPageContent() {
     }
   }, [timelineContainerWidth, calculateFitZoom, state.videoDuration, zoom]); // Include all dependencies
 
-  // Create a callback ref for the video element
-  const videoRef = useCallback(
-    (node: HTMLVideoElement | null) => {
-      dispatch({ type: "SET_VIDEO_ELEMENT", payload: node });
-    },
-    [dispatch]
-  );
+  // videoRef removed - now handled in VideoPlayer component
 
   const fetchData = useCallback(async () => {
     dispatch({ type: "SET_LOADING", payload: true });
@@ -3094,15 +3089,7 @@ function MarkerPageContent() {
                 </div>
               </div>
               <div className="w-2/3 p-6 flex flex-col min-h-0">
-                <video
-                  ref={videoRef}
-                  src={`${STASH_URL}/scene/${state.scene.id}/stream?apikey=${STASH_API_KEY}`}
-                  controls
-                  className="w-full h-full object-contain"
-                  tabIndex={-1}
-                >
-                  Your browser does not support the video tag.
-                </video>
+                <VideoPlayer className="w-full h-full object-contain" />
               </div>
             </div>
 

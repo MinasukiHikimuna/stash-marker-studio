@@ -11,7 +11,7 @@ import {
 /**
  * Hook that provides video control functions using Redux commands
  * instead of direct video element manipulation.
- * 
+ *
  * This replaces the old pattern where video controls had direct access
  * to the video element. Now all video operations flow through Redux.
  */
@@ -23,7 +23,7 @@ export const useVideoControls = () => {
   const seekToTime = useCallback(
     (time: number) => {
       // Clamp time to video duration bounds (if duration is available)
-      const clampedTime = duration 
+      const clampedTime = duration
         ? Math.max(0, Math.min(time, duration))
         : Math.max(0, time);
       dispatch(seekToTimeAction(clampedTime));
