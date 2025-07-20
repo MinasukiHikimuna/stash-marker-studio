@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, ReactNode } from "react";
 import { MarkerState, MarkerAction } from "../core/marker/types";
-import { SceneMarker, stashappService } from "../services/StashappService";
+import { stashappService } from "../services/StashappService";
 
 // Initial state
 const initialState: MarkerState = {
