@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, ReactNode } from "react";
 import { MarkerState, MarkerAction } from "../core/marker/types";
-import { stashappService } from "../services/StashappService";
+import { SceneMarker, stashappService } from "../services/StashappService";
 
 // Initial state
 const initialState: MarkerState = {
@@ -43,7 +43,7 @@ const initialState: MarkerState = {
 };
 
 // Helper function to find marker index by ID
-const findMarkerIndex = (markers: any[], markerId: string | null) => {
+const findMarkerIndex = (markers: SceneMarker[], markerId: string | null) => {
   if (!markerId || !markers.length) return -1;
   return markers.findIndex((m) => m.id === markerId);
 };
