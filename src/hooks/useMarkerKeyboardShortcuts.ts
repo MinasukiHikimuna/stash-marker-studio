@@ -44,6 +44,12 @@ export const useMarkerKeyboardShortcuts = (
         if (state.isCollectingModalOpen) {
           dispatch({ type: "SET_COLLECTING_MODAL_OPEN", payload: false });
         }
+        if (state.isKeyboardShortcutsModalOpen) {
+          dispatch({
+            type: "SET_KEYBOARD_SHORTCUTS_MODAL_OPEN",
+            payload: false,
+          });
+        }
         event.stopPropagation();
       }
     },

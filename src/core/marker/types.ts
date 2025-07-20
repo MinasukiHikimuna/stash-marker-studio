@@ -42,6 +42,7 @@ export type MarkerState = {
   isDeletingRejected: boolean;
   isGeneratingMarkers: boolean;
   isAIConversionModalOpen: boolean;
+  isKeyboardShortcutsModalOpen: boolean;
 
   // Temporary state for operations
   markerStartTime: number | null;
@@ -77,7 +78,7 @@ export type MarkerState = {
 
 export type MarkerAction =
   | { type: "SET_SCENE"; payload: Scene | null }
-  | { type: "SET_SCENE_DATA"; payload: Scene | null }
+  | { type: "SET_SCENE_DATA"; payload: { id: string; title: string } }
   | { type: "SET_MARKERS"; payload: SceneMarker[] }
   | { type: "SET_AVAILABLE_TAGS"; payload: Tag[] }
   | { type: "SET_SELECTED_MARKER_ID"; payload: string | null }
@@ -87,21 +88,16 @@ export type MarkerAction =
   | { type: "SET_DELETING_REJECTED"; payload: boolean }
   | { type: "SET_GENERATING_MARKERS"; payload: boolean }
   | { type: "SET_AI_CONVERSION_MODAL_OPEN"; payload: boolean }
-  | {
-      type: "SET_MARKER_TIMES";
-      payload: { start: number | null; end: number | null };
-    }
+  | { type: "SET_KEYBOARD_SHORTCUTS_MODAL_OPEN"; payload: boolean }
+  | { type: "SET_MARKER_START_TIME"; payload: number | null }
+  | { type: "SET_MARKER_END_TIME"; payload: number | null }
   | { type: "SET_NEW_TAG_SEARCH"; payload: string }
   | { type: "SET_SELECTED_NEW_TAG"; payload: string }
   | { type: "SET_SELECTED_DUPLICATE_TAG"; payload: string }
-  | {
-      type: "SET_NEW_MARKER_TIMES";
-      payload: { start: number | null; end: number | null };
-    }
-  | {
-      type: "SET_DUPLICATE_TIMES";
-      payload: { start: number | null; end: number | null };
-    }
+  | { type: "SET_NEW_MARKER_START_TIME"; payload: number | null }
+  | { type: "SET_NEW_MARKER_END_TIME"; payload: number | null }
+  | { type: "SET_DUPLICATE_START_TIME"; payload: number | null }
+  | { type: "SET_DUPLICATE_END_TIME"; payload: number | null }
   | { type: "SET_GENERATION_JOB_ID"; payload: string | null }
   | { type: "SET_REJECTED_MARKERS"; payload: SceneMarker[] }
   | {

@@ -6,7 +6,7 @@ import {
   type Tag,
   type SceneMarker,
 } from "../../services/StashappService";
-import { Popover } from "@headlessui/react";
+import { KeyboardShortcutsModal } from "../components/KeyboardShortcutsModal";
 import Timeline from "../../components/Timeline";
 import { MarkerWithTrack, TagGroup } from "../../core/marker/types";
 import { AITagConversionModal } from "../components/AITagConversionModal";
@@ -2776,135 +2776,32 @@ function MarkerPageContent() {
                     </button>
                   </div>
                   <div className="flex items-center space-x-4">
-                    <Popover className="relative">
-                      <Popover.Button className="text-gray-400 hover:text-white focus:outline-hidden">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                      </Popover.Button>
-                      <Popover.Panel className="absolute z-10 right-0 mt-2 w-80 bg-gray-800 text-white p-4 rounded-sm shadow-lg">
-                        <h3 className="font-bold mb-2">Keyboard shortcuts:</h3>
-                        <div className="grid grid-cols-2 gap-4 text-xs">
-                          <div>
-                            <h4 className="font-semibold text-yellow-400 mb-1">
-                              ARROWS - Timeline Navigation
-                            </h4>
-                            <ul className="space-y-0.5 text-xs">
-                              <li>↑↓: Move between swimlanes (same time)</li>
-                              <li>
-                                Shift+↑↓: Move between swimlanes (any time)
-                              </li>
-                              <li>←→: Move within swimlane</li>
-                              <li>Shift+←→: Chronological order</li>
-                            </ul>
-
-                            <h4 className="font-semibold text-green-400 mt-3 mb-1">
-                              LEFT HAND - Marker Actions
-                            </h4>
-                            <ul className="space-y-0.5 text-xs">
-                              <li>
-                                <strong>Review:</strong>
-                              </li>
-                              <li>Z: Accept/Confirm</li>
-                              <li>X: Reject</li>
-                              <li>Shift+X: Delete rejected</li>
-                              <li>C: Mark/unmark incorrect marker</li>
-                              <li>Shift+C: Collect incorrect markers</li>
-                              <li>
-                                <strong>Create:</strong>
-                              </li>
-                              <li>A: New marker</li>
-                              <li>S: Split marker</li>
-                              <li>D: Duplicate marker</li>
-                              <li>V: Split Video Cut marker</li>
-                              <li>
-                                <strong>Edit:</strong>
-                              </li>
-                              <li>Q: Edit tag</li>
-                              <li>W: Set start time</li>
-                              <li>E: Set end time</li>
-                              <li>T: Copy marker times</li>
-                              <li>Shift+T: Paste marker times</li>
-                            </ul>
-                          </div>
-
-                          <div>
-                            <h4 className="font-semibold text-blue-400 mb-1">
-                              RIGHT HAND - Time & Playback
-                            </h4>
-                            <ul className="space-y-0.5 text-xs">
-                              <li>
-                                <strong>View:</strong>
-                              </li>
-                              <li>H: Center on playhead</li>
-                              <li>
-                                <strong>Playback:</strong>
-                              </li>
-                              <li>Space: Play/pause</li>
-                              <li>J: Seek backward</li>
-                              <li>K: Pause</li>
-                              <li>L: Seek forward</li>
-                              <li>,: Frame backward</li>
-                              <li>.: Frame forward</li>
-                              <li>
-                                <strong>Jump:</strong>
-                              </li>
-                              <li>I: Jump to marker start</li>
-                              <li>Shift+I: Jump to scene start</li>
-                              <li>O: Jump to marker end</li>
-                              <li>Shift+O: Jump to scene end</li>
-                              <li>P: Move marker to current time</li>
-                              <li>
-                                <strong>Navigation:</strong>
-                              </li>
-                              <li>N: Previous unprocessed (swimlane)</li>
-                              <li>M: Next unprocessed (swimlane)</li>
-                              <li>Shift+N: Previous unprocessed (global)</li>
-                              <li>Shift+M: Next unprocessed (global)</li>
-                              <li>
-                                <strong>Shots:</strong>
-                              </li>
-                              <li>Y: Previous shot</li>
-                              <li>U: Next shot</li>
-                            </ul>
-
-                            <h4 className="font-semibold text-orange-400 mt-3 mb-1">
-                              System
-                            </h4>
-                            <ul className="space-y-0.5 text-xs">
-                              <li>Enter: Play from marker</li>
-                              <li>Escape: Cancel operation</li>
-                              <li>F: Filter by current swimlane</li>
-                              <li>R: Refresh markers</li>
-                              <li>
-                                <strong>Zoom:</strong>
-                              </li>
-                              <li>+/=: Zoom in</li>
-                              <li>-/_: Zoom out (min: fit to window)</li>
-                              <li>0: Reset to fit window</li>
-                            </ul>
-                          </div>
-                        </div>
-                        <div className="mt-3 pt-2 border-t border-gray-600">
-                          <p className="text-xs text-gray-400">
-                            <strong>Tip:</strong> Logical groupings - Left hand
-                            for marker actions, right hand for time/video,
-                            arrows for spatial navigation.
-                          </p>
-                        </div>
-                      </Popover.Panel>
-                    </Popover>
+                    <button
+                      onClick={() =>
+                        dispatch({
+                          type: "SET_KEYBOARD_SHORTCUTS_MODAL_OPEN",
+                          payload: true,
+                        })
+                      }
+                      className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-sm text-sm transition-colors flex items-center space-x-1"
+                      title="Show keyboard shortcuts"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                        />
+                      </svg>
+                      <span>Shortcuts</span>
+                    </button>
                   </div>
                 </div>
                 {/* Scrollable marker list - now with grow to push edit section to bottom */}
@@ -3356,6 +3253,17 @@ function MarkerPageContent() {
           onClose={() => setToastState(null)}
         />
       )}
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={state.isKeyboardShortcutsModalOpen}
+        onClose={() =>
+          dispatch({
+            type: "SET_KEYBOARD_SHORTCUTS_MODAL_OPEN",
+            payload: false,
+          })
+        }
+      />
 
       {/* Completion Modal */}
       {isCompletionModalOpen && (

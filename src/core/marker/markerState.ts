@@ -17,6 +17,7 @@ export const initialMarkerState: MarkerState = {
   isDeletingRejected: false,
   isGeneratingMarkers: false,
   isAIConversionModalOpen: false,
+  isKeyboardShortcutsModalOpen: false,
 
   // Temporary state for operations
   markerStartTime: null,
@@ -145,6 +146,11 @@ export const markerReducer = (
       return {
         ...state,
         isCollectingModalOpen: action.payload,
+      };
+    case "SET_KEYBOARD_SHORTCUTS_MODAL_OPEN":
+      return {
+        ...state,
+        isKeyboardShortcutsModalOpen: action.payload,
       };
     default:
       return state;

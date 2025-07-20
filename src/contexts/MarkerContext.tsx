@@ -18,6 +18,7 @@ const initialState: MarkerState = {
   isDeletingRejected: false,
   isGeneratingMarkers: false,
   isAIConversionModalOpen: false,
+  isKeyboardShortcutsModalOpen: false,
   markerStartTime: null,
   markerEndTime: null,
   newTagSearch: "",
@@ -128,30 +129,26 @@ function markerReducer(state: MarkerState, action: MarkerAction): MarkerState {
       return { ...state, isGeneratingMarkers: action.payload };
     case "SET_AI_CONVERSION_MODAL_OPEN":
       return { ...state, isAIConversionModalOpen: action.payload };
-    case "SET_MARKER_TIMES":
-      return {
-        ...state,
-        markerStartTime: action.payload.start,
-        markerEndTime: action.payload.end,
-      };
+    case "SET_KEYBOARD_SHORTCUTS_MODAL_OPEN":
+      return { ...state, isKeyboardShortcutsModalOpen: action.payload };
+    case "SET_MARKER_START_TIME":
+      return { ...state, markerStartTime: action.payload };
+    case "SET_MARKER_END_TIME":
+      return { ...state, markerEndTime: action.payload };
     case "SET_NEW_TAG_SEARCH":
       return { ...state, newTagSearch: action.payload };
     case "SET_SELECTED_NEW_TAG":
       return { ...state, selectedNewTag: action.payload };
     case "SET_SELECTED_DUPLICATE_TAG":
       return { ...state, selectedDuplicateTag: action.payload };
-    case "SET_NEW_MARKER_TIMES":
-      return {
-        ...state,
-        newMarkerStartTime: action.payload.start,
-        newMarkerEndTime: action.payload.end,
-      };
-    case "SET_DUPLICATE_TIMES":
-      return {
-        ...state,
-        duplicateStartTime: action.payload.start,
-        duplicateEndTime: action.payload.end,
-      };
+    case "SET_NEW_MARKER_START_TIME":
+      return { ...state, newMarkerStartTime: action.payload };
+    case "SET_NEW_MARKER_END_TIME":
+      return { ...state, newMarkerEndTime: action.payload };
+    case "SET_DUPLICATE_START_TIME":
+      return { ...state, duplicateStartTime: action.payload };
+    case "SET_DUPLICATE_END_TIME":
+      return { ...state, duplicateEndTime: action.payload };
     case "SET_GENERATION_JOB_ID":
       return { ...state, generationJobId: action.payload };
     case "SET_REJECTED_MARKERS":
