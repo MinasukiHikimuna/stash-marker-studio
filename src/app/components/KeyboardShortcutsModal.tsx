@@ -39,16 +39,6 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
 
           <div className="grid grid-cols-2 gap-4 text-xs">
             <div>
-              <h4 className="font-semibold text-yellow-400 mb-1">
-                ARROWS - Timeline Navigation
-              </h4>
-              <ul className="space-y-0.5 text-xs">
-                <li>↑↓: Move between swimlanes (same time)</li>
-                <li>Shift+↑↓: Move between swimlanes (any time)</li>
-                <li>←→: Move within swimlane</li>
-                <li>Shift+←→: Chronological order</li>
-              </ul>
-
               <h4 className="font-semibold text-green-400 mt-3 mb-1">
                 LEFT HAND - Marker Actions
               </h4>
@@ -81,9 +71,17 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
 
             <div>
               <h4 className="font-semibold text-blue-400 mb-1">
-                RIGHT HAND - Time & Playback
+                RIGHT HAND - Navigation & Playback
               </h4>
-              <ul className="space-y-0.5 text-xs">
+
+              <ul className="space-y-0.5 text-xs mb-4">
+                <li>↑↓: Move between swimlanes (same time)</li>
+                <li>Shift+↑↓: Move between swimlanes (any time)</li>
+                <li>←→: Move within swimlane</li>
+                <li>Shift+←→: Chronological order</li>
+              </ul>
+
+              <ul className="space-y-0.5 text-xs mb-4">
                 <li>
                   <strong>View:</strong>
                 </li>
