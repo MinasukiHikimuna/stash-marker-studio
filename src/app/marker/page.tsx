@@ -474,14 +474,10 @@ function MarkerPageContent() {
 
   const splitCurrentMarker = useCallback(async () => {
     const actionMarkers = getActionMarkers();
-    if (
-      !actionMarkers ||
-      state.selectedMarkerIndex < 0 ||
-      !state.videoElement
-    ) {
+    if (!actionMarkers || !state.selectedMarkerId || !state.videoElement) {
       console.log("Cannot split marker:", {
         hasActionMarkers: !!actionMarkers,
-        selectedMarkerIndex: state.selectedMarkerIndex,
+        selectedMarkerId: state.selectedMarkerId,
         hasVideoElement: !!state.videoElement,
       });
       return;
@@ -591,7 +587,7 @@ function MarkerPageContent() {
   }, [
     getActionMarkers,
     state.markers,
-    state.selectedMarkerIndex,
+    state.selectedMarkerId,
     state.videoElement,
     dispatch,
   ]);
