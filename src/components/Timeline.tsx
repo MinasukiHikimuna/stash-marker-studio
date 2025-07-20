@@ -18,7 +18,6 @@ import SpritePreview from "./SpritePreview";
 import { MarkerWithTrack, TagGroup } from "../core/marker/types";
 import {
   getMarkerStatus,
-  isMarkerManual,
   isMarkerConfirmed,
   isMarkerRejected,
 } from "../core/marker/markerLogic";
@@ -642,7 +641,7 @@ export default function Timeline({
       return "bg-emerald-300";
     } else if (isShotBoundaryMarker(marker)) {
       return "bg-gray-400 opacity-60"; // Subtle color for shot boundaries
-    } else if (isMarkerConfirmed(marker) || isMarkerManual(marker)) {
+    } else if (isMarkerConfirmed(marker)) {
       return "bg-green-500";
     } else if (isMarkerRejected(marker)) {
       return "bg-red-500";
@@ -745,15 +744,13 @@ export default function Timeline({
 
             // Calculate status counts
             const counts = {
-              confirmed: tagGroup.markers.filter(
-                (marker) => isMarkerConfirmed(marker) || isMarkerManual(marker)
+              confirmed: tagGroup.markers.filter((marker) =>
+                isMarkerConfirmed(marker)
               ).length,
               rejected: tagGroup.markers.filter(isMarkerRejected).length,
               pending: tagGroup.markers.filter(
                 (marker) =>
-                  !isMarkerConfirmed(marker) &&
-                  !isMarkerManual(marker) &&
-                  !isMarkerRejected(marker)
+                  !isMarkerConfirmed(marker) && !isMarkerRejected(marker)
               ).length,
             };
 
@@ -1131,8 +1128,7 @@ export default function Timeline({
                     .filter(
                       (tag) =>
                         tag.id !== stashappService.MARKER_STATUS_CONFIRMED &&
-                        tag.id !== stashappService.MARKER_STATUS_REJECTED &&
-                        tag.id !== stashappService.MARKER_SOURCE_MANUAL
+                        tag.id !== stashappService.MARKER_STATUS_REJECTED
                     )
                     .map((tag) => (
                       <span

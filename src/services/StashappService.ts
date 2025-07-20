@@ -746,7 +746,7 @@ export class StashappService {
     primaryTagId: string,
     seconds: number,
     endSeconds: number | null,
-    tagIds: string[] = [StashappService.MARKER_SOURCE_MANUAL]
+    tagIds: string[]
   ): Promise<SceneMarker> {
     // Get the primary tag name to use as title
     const query = `

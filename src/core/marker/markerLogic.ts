@@ -20,31 +20,15 @@ export const isMarkerConfirmed = (marker: SceneMarker): boolean => {
   );
 };
 
-export const isMarkerManual = (marker: SceneMarker): boolean => {
-  return (
-    marker.tags?.some(
-      (tag) => tag.id === stashappService.MARKER_SOURCE_MANUAL
-    ) ?? false
-  );
-};
-
 export const isUnprocessed = (marker: SceneMarker): boolean => {
-  return (
-    !isMarkerConfirmed(marker) &&
-    !isMarkerRejected(marker) &&
-    !isMarkerManual(marker)
-  );
+  return !isMarkerConfirmed(marker) && !isMarkerRejected(marker);
 };
 
 /**
  * Returns true if a marker has been processed (confirmed, rejected, or manual)
  */
 export const isProcessed = (marker: SceneMarker): boolean => {
-  return (
-    isMarkerConfirmed(marker) ||
-    isMarkerRejected(marker) ||
-    isMarkerManual(marker)
-  );
+  return isMarkerConfirmed(marker) || isMarkerRejected(marker);
 };
 
 /**
@@ -53,7 +37,6 @@ export const isProcessed = (marker: SceneMarker): boolean => {
  */
 export const getMarkerStatus = (marker: SceneMarker): MarkerStatus => {
   if (isMarkerRejected(marker)) return MarkerStatus.REJECTED;
-  if (isMarkerManual(marker)) return MarkerStatus.MANUAL;
   if (isMarkerConfirmed(marker)) return MarkerStatus.CONFIRMED;
   return MarkerStatus.UNPROCESSED;
 };
@@ -89,7 +72,6 @@ export const calculateMarkerSummary = (
           acc.rejected++;
           break;
         case MarkerStatus.CONFIRMED:
-        case MarkerStatus.MANUAL:
           acc.confirmed++;
           break;
         default:
@@ -210,7 +192,6 @@ export const checkAllMarkersApproved = (markers: SceneMarker[]): boolean => {
     (marker) =>
       isMarkerConfirmed(marker) ||
       isMarkerRejected(marker) ||
-      isMarkerManual(marker) ||
       isShotBoundaryMarker(marker)
   );
 };

@@ -22,7 +22,6 @@ import {
   parseTimeColonDot,
   isMarkerConfirmed,
   isMarkerRejected,
-  isMarkerManual,
   isShotBoundaryMarker,
   isUnprocessed,
   filterUnprocessedMarkers,
@@ -1141,8 +1140,8 @@ function MarkerPageContent() {
       };
 
       // Get all confirmed markers and their primary tags
-      const confirmedMarkers = actionMarkers.filter(
-        (marker) => isMarkerConfirmed(marker) || isMarkerManual(marker)
+      const confirmedMarkers = actionMarkers.filter((marker) =>
+        isMarkerConfirmed(marker)
       );
 
       const primaryTags = confirmedMarkers.map((marker) => ({
@@ -2838,7 +2837,11 @@ function MarkerPageContent() {
                                       marker.scene.id,
                                       newTagId,
                                       newStart,
-                                      newEnd ?? null
+                                      newEnd ?? null,
+                                      [
+                                        stashappService.MARKER_SOURCE_MANUAL,
+                                        stashappService.MARKER_STATUS_CONFIRMED,
+                                      ]
                                     );
 
                                   console.log("Created marker:", createdMarker);
