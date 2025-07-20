@@ -249,10 +249,7 @@ export const useMarkerKeyboardShortcuts = (
               return;
             }
 
-            videoControls.jumpToMarkerTime(
-              currentMarker.seconds,
-              currentMarker.end_seconds || null
-            );
+            videoControls.jumpToMarkerTime(currentMarker.seconds);
           }
           break;
         case "o":
@@ -274,7 +271,7 @@ export const useMarkerKeyboardShortcuts = (
             }
 
             if (currentMarker.end_seconds) {
-              videoControls.jumpToMarkerTime(currentMarker.end_seconds, null);
+              videoControls.jumpToMarkerTime(currentMarker.end_seconds);
             }
           }
           break;

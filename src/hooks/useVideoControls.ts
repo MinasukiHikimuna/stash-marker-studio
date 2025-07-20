@@ -55,7 +55,7 @@ export const useVideoControls = ({ state, dispatch }: MarkerContextType) => {
   }, [state.videoElement]);
 
   const jumpToMarkerTime = useCallback(
-    (seconds: number, _endSeconds: number | null) => {
+    (seconds: number) => {
       if (state.videoElement) {
         state.videoElement.pause();
         seekToTime(seconds);
