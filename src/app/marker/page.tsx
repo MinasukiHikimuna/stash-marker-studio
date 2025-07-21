@@ -11,7 +11,45 @@ import Timeline from "../../components/Timeline";
 import { VideoPlayer } from "../../components/marker/video/VideoPlayer";
 import { MarkerWithTrack, TagGroup } from "../../core/marker/types";
 import { AITagConversionModal } from "../components/AITagConversionModal";
-import { useMarker, MarkerProvider } from "../../contexts/MarkerContext";
+import { useAppSelector, useAppDispatch } from "../../store/hooks";
+import {
+  selectMarkers,
+  selectScene,
+  selectAvailableTags,
+  // selectSceneId,  // TODO: Use if needed
+  // selectSceneTitle,  // TODO: Use if needed
+  selectSelectedMarkerId,
+  selectFilteredSwimlane,
+  selectIncorrectMarkers,
+  selectVideoDuration,
+  selectCurrentVideoTime,
+  selectMarkerLoading,
+  selectMarkerError,
+  // selectMarkerInitialized,  // TODO: Use for conditional rendering
+  selectIsEditingMarker,
+  selectIsCreatingMarker,
+  selectIsDuplicatingMarker,
+  selectIsDeletingRejected,
+  selectIsAIConversionModalOpen,
+  selectIsKeyboardShortcutsModalOpen,
+  selectIsCollectingModalOpen,
+  selectRejectedMarkers,
+  selectConfirmedAIMarkers,
+  selectCopiedMarkerTimes,
+  setFilteredSwimlane,
+  setSelectedMarkerId,
+  // clearError, // TODO: Use for error handling
+  setAvailableTags,
+  setRejectedMarkers,
+  setDeletingRejected,
+  setConfirmedAIMarkers,
+  setAIConversionModalOpen,
+  setCollectingModalOpen,
+  setCreatingMarker,
+  setDuplicatingMarker,
+  setVideoDuration,
+  initializeMarkerPage
+} from "../../store/slices/markerSlice";
 import { useConfig } from "@/contexts/ConfigContext";
 import Toast from "../components/Toast";
 import { useRouter } from "next/navigation";
@@ -30,7 +68,7 @@ import {
   calculateMarkerSummary,
 } from "../../core/marker/markerLogic";
 import { MarkerStatus } from "../../core/marker/types";
-import { useMarkerOperations } from "../../hooks/useMarkerOperations";
+// TODO: Remove useMarkerOperations after Phase 4 migration
 
 // Add this type definition at the top of the file
 type MarkerSummary = {
@@ -46,8 +84,37 @@ type ToastState = {
 } | null;
 
 function MarkerPageContent() {
-  const { state, dispatch } = useMarker();
+  const dispatch = useAppDispatch();
+  
+  // Redux selectors
+  const markers = useAppSelector(selectMarkers);
+  const scene = useAppSelector(selectScene);
+  // const sceneId = useAppSelector(selectSceneId);  // TODO: Use if needed
+  // const sceneTitle = useAppSelector(selectSceneTitle);  // TODO: Use if needed
+  const availableTags = useAppSelector(selectAvailableTags);
+  const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
+  const filteredSwimlane = useAppSelector(selectFilteredSwimlane);
+  const incorrectMarkers = useAppSelector(selectIncorrectMarkers);
+  const videoDuration = useAppSelector(selectVideoDuration);
+  const currentVideoTime = useAppSelector(selectCurrentVideoTime);
+  const isLoading = useAppSelector(selectMarkerLoading);
+  const error = useAppSelector(selectMarkerError);
+  // const initialized = useAppSelector(selectMarkerInitialized);  // TODO: Use for conditional rendering
+  const isEditingMarker = useAppSelector(selectIsEditingMarker);
+  const isCreatingMarker = useAppSelector(selectIsCreatingMarker);
+  const isDuplicatingMarker = useAppSelector(selectIsDuplicatingMarker);
+  const isDeletingRejected = useAppSelector(selectIsDeletingRejected);
+  const isAIConversionModalOpen = useAppSelector(selectIsAIConversionModalOpen);
+  const isKeyboardShortcutsModalOpen = useAppSelector(selectIsKeyboardShortcutsModalOpen);
+  const isCollectingModalOpen = useAppSelector(selectIsCollectingModalOpen);
+  const rejectedMarkers = useAppSelector(selectRejectedMarkers);
+  const confirmedAIMarkers = useAppSelector(selectConfirmedAIMarkers);
+  const copiedMarkerTimes = useAppSelector(selectCopiedMarkerTimes);
+  
   const markerListRef = useRef<HTMLDivElement>(null);
+  // TODO: Remove videoElement ref after full Redux migration is complete
+  // This is temporary to maintain compatibility during migration
+  const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const router = useRouter();
   const { STASH_URL } = useConfig(); // STASH_API_KEY removed - now handled in VideoPlayer
 
@@ -62,11 +129,11 @@ function MarkerPageContent() {
 
   // Get shot boundaries sorted by time
   const getShotBoundaries = useCallback(() => {
-    if (!state.markers) return [];
-    return state.markers
+    if (!markers) return [];
+    return markers
       .filter(isShotBoundaryMarker)
       .sort((a, b) => a.seconds - b.seconds);
-  }, [state.markers]);
+  }, [markers]);
 
   // Add state for tracking which marker is being edited
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
@@ -183,17 +250,17 @@ function MarkerPageContent() {
   // Temporary handler - will be replaced after actionMarkers is defined
   const handleSwimlaneFilter = useCallback(
     (swimlaneName: string | null) => {
-      dispatch({ type: "SET_FILTERED_SWIMLANE", payload: swimlaneName });
+      dispatch(setFilteredSwimlane(swimlaneName));
     },
     [dispatch]
   );
 
   // Calculate fit-to-window zoom level
   const calculateFitZoom = useCallback(() => {
-    if (state.videoDuration > 0 && timelineContainerWidth > 0) {
+    if (videoDuration && videoDuration > 0 && timelineContainerWidth > 0) {
       // Base timeline width at 1x zoom is 300px per minute
       const basePixelsPerMinute = 300;
-      const totalMinutes = state.videoDuration / 60;
+      const totalMinutes = videoDuration / 60;
       const baseTimelineWidth = totalMinutes * basePixelsPerMinute;
 
       // The timelineContainerWidth already accounts for sidebar being outside
@@ -206,7 +273,7 @@ function MarkerPageContent() {
 
       // Temporary debugging
       console.log("FIT-TO-WINDOW DEBUG (FIXED):", {
-        videoDuration: state.videoDuration,
+        videoDuration: videoDuration,
         totalMinutes: totalMinutes.toFixed(2),
         baseTimelineWidth: baseTimelineWidth.toFixed(0),
         timelineContainerWidth: timelineContainerWidth,
@@ -220,7 +287,7 @@ function MarkerPageContent() {
       return fitZoom;
     }
     return 1; // Fallback
-  }, [state.videoDuration, timelineContainerWidth]);
+  }, [videoDuration, timelineContainerWidth]);
 
   // Get current minimum zoom (fit-to-window level)
   const getMinZoom = useCallback(() => {
@@ -247,18 +314,18 @@ function MarkerPageContent() {
 
   // Set default zoom to fit-to-window when data becomes available
   useEffect(() => {
-    if (state.videoDuration > 0 && timelineContainerWidth > 0) {
+    if (videoDuration && videoDuration > 0 && timelineContainerWidth > 0) {
       const fitZoom = calculateFitZoom();
       // Only set if we're still at the initial zoom level (1)
       if (zoom === 1) {
         setZoom(fitZoom);
       }
     }
-  }, [state.videoDuration, timelineContainerWidth, calculateFitZoom, zoom]);
+  }, [videoDuration, timelineContainerWidth, calculateFitZoom, zoom]);
 
   // Auto-adjust zoom when container width changes (for window resizing)
   useEffect(() => {
-    if (state.videoDuration > 0 && timelineContainerWidth > 0) {
+    if (videoDuration && videoDuration > 0 && timelineContainerWidth > 0) {
       const currentMinZoom = calculateFitZoom();
 
       // If current zoom is at or below the new minimum, update to new fit-to-window level
@@ -268,65 +335,18 @@ function MarkerPageContent() {
         setZoom(currentMinZoom);
       }
     }
-  }, [timelineContainerWidth, calculateFitZoom, state.videoDuration, zoom]); // Include all dependencies
+  }, [timelineContainerWidth, calculateFitZoom, videoDuration, zoom]); // Include all dependencies
 
   // videoRef removed - now handled in VideoPlayer component
 
   const fetchData = useCallback(async () => {
-    dispatch({ type: "SET_LOADING", payload: true });
-    dispatch({ type: "SET_ERROR", payload: null });
-    try {
-      const sceneId = new URL(window.location.href).searchParams.get("sceneId");
-      if (!sceneId) {
-        router.push("/search");
-        return;
-      }
-
-      // First fetch the scene data to ensure we have it even if there are no markers
-      try {
-        const sceneData = await stashappService.getScene(sceneId);
-        dispatch({
-          type: "SET_SCENE_DATA",
-          payload: sceneData,
-        });
-        dispatch({
-          type: "SET_SCENE",
-          payload: sceneData,
-        });
-      } catch (sceneError) {
-        console.error("Error fetching scene data:", sceneError);
-        dispatch({
-          type: "SET_ERROR",
-          payload: "Failed to load scene data",
-        });
-        return;
-      }
-
-      const result = await stashappService.getSceneMarkers(sceneId);
-
-      // Initialize with empty markers array if none exist
-      const markers = result.findSceneMarkers.scene_markers || [];
-      dispatch({
-        type: "SET_MARKERS",
-        payload: markers,
-      });
-
-      // Set selected marker only if we have markers
-      if (markers.length > 0) {
-        dispatch({ type: "SET_SELECTED_MARKER_ID", payload: markers[0].id });
-      } else {
-        dispatch({ type: "SET_SELECTED_MARKER_ID", payload: null });
-      }
-    } catch (err: unknown) {
-      console.error("Error fetching data:", err);
-      dispatch({
-        type: "SET_ERROR",
-        payload:
-          err instanceof Error ? err.message : "An unknown error occurred",
-      });
-    } finally {
-      dispatch({ type: "SET_LOADING", payload: false });
+    const sceneId = new URL(window.location.href).searchParams.get("sceneId");
+    if (!sceneId) {
+      router.push("/search");
+      return;
     }
+    
+    await dispatch(initializeMarkerPage(sceneId));
   }, [dispatch, router]);
 
   useEffect(() => {
@@ -347,16 +367,16 @@ function MarkerPageContent() {
 
   // Get action markers (non-shot boundary) for display and navigation
   const actionMarkers = useMemo(() => {
-    if (!state.markers) {
+    if (!markers) {
       return [];
     }
 
     console.log(
       "Calculating action markers from",
-      state.markers.length,
+      markers.length,
       "markers"
     );
-    let filteredMarkers = state.markers.filter((marker) => {
+    let filteredMarkers = markers.filter((marker) => {
       // Always include temp markers regardless of their primary tag
       if (marker.id.startsWith("temp-")) {
         return true;
@@ -371,15 +391,15 @@ function MarkerPageContent() {
     );
 
     // Apply swimlane filter if active
-    if (state.filteredSwimlane) {
-      console.log("Applying swimlane filter:", state.filteredSwimlane);
+    if (filteredSwimlane) {
+      console.log("Applying swimlane filter:", filteredSwimlane);
       filteredMarkers = filteredMarkers.filter((marker) => {
         // Handle AI tag grouping - if the marker's tag name ends with "_AI",
         // group it with the base tag name for filtering
         const tagGroupName = marker.primary_tag.name.endsWith("_AI")
           ? marker.primary_tag.name.replace("_AI", "")
           : marker.primary_tag.name;
-        return tagGroupName === state.filteredSwimlane;
+        return tagGroupName === filteredSwimlane;
       });
       console.log("After swimlane filter:", filteredMarkers.length, "markers");
     }
@@ -394,7 +414,7 @@ function MarkerPageContent() {
     });
 
     return filteredMarkers;
-  }, [state.markers, state.filteredSwimlane]);
+  }, [markers, filteredSwimlane]);
 
   // Keep getActionMarkers for backwards compatibility
   const getActionMarkers = useCallback(() => {
@@ -406,23 +426,22 @@ function MarkerPageContent() {
     if (actionMarkers.length > 0) {
       // Check if currently selected marker still exists after filtering
       const selectedMarker = actionMarkers.find(
-        (m) => m.id === state.selectedMarkerId
+        (m) => m.id === selectedMarkerId
       );
       if (!selectedMarker) {
         // If selected marker is not in filtered list, select the first marker
-        dispatch({
-          type: "SET_SELECTED_MARKER_ID",
-          payload: actionMarkers[0].id,
-        });
+        dispatch(setSelectedMarkerId(actionMarkers[0].id));
       }
     } else {
       // If no markers after filtering, clear selection
-      dispatch({ type: "SET_SELECTED_MARKER_ID", payload: null });
+      dispatch(setSelectedMarkerId(null));
     }
-  }, [actionMarkers, state.selectedMarkerId, dispatch]);
+  }, [actionMarkers, selectedMarkerId, dispatch]);
 
-  const markerOps = useMarkerOperations({ state, dispatch });
-  const { refreshMarkersOnly } = markerOps;
+  // TODO: Replace useMarkerOperations with direct Redux thunk dispatches
+  // For now, skip this - will be handled in Phase 4
+  const markerOps = null; // useMarkerOperations({ state, dispatch });
+  const refreshMarkersOnly = null; // markerOps?.refreshMarkersOnly;
 
   const handleEditMarker = useCallback((marker: SceneMarker) => {
     setEditingMarkerId(marker.id);
@@ -439,7 +458,8 @@ function MarkerPageContent() {
           oldTagId: marker.primary_tag.id,
           newTagId: finalTagId,
         });
-        await markerOps.updateMarkerTag(marker.id, finalTagId);
+        // TODO: Replace with Redux thunk
+        // await markerOps.updateMarkerTag(marker.id, finalTagId);
       }
       setEditingMarkerId(null);
       setEditingTagId("");
@@ -455,10 +475,10 @@ function MarkerPageContent() {
   const fetchTags = useCallback(async () => {
     try {
       const result = await stashappService.getAllTags();
-      dispatch({ type: "SET_AVAILABLE_TAGS", payload: result.findTags.tags });
+      dispatch(setAvailableTags(result.findTags.tags));
     } catch (err) {
       console.error("Error fetching tags:", err);
-      dispatch({ type: "SET_ERROR", payload: "Failed to fetch tags" });
+      // TODO: Implement proper error handling for tag fetch
     }
   }, [dispatch]);
 
@@ -468,24 +488,24 @@ function MarkerPageContent() {
 
   const splitCurrentMarker = useCallback(async () => {
     const actionMarkers = getActionMarkers();
-    if (!actionMarkers || !state.selectedMarkerId || !state.videoElement) {
+    if (!actionMarkers || !selectedMarkerId || !videoElementRef.current) {
       console.log("Cannot split marker:", {
         hasActionMarkers: !!actionMarkers,
-        selectedMarkerId: state.selectedMarkerId,
-        hasVideoElement: !!state.videoElement,
+        selectedMarkerId: selectedMarkerId,
+        hasVideoElement: !!videoElementRef.current,
       });
       return;
     }
 
     const currentMarker = actionMarkers.find(
-      (m) => m.id === state.selectedMarkerId
+      (m) => m.id === selectedMarkerId
     );
     if (!currentMarker) {
       console.log("Cannot split marker: No current marker found");
       return;
     }
 
-    const currentTime = state.videoElement.currentTime;
+    const currentTime = videoElementRef.current.currentTime;
 
     console.log("Attempting to split marker:", {
       markerId: currentMarker.id,
@@ -542,7 +562,7 @@ function MarkerPageContent() {
       await stashappService.deleteMarker(currentMarker.id);
       console.log("Deleted original marker:", currentMarker.id);
 
-      const updatedMarkers = state.markers
+      const updatedMarkers = markers
         .filter((m) => m.id !== currentMarker.id)
         .concat([firstPartMarker, secondPartMarker])
         .sort((a, b) => a.seconds - b.seconds);
@@ -569,29 +589,29 @@ function MarkerPageContent() {
           type: "SET_SELECTED_MARKER_ID",
           payload: firstPartMarker.id,
         });
-        if (state.videoElement) {
-          state.videoElement.pause();
-          state.videoElement.currentTime = currentTime;
+        if (videoElementRef.current) {
+          videoElementRef.current.pause();
+          videoElementRef.current.currentTime = currentTime;
         }
       }
     } catch (err) {
       console.error("Error splitting marker:", err);
-      dispatch({ type: "SET_ERROR", payload: "Failed to split marker" });
+      // TODO: Implement proper error handling for marker operations
     }
   }, [
     getActionMarkers,
-    state.markers,
-    state.selectedMarkerId,
-    state.videoElement,
+    markers,
+    selectedMarkerId,
+    videoElementRef.current,
     dispatch,
   ]);
 
   // Split a Video Cut marker at the current playhead position
   const splitVideoCutMarker = useCallback(async () => {
-    if (!state.videoElement) return;
+    if (!videoElementRef.current) return;
 
-    const currentTime = state.videoElement.currentTime;
-    const allMarkers = state.markers || [];
+    const currentTime = videoElementRef.current.currentTime;
+    const allMarkers = markers || [];
 
     // Find the Video Cut marker that contains the current time
     const videoCutMarker = allMarkers.find(
@@ -632,7 +652,7 @@ function MarkerPageContent() {
       await stashappService.deleteMarker(videoCutMarker.id);
 
       // Update markers list
-      const updatedMarkers = state.markers
+      const updatedMarkers = markers
         .filter((m) => m.id !== videoCutMarker.id)
         .concat([firstMarker, secondMarker])
         .sort((a, b) => a.seconds - b.seconds);
@@ -651,25 +671,25 @@ function MarkerPageContent() {
         payload: "Failed to split Video Cut marker",
       });
     }
-  }, [state.markers, state.videoElement, dispatch, showToast]);
+  }, [markers, videoElementRef.current, dispatch, showToast]);
 
   const createOrDuplicateMarker = useCallback(
     (sourceMarker?: SceneMarker) => {
       console.log("createOrDuplicateMarker called with state:", {
-        hasVideoElement: !!state.videoElement,
-        hasScene: !!state.scene,
-        availableTagsCount: state.availableTags?.length || 0,
+        hasVideoElement: !!videoElementRef.current,
+        hasScene: !!scene,
+        availableTagsCount: availableTags?.length || 0,
         isDuplicate: !!sourceMarker,
       });
 
-      if (!state.videoElement || !state.scene || !state.availableTags?.length) {
-        if (!state.videoElement) {
+      if (!videoElementRef.current || !scene || !availableTags?.length) {
+        if (!videoElementRef.current) {
           console.log("Failed to create marker: No video element");
         }
-        if (!state.scene) {
+        if (!scene) {
           console.log("Failed to create marker: No scene data");
         }
-        if (!state.availableTags?.length) {
+        if (!availableTags?.length) {
           console.log("Failed to create marker: No available tags");
           dispatch({
             type: "SET_ERROR",
@@ -681,7 +701,7 @@ function MarkerPageContent() {
       }
 
       const isDuplicate = !!sourceMarker;
-      const currentTime = state.videoElement.currentTime;
+      const currentTime = videoElementRef.current.currentTime;
 
       // Determine time values
       const startTime = isDuplicate ? sourceMarker.seconds : currentTime;
@@ -692,23 +712,23 @@ function MarkerPageContent() {
       if (isDuplicate) {
         selectedTag = sourceMarker.primary_tag;
       } else {
-        selectedTag = state.availableTags[0] || { id: "", name: "Select Tag" };
+        selectedTag = availableTags[0] || { id: "", name: "Select Tag" };
       }
 
       // When filtering is active, override tag to keep the marker visible
-      if (state.filteredSwimlane && state.availableTags.length > 0) {
+      if (filteredSwimlane && availableTags.length > 0) {
         // Check if current tag matches the filter
         const currentTagGroupName = selectedTag.name.endsWith("_AI")
           ? selectedTag.name.replace("_AI", "")
           : selectedTag.name;
 
         // If it doesn't match, find a tag that does
-        if (currentTagGroupName !== state.filteredSwimlane) {
-          const matchingTag = state.availableTags.find((tag) => {
+        if (currentTagGroupName !== filteredSwimlane) {
+          const matchingTag = availableTags.find((tag) => {
             const tagGroupName = tag.name.endsWith("_AI")
               ? tag.name.replace("_AI", "")
               : tag.name;
-            return tagGroupName === state.filteredSwimlane;
+            return tagGroupName === filteredSwimlane;
           });
           if (matchingTag) {
             selectedTag = matchingTag;
@@ -722,7 +742,7 @@ function MarkerPageContent() {
         seconds: startTime,
         end_seconds: endTime,
         primary_tag: selectedTag,
-        scene: state.scene,
+        scene: scene,
         tags: isDuplicate ? [] : [], // Both start with empty tags array
         title: isDuplicate ? sourceMarker.title : "",
         stream: isDuplicate ? sourceMarker.stream : "",
@@ -731,7 +751,7 @@ function MarkerPageContent() {
       };
 
       // Insert the temporary marker at the correct chronological position
-      const updatedMarkers = [...(state.markers || []), tempMarker].sort(
+      const updatedMarkers = [...(markers || []), tempMarker].sort(
         (a, b) => a.seconds - b.seconds
       );
 
@@ -739,18 +759,18 @@ function MarkerPageContent() {
         type: "SET_MARKERS",
         payload: updatedMarkers,
       });
-      dispatch({ type: "SET_SELECTED_MARKER_ID", payload: tempMarker.id });
+      dispatch(setSelectedMarkerId(tempMarker.id));
       dispatch({
         type: isDuplicate ? "SET_DUPLICATING_MARKER" : "SET_CREATING_MARKER",
         payload: true,
       });
     },
     [
-      state.videoElement,
-      state.scene,
-      state.availableTags,
-      state.filteredSwimlane,
-      state.markers,
+      videoElementRef.current,
+      scene,
+      availableTags,
+      filteredSwimlane,
+      markers,
       dispatch,
     ]
   );
@@ -774,17 +794,17 @@ function MarkerPageContent() {
     if (!actionMarkers) return;
 
     const rejected = actionMarkers.filter(isMarkerRejected);
-    dispatch({ type: "SET_REJECTED_MARKERS", payload: rejected });
-    dispatch({ type: "SET_DELETING_REJECTED", payload: true });
+    dispatch(setRejectedMarkers(rejected));
+    dispatch(setDeletingRejected(true));
   }, [getActionMarkers, dispatch]);
 
   // Copy marker times function
   const copyMarkerTimes = useCallback(() => {
     const actionMarkers = getActionMarkers();
-    if (!actionMarkers || !state.selectedMarkerId) return;
+    if (!actionMarkers || !selectedMarkerId) return;
 
     const currentMarker = actionMarkers.find(
-      (m) => m.id === state.selectedMarkerId
+      (m) => m.id === selectedMarkerId
     );
     if (!currentMarker) return;
 
@@ -807,11 +827,11 @@ function MarkerPageContent() {
       `Copied times: ${formatSeconds(copiedTimes.start, true)} - ${endTimeStr}`,
       "success"
     );
-  }, [getActionMarkers, state.selectedMarkerId, dispatch, showToast]);
+  }, [getActionMarkers, selectedMarkerId, dispatch, showToast]);
 
   // Paste marker times function
   const pasteMarkerTimes = useCallback(async () => {
-    if (!state.copiedMarkerTimes) {
+    if (!copiedMarkerTimes) {
       showToast("No marker times copied yet", "error");
       return;
     }
@@ -822,7 +842,7 @@ function MarkerPageContent() {
     }
 
     const currentMarker = actionMarkers.find(
-      (m) => m.id === state.selectedMarkerId
+      (m) => m.id === selectedMarkerId
     );
     if (!currentMarker) {
       console.log("Cannot paste marker times: No current marker found");
@@ -830,20 +850,21 @@ function MarkerPageContent() {
     }
 
     try {
-      await markerOps.updateMarkerTimes(
-        currentMarker.id,
-        state.copiedMarkerTimes.start,
-        state.copiedMarkerTimes.end ?? null
-      );
+      // TODO: Replace with Redux thunk
+      // await markerOps.updateMarkerTimes(
+      //   currentMarker.id,
+      //   copiedMarkerTimes.start,
+      //   copiedMarkerTimes.end ?? null
+      // );
 
       // Show toast notification
-      const endTimeStr = state.copiedMarkerTimes.end
-        ? formatSeconds(state.copiedMarkerTimes.end, true)
+      const endTimeStr = copiedMarkerTimes.end
+        ? formatSeconds(copiedMarkerTimes.end, true)
         : "N/A";
 
       showToast(
         `Pasted times: ${formatSeconds(
-          state.copiedMarkerTimes.start,
+          copiedMarkerTimes.start,
           true
         )} - ${endTimeStr}`,
         "success"
@@ -854,20 +875,21 @@ function MarkerPageContent() {
     }
   }, [
     markerOps,
-    state.copiedMarkerTimes,
+    copiedMarkerTimes,
     getActionMarkers,
-    state.selectedMarkerId,
+    selectedMarkerId,
     showToast,
   ]);
 
   const confirmDeleteRejectedMarkers = useCallback(async () => {
     try {
       await stashappService.deleteMarkers(
-        state.rejectedMarkers.map((m) => m.id)
+        rejectedMarkers.map((m) => m.id)
       );
-      await refreshMarkersOnly();
-      dispatch({ type: "SET_DELETING_REJECTED", payload: false });
-      dispatch({ type: "SET_REJECTED_MARKERS", payload: [] });
+      // TODO: Replace with Redux thunk
+      // await refreshMarkersOnly();
+      dispatch(setDeletingRejected(false));
+      dispatch(setRejectedMarkers([]));
     } catch (err) {
       console.error("Error deleting rejected markers:", err);
       dispatch({
@@ -875,7 +897,7 @@ function MarkerPageContent() {
         payload: "Failed to delete rejected markers",
       });
     }
-  }, [state.rejectedMarkers, refreshMarkersOnly, dispatch]);
+  }, [rejectedMarkers, refreshMarkersOnly, dispatch]);
 
   const handleAIConversion = useCallback(async () => {
     const actionMarkers = getActionMarkers();
@@ -885,8 +907,8 @@ function MarkerPageContent() {
       const markers = await stashappService.convertConfirmedAIMarkers(
         actionMarkers
       );
-      dispatch({ type: "SET_CONFIRMED_AI_MARKERS", payload: markers });
-      dispatch({ type: "SET_AI_CONVERSION_MODAL_OPEN", payload: true });
+      dispatch(setConfirmedAIMarkers(markers));
+      dispatch(setAIConversionModalOpen(true));
     } catch (err) {
       console.error("Error preparing AI conversion:", err);
       dispatch({
@@ -898,18 +920,19 @@ function MarkerPageContent() {
 
   const handleConfirmAIConversion = useCallback(async () => {
     try {
-      for (const { aiMarker, correspondingTag } of state.confirmedAIMarkers) {
+      for (const { aiMarker, correspondingTag } of confirmedAIMarkers) {
         await stashappService.updateMarkerTagAndTitle(
           aiMarker.id,
           correspondingTag.id
         );
       }
-      await refreshMarkersOnly();
+      // TODO: Replace with Redux thunk
+      // await refreshMarkersOnly();
     } catch (err) {
       console.error("Error converting AI markers:", err);
       throw err; // Let the modal handle the error display
     }
-  }, [state.confirmedAIMarkers, refreshMarkersOnly]);
+  }, [confirmedAIMarkers, refreshMarkersOnly]);
 
   // Check if all markers are approved (confirmed, rejected, or manual)
   const checkAllMarkersApproved = useCallback(() => {
@@ -1025,12 +1048,12 @@ function MarkerPageContent() {
 
     if (confirmedMarkers.length > 0) {
       try {
-        if (!state.scene) {
+        if (!scene) {
           throw new Error("Scene data not found");
         }
         // Get current scene tags to check what's already present
         const currentSceneTags = await stashappService.getSceneTags(
-          state.scene.id
+          scene.id
         );
         const currentSceneTagIds = new Set(
           currentSceneTags.map((tag) => tag.id)
@@ -1087,7 +1110,7 @@ function MarkerPageContent() {
   }, [
     getActionMarkers,
     getShotBoundaries,
-    state.scene,
+    scene,
     identifyAITagsToRemove,
   ]);
 
@@ -1097,7 +1120,7 @@ function MarkerPageContent() {
     if (!actionMarkers || actionMarkers.length === 0) return;
 
     try {
-      dispatch({ type: "SET_LOADING", payload: true });
+      // Loading state is managed by async thunks
 
       // Step 1: Delete Video Cut markers
       if (videoCutMarkersToDelete.length > 0) {
@@ -1118,21 +1141,21 @@ function MarkerPageContent() {
       await stashappService.generateMarkers(actionMarkerIds);
 
       // Step 3: Mark scene as reviewed
-      if (!state.scene) {
+      if (!scene) {
         throw new Error("Scene data not found");
       }
-      const scene = {
-        id: state.scene.id,
-        title: state.scene.title,
-        paths: {
-          preview: "",
-          vtt: "",
-          sprite: "",
-          screenshot: "",
-        },
-        tags: [],
-        performers: [],
-      };
+      // const sceneData = {
+      //   id: scene.id,
+      //   title: scene.title,
+      //   paths: {
+      //     preview: "",
+      //     vtt: "",
+      //     sprite: "",
+      //     screenshot: "",
+      //   },
+      //   tags: [],
+      //   performers: [],
+      // };
 
       // Get all confirmed markers and their primary tags
       const confirmedMarkers = actionMarkers.filter((marker) =>
@@ -1162,28 +1185,25 @@ function MarkerPageContent() {
       await stashappService.updateScene(scene, tagsToAdd, tagsToRemove);
 
       // Step 5: Refresh markers to show generated content
-      setTimeout(refreshMarkersOnly, 2000); // Give generation time to complete
+      // TODO: Replace with Redux thunk
+      // setTimeout(refreshMarkersOnly, 2000); // Give generation time to complete
 
       // Clear any existing errors on success
-      dispatch({
-        type: "SET_ERROR",
-        payload: null,
-      });
+      // TODO: Add error clearing action
+      // dispatch(clearError());
     } catch (err) {
       console.error("Error completing scene:", err);
-      dispatch({
-        type: "SET_ERROR",
-        payload: "Failed to complete scene processing",
-      });
+      // TODO: Add error handling action
+      // dispatch(setError("Failed to complete scene processing"));
     } finally {
-      dispatch({ type: "SET_LOADING", payload: false });
+      // Loading state is managed by async thunks
       setIsCompletionModalOpen(false);
     }
   }, [
     getActionMarkers,
     videoCutMarkersToDelete,
     refreshMarkersOnly,
-    state.scene,
+    scene,
     identifyAITagsToRemove,
     dispatch,
   ]);
@@ -1204,45 +1224,45 @@ function MarkerPageContent() {
         return;
       }
 
-      dispatch({ type: "SET_SELECTED_MARKER_ID", payload: marker.id });
+      dispatch(setSelectedMarkerId(marker.id));
     },
     [dispatch]
   );
 
   // Navigate to next/previous shot
   const jumpToNextShot = useCallback(() => {
-    if (!state.videoElement) return;
+    if (!videoElementRef.current) return;
 
     const shotBoundaries = getShotBoundaries();
-    const currentTime = state.videoElement.currentTime;
+    const currentTime = videoElementRef.current.currentTime;
     const nextShot = shotBoundaries.find(
       (shot) => shot.seconds > currentTime + 0.1
     );
 
     if (nextShot) {
-      state.videoElement.currentTime = nextShot.seconds;
+      videoElementRef.current.currentTime = nextShot.seconds;
     }
-  }, [state.videoElement, getShotBoundaries]);
+  }, [videoElementRef.current, getShotBoundaries]);
 
   const jumpToPreviousShot = useCallback(() => {
-    if (!state.videoElement) return;
+    if (!videoElementRef.current) return;
 
     const shotBoundaries = getShotBoundaries();
-    const currentTime = state.videoElement.currentTime;
+    const currentTime = videoElementRef.current.currentTime;
     const previousShot = [...shotBoundaries]
       .reverse()
       .find((shot) => shot.seconds < currentTime - 0.1);
 
     if (previousShot) {
-      state.videoElement.currentTime = previousShot.seconds;
+      videoElementRef.current.currentTime = previousShot.seconds;
     }
-  }, [state.videoElement, getShotBoundaries]);
+  }, [videoElementRef.current, getShotBoundaries]);
 
   // Helper function to find next unprocessed marker
   const findNextUnprocessedMarker = useCallback((): string | null => {
     const actionMarkers = getActionMarkers();
     const currentMarker = actionMarkers.find(
-      (m) => m.id === state.selectedMarkerId
+      (m) => m.id === selectedMarkerId
     );
     const currentIndex = currentMarker
       ? actionMarkers.indexOf(currentMarker)
@@ -1263,13 +1283,13 @@ function MarkerPageContent() {
     }
 
     return null; // No unprocessed markers found
-  }, [getActionMarkers, state.selectedMarkerId]);
+  }, [getActionMarkers, selectedMarkerId]);
 
   // Helper function to find previous unprocessed marker globally
   const findPreviousUnprocessedMarker = useCallback((): string | null => {
     const actionMarkers = getActionMarkers();
     const currentMarker = actionMarkers.find(
-      (m) => m.id === state.selectedMarkerId
+      (m) => m.id === selectedMarkerId
     );
     const currentIndex = currentMarker
       ? actionMarkers.indexOf(currentMarker)
@@ -1290,17 +1310,17 @@ function MarkerPageContent() {
     }
 
     return null; // No unprocessed markers found
-  }, [getActionMarkers, state.selectedMarkerId]);
+  }, [getActionMarkers, selectedMarkerId]);
 
   // Helper function to find next unprocessed marker in current swimlane
   const findNextUnprocessedMarkerInSwimlane = useCallback((): string | null => {
     if (markersWithTracks.length === 0) {
       // If no swimlane data, stay on current marker
-      return state.selectedMarkerId;
+      return selectedMarkerId;
     }
 
     const currentMarker = actionMarkers.find(
-      (m) => m.id === state.selectedMarkerId
+      (m) => m.id === selectedMarkerId
     );
     if (!currentMarker) return null;
 
@@ -1308,7 +1328,7 @@ function MarkerPageContent() {
     const currentMarkerWithTrack = markersWithTracks.find(
       (m) => m.id === currentMarker.id
     );
-    if (!currentMarkerWithTrack) return state.selectedMarkerId;
+    if (!currentMarkerWithTrack) return selectedMarkerId;
 
     // Get all markers in the same swimlane, sorted by time
     const swimlaneMarkers = markersWithTracks
@@ -1318,7 +1338,7 @@ function MarkerPageContent() {
     const currentIndex = swimlaneMarkers.findIndex(
       (m) => m.id === currentMarker.id
     );
-    if (currentIndex === -1) return state.selectedMarkerId;
+    if (currentIndex === -1) return selectedMarkerId;
 
     // Look for next unprocessed marker in swimlane starting from current position
     for (let i = currentIndex + 1; i < swimlaneMarkers.length; i++) {
@@ -1331,8 +1351,8 @@ function MarkerPageContent() {
     }
 
     // If no later unprocessed markers found in swimlane, stay on current marker
-    return state.selectedMarkerId;
-  }, [markersWithTracks, actionMarkers, state.selectedMarkerId]);
+    return selectedMarkerId;
+  }, [markersWithTracks, actionMarkers, selectedMarkerId]);
 
   // Helper function to find previous unprocessed marker in current swimlane
   const findPreviousUnprocessedMarkerInSwimlane = useCallback(():
@@ -1340,11 +1360,11 @@ function MarkerPageContent() {
     | null => {
     if (markersWithTracks.length === 0) {
       // If no swimlane data, stay on current marker
-      return state.selectedMarkerId;
+      return selectedMarkerId;
     }
 
     const currentMarker = actionMarkers.find(
-      (m) => m.id === state.selectedMarkerId
+      (m) => m.id === selectedMarkerId
     );
     if (!currentMarker) return null;
 
@@ -1352,7 +1372,7 @@ function MarkerPageContent() {
     const currentMarkerWithTrack = markersWithTracks.find(
       (m) => m.id === currentMarker.id
     );
-    if (!currentMarkerWithTrack) return state.selectedMarkerId;
+    if (!currentMarkerWithTrack) return selectedMarkerId;
 
     // Get all markers in the same swimlane, sorted by time
     const swimlaneMarkers = markersWithTracks
@@ -1362,7 +1382,7 @@ function MarkerPageContent() {
     const currentIndex = swimlaneMarkers.findIndex(
       (m) => m.id === currentMarker.id
     );
-    if (currentIndex === -1) return state.selectedMarkerId;
+    if (currentIndex === -1) return selectedMarkerId;
 
     // Look for previous unprocessed marker in swimlane starting from current position
     for (let i = currentIndex - 1; i >= 0; i--) {
@@ -1385,7 +1405,7 @@ function MarkerPageContent() {
     }
 
     return null; // No unprocessed markers found in swimlane
-  }, [markersWithTracks, actionMarkers, state.selectedMarkerId]);
+  }, [markersWithTracks, actionMarkers, selectedMarkerId]);
 
   // Helper function for chronological navigation
   const navigateChronologically = useCallback(
@@ -1394,7 +1414,7 @@ function MarkerPageContent() {
 
       // Find current marker
       const currentMarker = actionMarkers.find(
-        (m) => m.id === state.selectedMarkerId
+        (m) => m.id === selectedMarkerId
       );
       if (!currentMarker) {
         // If no marker is selected, select the first one
@@ -1427,9 +1447,9 @@ function MarkerPageContent() {
 
       // Select the new marker by ID
       const newMarker = sortedMarkers[newIndex];
-      dispatch({ type: "SET_SELECTED_MARKER_ID", payload: newMarker.id });
+      dispatch(setSelectedMarkerId(newMarker.id));
     },
-    [actionMarkers, state.selectedMarkerId, dispatch]
+    [actionMarkers, selectedMarkerId, dispatch]
   );
 
   // Helper function for swimlane navigation
@@ -1443,7 +1463,7 @@ function MarkerPageContent() {
 
       // Find current marker
       const currentMarker = actionMarkers.find(
-        (m) => m.id === state.selectedMarkerId
+        (m) => m.id === selectedMarkerId
       );
       if (!currentMarker) {
         // If no marker is selected, select the first one
@@ -1499,14 +1519,14 @@ function MarkerPageContent() {
       }
 
       if (bestMatch) {
-        dispatch({ type: "SET_SELECTED_MARKER_ID", payload: bestMatch.id });
+        dispatch(setSelectedMarkerId(bestMatch.id));
       }
     },
     [
       markersWithTracks,
       tagGroups,
       actionMarkers,
-      state.selectedMarkerId,
+      selectedMarkerId,
       dispatch,
       navigateChronologically,
     ]
@@ -1523,7 +1543,7 @@ function MarkerPageContent() {
 
       // Find current marker
       const currentMarker = actionMarkers.find(
-        (m) => m.id === state.selectedMarkerId
+        (m) => m.id === selectedMarkerId
       );
       if (!currentMarker) {
         // If no marker is selected, select the first one
@@ -1565,12 +1585,12 @@ function MarkerPageContent() {
       if (targetIndex === currentIndex) return;
 
       const targetMarker = swimlaneMarkers[targetIndex];
-      dispatch({ type: "SET_SELECTED_MARKER_ID", payload: targetMarker.id });
+      dispatch(setSelectedMarkerId(targetMarker.id));
     },
     [
       markersWithTracks,
       actionMarkers,
-      state.selectedMarkerId,
+      selectedMarkerId,
       dispatch,
       navigateChronologically,
     ]
@@ -1657,7 +1677,8 @@ function MarkerPageContent() {
         case "R":
           event.preventDefault();
           if (actionMarkers.length > 0) {
-            refreshMarkersOnly();
+            // TODO: Replace with Redux thunk
+            // refreshMarkersOnly();
           } else {
             fetchData();
           }
@@ -1666,11 +1687,11 @@ function MarkerPageContent() {
         case "A":
           event.preventDefault();
           console.log("'A' key pressed - Attempting to create marker", {
-            hasVideoElement: !!state.videoElement,
-            hasScene: !!state.scene,
-            availableTagsCount: state.availableTags?.length || 0,
-            isCreatingMarker: state.isCreatingMarker,
-            isDuplicatingMarker: state.isDuplicatingMarker,
+            hasVideoElement: !!videoElementRef.current,
+            hasScene: !!scene,
+            availableTagsCount: availableTags?.length || 0,
+            isCreatingMarker: isCreatingMarker,
+            isDuplicatingMarker: isDuplicatingMarker,
           });
           handleCreateMarker();
           return;
@@ -1680,7 +1701,7 @@ function MarkerPageContent() {
           // Filter by current marker's swimlane, or clear if no markers are visible due to filtering
           if (actionMarkers.length > 0) {
             const currentMarker = actionMarkers.find(
-              (m) => m.id === state.selectedMarkerId
+              (m) => m.id === selectedMarkerId
             );
             if (!currentMarker) {
               console.log("Cannot split marker: No current marker found");
@@ -1697,17 +1718,17 @@ function MarkerPageContent() {
 
             // Toggle filter: if already filtered by this swimlane, clear it; otherwise set it
             const newFilter =
-              state.filteredSwimlane === tagGroupName ? null : tagGroupName;
+              filteredSwimlane === tagGroupName ? null : tagGroupName;
 
             // Apply the filter
-            dispatch({ type: "SET_FILTERED_SWIMLANE", payload: newFilter });
+            dispatch(setFilteredSwimlane(newFilter));
 
             // After filtering, find and select the same marker in the new filtered/unfiltered list
             setTimeout(() => {
               // Calculate what the new actionMarkers will be
-              if (!state.markers) return;
+              if (!markers) return;
 
-              let newFilteredMarkers = state.markers.filter((marker) => {
+              let newFilteredMarkers = markers.filter((marker) => {
                 if (marker.id.startsWith("temp-")) return true;
                 return !isShotBoundaryMarker(marker);
               });
@@ -1739,26 +1760,26 @@ function MarkerPageContent() {
                 });
               }
             }, 0);
-          } else if (state.filteredSwimlane) {
+          } else if (filteredSwimlane) {
             // If no action markers are visible but a filter is applied, pressing F clears the filter.
-            dispatch({ type: "SET_FILTERED_SWIMLANE", payload: null });
+            dispatch(setFilteredSwimlane(null));
           }
           return;
         case "Escape":
           event.preventDefault();
           if (editingMarkerId) {
             handleCancelEdit();
-          } else if (state.isCreatingMarker || state.isDuplicatingMarker) {
+          } else if (isCreatingMarker || isDuplicatingMarker) {
             // Cancel temporary marker creation
-            const realMarkers = state.markers.filter(
+            const realMarkers = markers.filter(
               (m) => !m.id.startsWith("temp-")
             );
             dispatch({
               type: "SET_MARKERS",
               payload: realMarkers,
             });
-            dispatch({ type: "SET_CREATING_MARKER", payload: false });
-            dispatch({ type: "SET_DUPLICATING_MARKER", payload: false });
+            dispatch(setCreatingMarker(false));
+            dispatch(setDuplicatingMarker(false));
           }
           return;
         case "v":
@@ -1805,7 +1826,7 @@ function MarkerPageContent() {
           event.preventDefault();
           {
             const markerToConfirm = actionMarkers.find(
-              (m) => m.id === state.selectedMarkerId
+              (m) => m.id === selectedMarkerId
             );
             if (markerToConfirm) {
               const isAlreadyConfirmed = markerToConfirm.tags.some(
@@ -1813,9 +1834,11 @@ function MarkerPageContent() {
               );
 
               if (isAlreadyConfirmed) {
-                await markerOps.resetMarker(markerToConfirm.id);
+                // TODO: Replace with Redux thunk
+                // await markerOps.resetMarker(markerToConfirm.id);
               } else {
-                await markerOps.confirmMarker(markerToConfirm.id);
+                // TODO: Replace with Redux thunk
+                // await markerOps.confirmMarker(markerToConfirm.id);
                 // Find and select next unprocessed marker in the same swimlane
                 const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
                 if (nextMarkerId) {
@@ -1833,7 +1856,7 @@ function MarkerPageContent() {
           event.preventDefault();
           {
             const markerToHandle = actionMarkers.find(
-              (m) => m.id === state.selectedMarkerId
+              (m) => m.id === selectedMarkerId
             );
             if (markerToHandle) {
               const isAlreadyRejected = markerToHandle.tags.some(
@@ -1841,9 +1864,11 @@ function MarkerPageContent() {
               );
 
               if (isAlreadyRejected) {
-                await markerOps.resetMarker(markerToHandle.id);
+                // TODO: Replace with Redux thunk
+                // await markerOps.resetMarker(markerToHandle.id);
               } else {
-                await markerOps.rejectMarker(markerToHandle.id);
+                // TODO: Replace with Redux thunk
+                // await markerOps.rejectMarker(markerToHandle.id);
                 // Find and select next unprocessed marker in the same swimlane
                 const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
                 if (nextMarkerId) {
@@ -1861,38 +1886,40 @@ function MarkerPageContent() {
           event.preventDefault();
           if (hasShift) {
             // Shift+C: Open collection modal
-            if (state.incorrectMarkers.length > 0) {
-              dispatch({ type: "SET_COLLECTING_MODAL_OPEN", payload: true });
+            if (incorrectMarkers.length > 0) {
+              dispatch(setCollectingModalOpen(true));
             } else {
               showToast("No incorrect markers to collect", "success");
             }
           } else {
             // C: Mark/unmark current marker as incorrect
             const markerToHandle = actionMarkers.find(
-              (m) => m.id === state.selectedMarkerId
+              (m) => m.id === selectedMarkerId
             );
-            if (markerToHandle && state.scene?.id) {
-              const isIncorrect = state.incorrectMarkers.some(
+            if (markerToHandle && scene?.id) {
+              const isIncorrect = incorrectMarkers.some(
                 (m) => m.markerId === markerToHandle.id
               );
 
               if (isIncorrect) {
-                await markerOps.resetMarker(markerToHandle.id);
+                // TODO: Replace with Redux thunk
+                // await markerOps.resetMarker(markerToHandle.id);
                 incorrectMarkerStorage.removeIncorrectMarker(
-                  state.scene.id,
+                  scene.id,
                   markerToHandle.id
                 );
                 showToast("Removed incorrect marker feedback", "success");
               } else {
-                await markerOps.rejectMarker(markerToHandle.id);
-                incorrectMarkerStorage.addIncorrectMarker(state.scene.id, {
+                // TODO: Replace with Redux thunk
+                // await markerOps.rejectMarker(markerToHandle.id);
+                incorrectMarkerStorage.addIncorrectMarker(scene.id, {
                   markerId: markerToHandle.id,
                   tagName: markerToHandle.primary_tag.name,
                   startTime: markerToHandle.seconds,
                   endTime: markerToHandle.end_seconds || null,
                   timestamp: new Date().toISOString(),
-                  sceneId: state.scene.id,
-                  sceneTitle: state.scene.title || "Untitled Scene",
+                  sceneId: scene.id,
+                  sceneTitle: scene.title || "Untitled Scene",
                 });
                 showToast("Marked marker as incorrect", "success");
               }
@@ -1901,7 +1928,7 @@ function MarkerPageContent() {
               dispatch({
                 type: "SET_INCORRECT_MARKERS",
                 payload: incorrectMarkerStorage.getIncorrectMarkers(
-                  state.scene.id
+                  scene.id
                 ),
               });
             }
@@ -1966,7 +1993,7 @@ function MarkerPageContent() {
           event.preventDefault();
           {
             const markerToDuplicate = actionMarkers.find(
-              (m) => m.id === state.selectedMarkerId
+              (m) => m.id === selectedMarkerId
             );
             if (markerToDuplicate) {
               createOrDuplicateMarker(markerToDuplicate);
@@ -1980,7 +2007,7 @@ function MarkerPageContent() {
           event.preventDefault();
           {
             const markerToEdit = actionMarkers.find(
-              (m) => m.id === state.selectedMarkerId
+              (m) => m.id === selectedMarkerId
             );
             if (markerToEdit) {
               handleEditMarker(markerToEdit);
@@ -1991,18 +2018,19 @@ function MarkerPageContent() {
         case "W":
           event.preventDefault();
           {
-            if (state.videoElement) {
+            if (videoElementRef.current) {
               const markerToUpdate = actionMarkers.find(
-                (m) => m.id === state.selectedMarkerId
+                (m) => m.id === selectedMarkerId
               );
               if (markerToUpdate) {
-                const newStartTime = state.videoElement.currentTime;
-                const newEndTime = markerToUpdate.end_seconds ?? null;
-                markerOps.updateMarkerTimes(
-                  markerToUpdate.id,
-                  newStartTime,
-                  newEndTime
-                );
+                // const newStartTime = videoElementRef.current.currentTime;
+                // const newEndTime = markerToUpdate.end_seconds ?? null;
+                // TODO: Replace with Redux thunk
+                // markerOps.updateMarkerTimes(
+                //   markerToUpdate.id,
+                //   newStartTime,
+                //   newEndTime
+                // );
               }
             }
           }
@@ -2011,18 +2039,19 @@ function MarkerPageContent() {
         case "E":
           event.preventDefault();
           {
-            if (state.videoElement) {
+            if (videoElementRef.current) {
               const markerToSetEnd = actionMarkers.find(
-                (m) => m.id === state.selectedMarkerId
+                (m) => m.id === selectedMarkerId
               );
               if (markerToSetEnd) {
-                const newStartTime = markerToSetEnd.seconds;
-                const newEndTime = state.videoElement.currentTime;
-                markerOps.updateMarkerTimes(
-                  markerToSetEnd.id,
-                  newStartTime,
-                  newEndTime
-                );
+                // const newStartTime = markerToSetEnd.seconds;
+                // const newEndTime = videoElementRef.current.currentTime;
+                // TODO: Replace with Redux thunk
+                // markerOps.updateMarkerTimes(
+                //   markerToSetEnd.id,
+                //   newStartTime,
+                //   newEndTime
+                // );
               }
             }
           }
@@ -2045,18 +2074,18 @@ function MarkerPageContent() {
         case "H":
           event.preventDefault();
           // Center timeline on current playhead position
-          if (state.videoElement && state.videoDuration > 0) {
+          if (videoElementRef.current && videoDuration && videoDuration > 0) {
             const timelineElement = document.querySelector(
               "[data-timeline-container]"
             ) as HTMLElement;
             if (timelineElement) {
-              const currentTime = state.videoElement.currentTime;
+              const currentTime = videoElementRef.current.currentTime;
               // Calculate pixels per second based on timeline's actual width and video duration
               const timelineContent =
                 timelineElement.firstElementChild as HTMLElement;
               if (timelineContent) {
                 const timelineWidth = timelineContent.offsetWidth;
-                const pixelsPerSecond = timelineWidth / state.videoDuration;
+                const pixelsPerSecond = timelineWidth / videoDuration;
                 const currentTimePosition = currentTime * pixelsPerSecond;
                 const containerWidth = timelineElement.clientWidth;
                 const desiredScrollPosition = Math.max(
@@ -2076,20 +2105,20 @@ function MarkerPageContent() {
         // Playback Control
         case " ":
           event.preventDefault();
-          if (state.videoElement) {
-            if (state.videoElement.paused) {
-              state.videoElement.play();
+          if (videoElementRef.current) {
+            if (videoElementRef.current.paused) {
+              videoElementRef.current.play();
             } else {
-              state.videoElement.pause();
+              videoElementRef.current.pause();
             }
           }
           break;
         case "j":
         case "J":
           event.preventDefault();
-          if (state.videoElement) {
-            state.videoElement.currentTime = Math.max(
-              state.videoElement.currentTime - 5,
+          if (videoElementRef.current) {
+            videoElementRef.current.currentTime = Math.max(
+              videoElementRef.current.currentTime - 5,
               0
             );
           }
@@ -2097,53 +2126,53 @@ function MarkerPageContent() {
         case "k":
         case "K":
           event.preventDefault();
-          if (state.videoElement) {
-            if (state.videoElement.paused) {
-              state.videoElement.play();
+          if (videoElementRef.current) {
+            if (videoElementRef.current.paused) {
+              videoElementRef.current.play();
             } else {
-              state.videoElement.pause();
+              videoElementRef.current.pause();
             }
           }
           break;
         case "l":
         case "L":
           event.preventDefault();
-          if (state.videoElement) {
-            state.videoElement.currentTime = Math.min(
-              state.videoElement.currentTime + 5,
-              state.videoElement.duration
+          if (videoElementRef.current) {
+            videoElementRef.current.currentTime = Math.min(
+              videoElementRef.current.currentTime + 5,
+              videoElementRef.current.duration
             );
           }
           break;
         case ",":
           event.preventDefault();
-          if (state.videoElement) {
+          if (videoElementRef.current) {
             // Pause video first to ensure frame stepping works properly
-            const wasPlaying = !state.videoElement.paused;
+            const wasPlaying = !videoElementRef.current.paused;
             if (wasPlaying) {
-              state.videoElement.pause();
+              videoElementRef.current.pause();
             }
             // Use 1/30 second for frame stepping (30fps)
             const frameTime = 1 / 30;
-            state.videoElement.currentTime = Math.max(
-              state.videoElement.currentTime - frameTime,
+            videoElementRef.current.currentTime = Math.max(
+              videoElementRef.current.currentTime - frameTime,
               0
             );
           }
           break;
         case ".":
           event.preventDefault();
-          if (state.videoElement) {
+          if (videoElementRef.current) {
             // Pause video first to ensure frame stepping works properly
-            const wasPlaying = !state.videoElement.paused;
+            const wasPlaying = !videoElementRef.current.paused;
             if (wasPlaying) {
-              state.videoElement.pause();
+              videoElementRef.current.pause();
             }
             // Use 1/30 second for frame stepping (30fps)
             const frameTime = 1 / 30;
-            state.videoElement.currentTime = Math.min(
-              state.videoElement.currentTime + frameTime,
-              state.videoElement.duration || 0
+            videoElementRef.current.currentTime = Math.min(
+              videoElementRef.current.currentTime + frameTime,
+              videoElementRef.current.duration || 0
             );
           }
           break;
@@ -2152,17 +2181,17 @@ function MarkerPageContent() {
         case "i":
         case "I":
           event.preventDefault();
-          if (state.videoElement) {
+          if (videoElementRef.current) {
             if (hasShift) {
               // Shift+I: Jump to beginning of scene
-              state.videoElement.currentTime = 0;
+              videoElementRef.current.currentTime = 0;
             } else {
               // I: Jump to start of current marker
               const marker = actionMarkers.find(
-                (m) => m.id === state.selectedMarkerId
+                (m) => m.id === selectedMarkerId
               );
               if (marker) {
-                state.videoElement.currentTime = marker.seconds;
+                videoElementRef.current.currentTime = marker.seconds;
               }
             }
           }
@@ -2170,20 +2199,20 @@ function MarkerPageContent() {
         case "o":
         case "O":
           event.preventDefault();
-          if (state.videoElement) {
+          if (videoElementRef.current) {
             if (hasShift) {
               // Shift+O: Jump to end of scene
-              if (state.videoDuration > 0) {
-                state.videoElement.currentTime = state.videoDuration;
+              if (videoDuration && videoDuration > 0) {
+                videoElementRef.current.currentTime = videoDuration;
               }
             } else {
               // O: Jump to end of current marker
               const marker = actionMarkers.find(
-                (m) => m.id === state.selectedMarkerId
+                (m) => m.id === selectedMarkerId
               );
               if (marker) {
                 const endTime = marker.end_seconds ?? marker.seconds + 1;
-                state.videoElement.currentTime = endTime;
+                videoElementRef.current.currentTime = endTime;
               }
             }
           }
@@ -2204,13 +2233,13 @@ function MarkerPageContent() {
         // Enter key - Start playback from current marker
         case "Enter":
           event.preventDefault();
-          if (state.videoElement) {
+          if (videoElementRef.current) {
             const marker = actionMarkers.find(
-              (m) => m.id === state.selectedMarkerId
+              (m) => m.id === selectedMarkerId
             );
             if (marker) {
-              state.videoElement.currentTime = marker.seconds;
-              state.videoElement.play();
+              videoElementRef.current.currentTime = marker.seconds;
+              videoElementRef.current.play();
             }
           }
           break;
@@ -2287,7 +2316,16 @@ function MarkerPageContent() {
       fetchData,
       editingMarkerId,
       handleCancelEdit,
-      state,
+      // Redux selectors added to dependencies
+      availableTags,
+      filteredSwimlane,
+      incorrectMarkers,
+      isCreatingMarker,
+      isDuplicatingMarker,
+      markers,
+      scene,
+      selectedMarkerId,
+      videoDuration,
       dispatch,
       navigateBetweenSwimlanes,
       navigateChronologically,
@@ -2347,7 +2385,7 @@ function MarkerPageContent() {
       }
 
       // Handle delete rejected modal
-      if (state.isDeletingRejected) {
+      if (isDeletingRejected) {
         // Prevent event from bubbling to the main keyboard handler
         event.stopPropagation();
 
@@ -2358,8 +2396,8 @@ function MarkerPageContent() {
             break;
           case "Escape":
             event.preventDefault();
-            dispatch({ type: "SET_DELETING_REJECTED", payload: false });
-            dispatch({ type: "SET_REJECTED_MARKERS", payload: [] });
+            dispatch(setDeletingRejected(false));
+            dispatch(setRejectedMarkers([]));
             break;
           case "y":
           case "Y":
@@ -2369,8 +2407,8 @@ function MarkerPageContent() {
           case "n":
           case "N":
             event.preventDefault();
-            dispatch({ type: "SET_DELETING_REJECTED", payload: false });
-            dispatch({ type: "SET_REJECTED_MARKERS", payload: [] });
+            dispatch(setDeletingRejected(false));
+            dispatch(setRejectedMarkers([]));
             break;
         }
       }
@@ -2378,7 +2416,7 @@ function MarkerPageContent() {
     [
       isCompletionModalOpen,
       executeCompletion,
-      state.isDeletingRejected,
+      isDeletingRejected,
       confirmDeleteRejectedMarkers,
       dispatch,
     ]
@@ -2396,12 +2434,12 @@ function MarkerPageContent() {
 
   // Scroll selected marker into view
   useEffect(() => {
-    if (markerListRef.current && state.selectedMarkerId) {
+    if (markerListRef.current && selectedMarkerId) {
       // Longer delay to ensure all state updates have completed and DOM has updated
       const timeoutId = setTimeout(() => {
         if (markerListRef.current) {
           const selectedElement = markerListRef.current.querySelector(
-            `[data-marker-id="${state.selectedMarkerId}"]`
+            `[data-marker-id="${selectedMarkerId}"]`
           ) as HTMLElement;
 
           if (selectedElement) {
@@ -2415,62 +2453,62 @@ function MarkerPageContent() {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [state.selectedMarkerId]); // Also depend on actionMarkers.length to ensure it runs after markers are updated
+  }, [selectedMarkerId]); // Also depend on actionMarkers.length to ensure it runs after markers are updated
 
   // Update video duration and current time
   useEffect(() => {
-    if (state.videoElement) {
+    if (videoElementRef.current) {
       const handleLoadedMetadata = () => {
-        if (state.videoElement) {
+        if (videoElementRef.current) {
           dispatch({
             type: "SET_VIDEO_DURATION",
-            payload: state.videoElement.duration,
+            payload: videoElementRef.current.duration,
           });
         }
       };
-      state.videoElement.addEventListener(
+      videoElementRef.current.addEventListener(
         "loadedmetadata",
         handleLoadedMetadata
       );
       return () => {
-        if (state.videoElement) {
-          state.videoElement.removeEventListener(
+        if (videoElementRef.current) {
+          videoElementRef.current.removeEventListener(
             "loadedmetadata",
             handleLoadedMetadata
           );
         }
       };
     }
-  }, [state.videoElement, dispatch]);
+  }, [videoElementRef.current, dispatch]);
 
   // Load incorrect markers when scene changes
   useEffect(() => {
-    if (state.scene?.id) {
+    if (scene?.id) {
       const incorrectMarkers = incorrectMarkerStorage.getIncorrectMarkers(
-        state.scene.id
+        scene.id
       );
       dispatch({
         type: "SET_INCORRECT_MARKERS",
         payload: incorrectMarkers,
       });
     }
-  }, [state.scene?.id, dispatch]);
+  }, [scene?.id, dispatch]);
 
   const updateCurrentTime = useCallback(() => {
-    if (state.videoElement) {
+    if (videoElementRef.current) {
       dispatch({
         type: "SET_CURRENT_VIDEO_TIME",
-        payload: state.videoElement.currentTime,
+        payload: videoElementRef.current.currentTime,
       });
     }
-  }, [state.videoElement, dispatch]);
+  }, [videoElementRef.current, dispatch]);
 
   // Effect to update current time from video
   useEffect(() => {
-    const video = state.videoElement;
+    const video = videoElementRef.current;
     if (video) {
       const handleLoadedMetadata = () => {
-        dispatch({ type: "SET_VIDEO_DURATION", payload: video.duration });
+        dispatch(setVideoDuration(video.duration));
       };
 
       video.addEventListener("loadedmetadata", handleLoadedMetadata);
@@ -2486,19 +2524,19 @@ function MarkerPageContent() {
         video.removeEventListener("seeked", updateCurrentTime);
       };
     }
-  }, [state.videoElement, updateCurrentTime, dispatch]);
+  }, [videoElementRef.current, updateCurrentTime, dispatch]);
 
   useEffect(() => {
-    if (state.scene) {
+    if (scene) {
       const incorrectMarkers = incorrectMarkerStorage.getIncorrectMarkers(
-        state.scene.id
+        scene.id
       );
       dispatch({
         type: "SET_INCORRECT_MARKERS",
         payload: incorrectMarkers,
       });
     }
-  }, [state.scene, dispatch]);
+  }, [scene, dispatch]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -2508,11 +2546,11 @@ function MarkerPageContent() {
           <div className="flex items-center space-x-6">
             <div className="flex items-center space-x-4">
               <h1 className="text-xl font-bold">
-                {state.scene ? state.scene.title : "Scene Markers"}
+                {scene ? scene.title : "Scene Markers"}
               </h1>
-              {state.scene && (
+              {scene && (
                 <a
-                  href={`${STASH_URL}/scenes/${state.scene.id}`}
+                  href={`${STASH_URL}/scenes/${scene.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-400 hover:text-blue-300 text-sm"
@@ -2532,7 +2570,7 @@ function MarkerPageContent() {
               <button
                 onClick={handleDeleteRejectedMarkers}
                 disabled={
-                  state.isLoading || !state.markers?.some(isMarkerRejected)
+                  isLoading || !markers?.some(isMarkerRejected)
                 }
                 title="Delete All Rejected Markers"
                 className="bg-red-500 hover:bg-red-700 text-white px-3 py-1.5 rounded-sm text-sm transition-colors"
@@ -2541,19 +2579,19 @@ function MarkerPageContent() {
               </button>
               <button
                 onClick={() =>
-                  dispatch({ type: "SET_COLLECTING_MODAL_OPEN", payload: true })
+                  dispatch(setCollectingModalOpen(true))
                 }
                 className={`px-3 py-1.5 rounded-sm text-sm font-medium transition-colors
                   ${
-                    state.incorrectMarkers.length > 0
+                    incorrectMarkers.length > 0
                       ? "bg-purple-600 hover:bg-purple-700"
                       : "bg-gray-600"
                   } text-white`}
-                disabled={state.incorrectMarkers.length === 0}
+                disabled={incorrectMarkers.length === 0}
               >
                 Collect AI Feedback{" "}
-                {state.incorrectMarkers.length > 0 &&
-                  `(${state.incorrectMarkers.length})`}
+                {incorrectMarkers.length > 0 &&
+                  `(${incorrectMarkers.length})`}
               </button>
               <button
                 onClick={handleAIConversion}
@@ -2563,7 +2601,7 @@ function MarkerPageContent() {
               </button>
               <button
                 onClick={handleComplete}
-                disabled={state.isLoading}
+                disabled={isLoading}
                 className={`px-3 py-1.5 rounded-sm text-sm font-medium transition-colors ${
                   !checkAllMarkersApproved()
                     ? "bg-yellow-600 hover:bg-yellow-700 text-white"
@@ -2586,15 +2624,15 @@ function MarkerPageContent() {
         </div>
       </div>
 
-      {state.error && (
+      {error && (
         <div className="w-full text-center p-4 bg-red-900 text-red-100 flex-shrink-0">
           <h2 className="font-bold">Error:</h2>
-          <pre className="text-sm">{state.error}</pre>
+          <pre className="text-sm">{error}</pre>
         </div>
       )}
 
       <div className="flex flex-col flex-1 min-h-0">
-        {state.scene && (
+        {scene && (
           <>
             {/* Video player and marker list in equal height container */}
             <div className="flex flex-1 min-h-0">
@@ -2605,10 +2643,10 @@ function MarkerPageContent() {
                   data-testid="marker-summary"
                 >
                   <div className="flex items-center space-x-4">
-                    {state.filteredSwimlane && (
+                    {filteredSwimlane && (
                       <div className="flex items-center bg-yellow-600 text-yellow-100 px-2 py-1 rounded-sm text-xs">
                         <span className="mr-1">🔍</span>
-                        <span>Filtered: {state.filteredSwimlane}</span>
+                        <span>Filtered: {filteredSwimlane}</span>
                         <button
                           onClick={() => handleSwimlaneFilter(null)}
                           className="ml-2 text-yellow-200 hover:text-white"
@@ -2650,15 +2688,15 @@ function MarkerPageContent() {
                     <button
                       onClick={handleCreateMarker}
                       disabled={
-                        state.isCreatingMarker ||
-                        state.isDuplicatingMarker ||
-                        state.markers.some((m) => m.id.startsWith("temp-"))
+                        isCreatingMarker ||
+                        isDuplicatingMarker ||
+                        markers.some((m) => m.id.startsWith("temp-"))
                       }
                       title="Create New Marker (A)"
                       className={`px-2 py-1 rounded-sm text-xs flex items-center ${
-                        state.isCreatingMarker ||
-                        state.isDuplicatingMarker ||
-                        state.markers.some((m) => m.id.startsWith("temp-"))
+                        isCreatingMarker ||
+                        isDuplicatingMarker ||
+                        markers.some((m) => m.id.startsWith("temp-"))
                           ? "bg-gray-500 cursor-not-allowed text-gray-300"
                           : "bg-green-500 hover:bg-green-700 text-white"
                       }`}
@@ -2702,7 +2740,7 @@ function MarkerPageContent() {
                       onClick={() => {
                         const actionMarkers = getActionMarkers();
                         const currentMarker = actionMarkers.find(
-                          (m) => m.id === state.selectedMarkerId
+                          (m) => m.id === selectedMarkerId
                         );
                         if (!currentMarker) {
                           console.log(
@@ -2713,15 +2751,15 @@ function MarkerPageContent() {
                         createOrDuplicateMarker(currentMarker);
                       }}
                       disabled={
-                        state.isCreatingMarker ||
-                        state.isDuplicatingMarker ||
-                        state.markers.some((m) => m.id.startsWith("temp-"))
+                        isCreatingMarker ||
+                        isDuplicatingMarker ||
+                        markers.some((m) => m.id.startsWith("temp-"))
                       }
                       title="Duplicate Current Marker (D)"
                       className={`px-2 py-1 rounded-sm text-xs flex items-center ${
-                        state.isCreatingMarker ||
-                        state.isDuplicatingMarker ||
-                        state.markers.some((m) => m.id.startsWith("temp-"))
+                        isCreatingMarker ||
+                        isDuplicatingMarker ||
+                        markers.some((m) => m.id.startsWith("temp-"))
                           ? "bg-gray-500 cursor-not-allowed text-gray-300"
                           : "bg-indigo-500 hover:bg-indigo-700 text-white"
                       }`}
@@ -2795,7 +2833,7 @@ function MarkerPageContent() {
                   ) : (
                     getActionMarkers().map((marker: SceneMarker) => {
                       const isEditing = editingMarkerId === marker.id;
-                      const isSelected = marker.id === state.selectedMarkerId;
+                      const isSelected = marker.id === selectedMarkerId;
                       const isTemp =
                         marker.id === "temp-new" ||
                         marker.id === "temp-duplicate";
@@ -2809,7 +2847,7 @@ function MarkerPageContent() {
                               ? "bg-blue-800 border-blue-400"
                               : isSelected
                               ? "bg-gray-700 text-white border-blue-500"
-                              : state.incorrectMarkers.some(
+                              : incorrectMarkers.some(
                                   (m) => m.markerId === marker.id
                                 )
                               ? "bg-purple-900/50 border-purple-500 hover:bg-purple-800"
@@ -2822,8 +2860,8 @@ function MarkerPageContent() {
                           {isTemp ? (
                             <TempMarkerForm
                               marker={marker}
-                              availableTags={state.availableTags}
-                              videoElement={state.videoElement}
+                              availableTags={availableTags}
+                              videoElement={videoElementRef.current}
                               onSave={async (newStart, newEnd, newTagId) => {
                                 try {
                                   // Create the marker and get the response with the new marker data
@@ -2842,7 +2880,7 @@ function MarkerPageContent() {
                                   console.log("Created marker:", createdMarker);
 
                                   // Remove temp markers and add the newly created marker in one atomic operation
-                                  const realMarkers = state.markers.filter(
+                                  const realMarkers = markers.filter(
                                     (m) => !m.id.startsWith("temp-")
                                   );
                                   const updatedMarkers = [
@@ -2927,7 +2965,7 @@ function MarkerPageContent() {
                                   );
 
                                   // Clean up on error - remove temp markers and clear flags
-                                  const realMarkers = state.markers.filter(
+                                  const realMarkers = markers.filter(
                                     (m) => !m.id.startsWith("temp-")
                                   );
                                   dispatch({
@@ -2946,7 +2984,7 @@ function MarkerPageContent() {
                               }}
                               onCancel={() => {
                                 // Remove temp marker
-                                const realMarkers = state.markers.filter(
+                                const realMarkers = markers.filter(
                                   (m) => !m.id.startsWith("temp-")
                                 );
                                 dispatch({
@@ -3007,7 +3045,7 @@ function MarkerPageContent() {
                                       <TagAutocomplete
                                         value={editingTagId}
                                         onChange={setEditingTagId}
-                                        availableTags={state.availableTags}
+                                        availableTags={availableTags}
                                         placeholder="Type to search tags..."
                                         className="flex-1"
                                         autoFocus={isEditing}
@@ -3099,29 +3137,29 @@ function MarkerPageContent() {
               className="border-t border-gray-300 flex-shrink-0"
             >
               <Timeline
-                markers={state.markers || []}
+                markers={markers || []}
                 actionMarkers={actionMarkers}
                 selectedMarker={
                   actionMarkers &&
                   actionMarkers.length > 0 &&
-                  state.selectedMarkerId
+                  selectedMarkerId
                     ? actionMarkers.find(
-                        (m) => m.id === state.selectedMarkerId
+                        (m) => m.id === selectedMarkerId
                       ) || null
                     : null
                 }
-                selectedMarkerId={state.selectedMarkerId}
-                videoDuration={state.videoDuration}
-                currentTime={state.currentVideoTime}
+                selectedMarkerId={selectedMarkerId}
+                videoDuration={videoDuration || 0}
+                currentTime={currentVideoTime}
                 onMarkerClick={handleMarkerClick}
                 isCreatingMarker={false}
                 newMarkerStartTime={null}
                 newMarkerEndTime={null}
-                isEditingMarker={state.isEditingMarker}
+                isEditingMarker={isEditingMarker}
                 onSwimlaneDataUpdate={handleSwimlaneDataUpdate}
-                filteredSwimlane={state.filteredSwimlane}
+                filteredSwimlane={filteredSwimlane}
                 onSwimlaneFilter={handleSwimlaneFilter}
-                scene={state.scene}
+                scene={scene}
                 zoom={zoom}
                 onZoomChange={setZoom}
               />
@@ -3130,13 +3168,13 @@ function MarkerPageContent() {
         )}
       </div>
 
-      {state.isDeletingRejected && (
+      {isDeletingRejected && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-gray-800 p-6 rounded-lg max-w-2xl w-full">
             <h3 className="text-xl font-bold mb-4">Delete Rejected Markers</h3>
             <p className="mb-4">The following markers will be deleted:</p>
             <div className="max-h-96 overflow-y-auto mb-4">
-              {state.rejectedMarkers.map((marker) => (
+              {rejectedMarkers.map((marker) => (
                 <div
                   key={marker.id}
                   className="flex items-center justify-between p-2 bg-gray-700 rounded-sm mb-2"
@@ -3174,8 +3212,8 @@ function MarkerPageContent() {
               <div className="flex space-x-4">
                 <button
                   onClick={() => {
-                    dispatch({ type: "SET_DELETING_REJECTED", payload: false });
-                    dispatch({ type: "SET_REJECTED_MARKERS", payload: [] });
+                    dispatch(setDeletingRejected(false));
+                    dispatch(setRejectedMarkers([]));
                   }}
                   className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-sm"
                 >
@@ -3185,8 +3223,8 @@ function MarkerPageContent() {
                   onClick={confirmDeleteRejectedMarkers}
                   className="bg-red-500 hover:bg-red-700 text-white px-4 py-2 rounded-sm"
                 >
-                  Delete {state.rejectedMarkers.length} Marker
-                  {state.rejectedMarkers.length !== 1 ? "s" : ""}
+                  Delete {rejectedMarkers.length} Marker
+                  {rejectedMarkers.length !== 1 ? "s" : ""}
                 </button>
               </div>
             </div>
@@ -3195,11 +3233,11 @@ function MarkerPageContent() {
       )}
 
       <AITagConversionModal
-        isOpen={state.isAIConversionModalOpen}
+        isOpen={isAIConversionModalOpen}
         onClose={() =>
-          dispatch({ type: "SET_AI_CONVERSION_MODAL_OPEN", payload: false })
+          dispatch(setAIConversionModalOpen(false))
         }
-        markers={state.confirmedAIMarkers}
+        markers={confirmedAIMarkers}
         onConfirm={handleConfirmAIConversion}
       />
 
@@ -3214,7 +3252,7 @@ function MarkerPageContent() {
 
       {/* Keyboard Shortcuts Modal */}
       <KeyboardShortcutsModal
-        isOpen={state.isKeyboardShortcutsModalOpen}
+        isOpen={isKeyboardShortcutsModalOpen}
         onClose={() =>
           dispatch({
             type: "SET_KEYBOARD_SHORTCUTS_MODAL_OPEN",
@@ -3391,38 +3429,38 @@ function MarkerPageContent() {
           </div>
         </div>
       )}
-      {state.isCollectingModalOpen && state.scene?.id && (
+      {isCollectingModalOpen && scene?.id && (
         <IncorrectMarkerCollectionModal
-          isOpen={state.isCollectingModalOpen}
+          isOpen={isCollectingModalOpen}
           onClose={() =>
-            dispatch({ type: "SET_COLLECTING_MODAL_OPEN", payload: false })
+            dispatch(setCollectingModalOpen(false))
           }
-          markers={state.incorrectMarkers}
-          currentSceneId={state.scene.id}
+          markers={incorrectMarkers}
+          currentSceneId={scene.id}
           onRemoveMarker={(markerId) => {
-            if (state.scene?.id) {
+            if (scene?.id) {
               incorrectMarkerStorage.removeIncorrectMarker(
-                state.scene.id,
+                scene.id,
                 markerId
               );
               dispatch({
                 type: "SET_INCORRECT_MARKERS",
                 payload: incorrectMarkerStorage.getIncorrectMarkers(
-                  state.scene.id
+                  scene.id
                 ),
               });
             }
           }}
           onConfirm={async () => {
-            if (state.scene?.id) {
-              incorrectMarkerStorage.clearIncorrectMarkers(state.scene.id);
+            if (scene?.id) {
+              incorrectMarkerStorage.clearIncorrectMarkers(scene.id);
               dispatch({
                 type: "SET_INCORRECT_MARKERS",
                 payload: [],
               });
             }
           }}
-          refreshMarkersOnly={refreshMarkersOnly}
+          refreshMarkersOnly={refreshMarkersOnly || (() => Promise.resolve())}
         />
       )}
     </div>
@@ -3430,11 +3468,7 @@ function MarkerPageContent() {
 }
 
 export default function MarkerPage() {
-  return (
-    <MarkerProvider>
-      <MarkerPageContent />
-    </MarkerProvider>
-  );
+  return <MarkerPageContent />;
 }
 
 // Add this new TagAutocomplete component after the formatTimeColonDot function and before SelectedMarkerDetails

@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
 import { useConfig } from "@/contexts/ConfigContext";
-import { useMarker } from "@/contexts/MarkerContext";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   selectPendingSeek,
   selectPendingPlayPause,
+  selectScene,
   setVideoDuration,
   setCurrentVideoTime,
   setVideoPlaying,
@@ -18,7 +18,7 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({ className = "" }: VideoPlayerProps) {
   const dispatch = useAppDispatch();
-  const { state, dispatch: markerDispatch } = useMarker(); // Use MarkerContext for scene during migration
+  const scene = useAppSelector(selectScene);
   const pendingSeek = useAppSelector(selectPendingSeek);
   const pendingPlayPause = useAppSelector(selectPendingPlayPause);
   
@@ -51,15 +51,7 @@ export function VideoPlayer({ className = "" }: VideoPlayerProps) {
     }
   }, [pendingPlayPause, dispatch]);
 
-  // Set video element in MarkerContext (for compatibility during migration)
-  useEffect(() => {
-    if (videoRef.current) {
-      markerDispatch({ type: "SET_VIDEO_ELEMENT", payload: videoRef.current });
-    }
-    return () => {
-      markerDispatch({ type: "SET_VIDEO_ELEMENT", payload: null });
-    };
-  }, [markerDispatch]);
+  // Video element stays local - following Redux migration architecture decision
 
   // Set up video event listeners to dispatch metadata updates to Redux
   useEffect(() => {
@@ -67,15 +59,13 @@ export function VideoPlayer({ className = "" }: VideoPlayerProps) {
     if (!video) return;
 
     const handleLoadedMetadata = () => {
-      // Update both Redux and MarkerContext during migration period
+      // Update Redux only - MarkerContext removed
       dispatch(setVideoDuration(video.duration));
-      markerDispatch({ type: "SET_VIDEO_DURATION", payload: video.duration });
     };
 
     const handleTimeUpdate = () => {
-      // Update both Redux and MarkerContext during migration period
+      // Update Redux only - MarkerContext removed
       dispatch(setCurrentVideoTime(video.currentTime));
-      markerDispatch({ type: "SET_CURRENT_VIDEO_TIME", payload: video.currentTime });
     };
 
     const handlePlay = () => {
@@ -103,16 +93,16 @@ export function VideoPlayer({ className = "" }: VideoPlayerProps) {
       video.removeEventListener("play", handlePlay);
       video.removeEventListener("pause", handlePause);
     };
-  }, [dispatch, markerDispatch]); // Include both dispatchers in dependencies
+  }, [dispatch]); // Redux dispatch for video metadata updates
 
-  if (!state.scene) {
+  if (!scene) {
     return null;
   }
 
   return (
     <video
       ref={videoRef}
-      src={`${STASH_URL}/scene/${state.scene.id}/stream?apikey=${STASH_API_KEY}`}
+      src={`${STASH_URL}/scene/${scene.id}/stream?apikey=${STASH_API_KEY}`}
       controls
       className={`w-full h-full object-contain ${className}`}
       tabIndex={-1}

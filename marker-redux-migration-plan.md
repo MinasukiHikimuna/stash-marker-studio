@@ -169,6 +169,11 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
     - useVideoControls completely refactored to dispatch Redux actions
     - Removed serialization workarounds from store configuration
     - All video communication now flows: Component → Redux → VideoPlayer → DOM
+  - **Final Migration Complete**: Removed all remaining `useMarker` hooks and `markerDispatch` calls
+    - Replaced `useMarker()` with `useAppSelector(selectScene)` for video source
+    - Removed `markerDispatch` calls for video element storage (video element stays local)
+    - Removed `markerDispatch` calls for video metadata (Redux-only now)
+    - VideoPlayer is now 100% Redux-based with no MarkerContext dependencies
 - [x] **Timeline**: Complex visualization component ✅ COMPLETED
   - **Analysis**: Timeline is actually well-designed and doesn't need direct Redux migration
   - **Architecture**: Already uses Redux for video seeking (dispatch(seekToTime))
@@ -186,9 +191,21 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
     - Added null safety check for videoDuration to prevent Timeline rendering when duration is unavailable
   - **Key Implementation**: Component now fully uses Redux for all state access and mutations
   - **Testing**: Build and lint pass, no type errors
-- [ ] **Main Marker Page**: Root component
-  - Replace useMarker hook calls with Redux hooks
-  - Update error handling to use Redux error state
+- [x] **Main Marker Page**: Root component ✅ COMPLETED
+  - **Changes Made**:
+    - Replaced `useMarker` hook with `useAppSelector` and `useAppDispatch`
+    - Added comprehensive Redux selectors for all state access (markers, scene, availableTags, selectedMarkerId, etc.)
+    - Replaced all `state.*` references with Redux selectors
+    - Converted all `dispatch({ type: "...", payload: ... })` calls to Redux actions
+    - Removed `MarkerProvider` wrapper from component tree
+    - Added temporary `videoElementRef` for video element compatibility during migration
+    - Replaced initialization logic with `initializeMarkerPage` Redux thunk
+    - Updated all UI state management to use Redux actions (modals, editing states, etc.)
+  - **Key Implementation**: Component now fully uses Redux for all state access and mutations
+  - **Temporary Notes**: 
+    - useMarkerOperations calls are commented out (to be replaced in Phase 4)
+    - videoElement handling is temporary until video architecture is finalized
+  - **Testing**: Build and type checking pass successfully
 
 ### Phase 4: Custom Hooks Migration
 
