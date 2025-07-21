@@ -1984,7 +1984,7 @@ function MarkerPageContent() {
         case "H":
           event.preventDefault();
           // Center timeline on current playhead position
-          if (videoElementRef.current && videoDuration && videoDuration > 0) {
+          if (scene && videoDuration && videoDuration > 0) {
             const timelineElement = document.querySelector(
               "[data-timeline-container]"
             ) as HTMLElement;
