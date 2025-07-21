@@ -624,3 +624,31 @@ The marker slice is now complete with:
 - Better error handling and loading states
 - Simplified component logic with centralized operations
 - Foundation for future enhancements and testing
+
+## Post-Migration Bug Fixes
+
+### ✅ Q Key Tag Selection Regression Fixed (2025-07-21)
+
+**Issue**: When Q key was pressed to edit a marker tag, the tag input modal appeared but selecting a tag did not update the marker.
+
+**Root Cause**: The `handleSaveEditWithTagId` function in `src/app/marker/page.tsx:475` had a TODO comment where it should call the Redux thunk to update the marker tag:
+```typescript
+// TODO: Replace with Redux thunk
+// await markerOps.updateMarkerTag(marker.id, finalTagId);
+```
+
+**Fix Applied**:
+1. **Added Missing Import**: Added `updateMarkerTag` to Redux imports from `markerSlice`
+2. **Implemented Redux Thunk Call**: Replaced commented TODO with proper Redux thunk dispatch:
+   ```typescript
+   await dispatch(updateMarkerTag({
+     sceneId: scene.id,
+     markerId: marker.id,
+     tagId: finalTagId
+   })).unwrap();
+   ```
+3. **Enhanced Error Handling**: Added try/catch with Redux error state management
+4. **Added Scene Validation**: Added `scene` dependency and null check for safety
+
+**Testing**: ✅ Build and lint pass successfully
+**Status**: ✅ Q key tag selection now works correctly with Redux state management

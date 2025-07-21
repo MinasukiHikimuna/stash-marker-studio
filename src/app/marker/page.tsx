@@ -62,6 +62,7 @@ import {
   duplicateMarker,
   splitMarker,
   updateMarkerTimes,
+  updateMarkerTag,
   seekToTime,
   playVideo,
   pauseVideo,
@@ -464,20 +465,28 @@ function MarkerPageContent() {
   const handleSaveEditWithTagId = useCallback(
     async (marker: SceneMarker, tagId?: string) => {
       const finalTagId = tagId || editingTagId;
-      if (finalTagId !== marker.primary_tag.id) {
+      if (finalTagId !== marker.primary_tag.id && scene) {
         console.log("Updating marker tag:", {
           markerId: marker.id,
           markerTag: marker.primary_tag.name,
           oldTagId: marker.primary_tag.id,
           newTagId: finalTagId,
         });
-        // TODO: Replace with Redux thunk
-        // await markerOps.updateMarkerTag(marker.id, finalTagId);
+        try {
+          await dispatch(updateMarkerTag({
+            sceneId: scene.id,
+            markerId: marker.id,
+            tagId: finalTagId
+          })).unwrap();
+        } catch (error) {
+          console.error("Error updating marker tag:", error);
+          dispatch(setError(`Failed to update marker tag: ${error}`));
+        }
       }
       setEditingMarkerId(null);
       setEditingTagId("");
     },
-    [editingTagId]
+    [editingTagId, scene, dispatch]
   );
 
   const handleCancelEdit = useCallback(() => {
