@@ -652,3 +652,76 @@ The marker slice is now complete with:
 
 **Testing**: ✅ Build and lint pass successfully
 **Status**: ✅ Q key tag selection now works correctly with Redux state management
+
+### ✅ Marker Creation/Duplication Tag Selection Regression Fixed (2025-07-21)
+
+**Issue**: When creating new markers (A key) or duplicating existing ones (D key), the system was bypassing the tag selection prompt and immediately creating markers with automatically selected tags.
+
+**Root Cause**: During the Redux migration in commit `e7fca68`, the `createOrDuplicateMarker` function was changed to call `createMarker`/`duplicateMarker` Redux thunks directly instead of creating temporary markers that allow user tag selection.
+
+**Expected Behavior**: 
+1. Create temporary marker with ID "temp-new" or "temp-duplicate"
+2. Show temporary marker in UI with `TempMarkerForm` component for tag selection
+3. User selects desired tag through the form
+4. Create real marker on server with selected tag
+5. Remove temporary marker and replace with real marker
+
+**Actual Behavior (Broken)**:
+1. Automatically select first available tag (`availableTags[0]`)
+2. Immediately create marker on server
+3. Skip user tag selection entirely
+
+**Fix Applied**:
+1. **Restored Temporary Marker Creation**: Updated `createOrDuplicateMarker` function to create temporary markers instead of immediately calling Redux thunks:
+   ```typescript
+   // Create temporary marker object
+   const tempMarker: SceneMarker = {
+     id: isDuplicate ? "temp-duplicate" : "temp-new",
+     seconds: startTime,
+     end_seconds: endTime ?? undefined,
+     primary_tag: selectedTag,
+     scene: scene,
+     // ... other properties
+   };
+   
+   // Insert temporary marker and set UI state
+   dispatch(setMarkers(updatedMarkers));
+   dispatch(setSelectedMarkerId(tempMarker.id));
+   dispatch(setCreatingMarker(true) | setDuplicatingMarker(true));
+   ```
+
+2. **Updated TempMarkerForm Handler**: Replaced direct `stashappService.createSceneMarker` calls with Redux `createMarker` thunk:
+   ```typescript
+   onSave={async (newStart, newEnd, newTagId) => {
+     // Remove temp markers first
+     const realMarkers = markers.filter(m => !m.id.startsWith("temp-"));
+     dispatch(setMarkers(realMarkers));
+     
+     // Create marker using Redux thunk
+     const result = await dispatch(createMarker({
+       sceneId: marker.scene.id,
+       startTime: newStart,
+       endTime: newEnd ?? null,
+       tagId: newTagId,
+     }));
+     
+     // Select new marker and clear UI flags
+     if (createMarker.fulfilled.match(result)) {
+       dispatch(setSelectedMarkerId(result.payload.id));
+     }
+   }}
+   ```
+
+3. **Fixed TypeScript Issues**: Resolved type compatibility issue with `end_seconds: endTime ?? undefined`
+
+4. **Removed Unused Imports**: Cleaned up unused `duplicateMarker` import
+
+**Workflow Restored**:
+- ✅ A key: Creates "temp-new" marker → Tag selection form → Real marker creation
+- ✅ D key: Creates "temp-duplicate" marker → Tag selection form → Real marker creation  
+- ✅ TempMarkerForm appears with tag dropdown for user selection
+- ✅ User can cancel temporary marker creation
+- ✅ Real markers are created with Redux thunks after tag selection
+
+**Testing**: ✅ Build and lint pass successfully
+**Status**: ✅ Marker creation/duplication now correctly prompts for tag selection before creating markers

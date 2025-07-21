@@ -59,7 +59,6 @@ import {
   resetMarker,
   loadMarkers,
   createMarker,
-  duplicateMarker,
   splitMarker,
   updateMarkerTimes,
   updateMarkerTag,
@@ -630,7 +629,7 @@ function MarkerPageContent() {
   }, [markers, currentVideoTime, scene, dispatch, showToast]);
 
   const createOrDuplicateMarker = useCallback(
-    async (sourceMarker?: SceneMarker) => {
+    (sourceMarker?: SceneMarker) => {
       console.log("createOrDuplicateMarker called with state:", {
         hasScene: !!scene,
         availableTagsCount: availableTags?.length || 0,
@@ -657,11 +656,12 @@ function MarkerPageContent() {
       const startTime = isDuplicate ? sourceMarker.seconds : currentTime;
       const endTime = isDuplicate ? (sourceMarker.end_seconds ?? null) : currentTime + 20; // Standard 20-second duration for new markers
 
-      // Determine tag to use
+      // Determine tag to use for the temporary marker
       let selectedTag: Tag;
       if (isDuplicate) {
         selectedTag = sourceMarker.primary_tag;
       } else {
+        // For new markers, use the first available tag as placeholder
         selectedTag = availableTags[0] || { id: "", name: "Select Tag" };
       }
 
@@ -686,53 +686,31 @@ function MarkerPageContent() {
         }
       }
 
-      try {
-        if (isDuplicate) {
-          // Set duplication UI state before the operation
-          dispatch(setDuplicatingMarker(true));
-          
-          // Dispatch duplicate marker thunk
-          const result = await dispatch(duplicateMarker({
-            sceneId: scene.id,
-            sourceMarkerId: sourceMarker.id,
-            newStartTime: startTime,
-            newEndTime: endTime,
-            tagId: selectedTag.id,
-          }));
-          
-          // On success, select the new marker
-          if (duplicateMarker.fulfilled.match(result)) {
-            const newMarkerId = result.payload.id;
-            dispatch(setSelectedMarkerId(newMarkerId));
-          }
-        } else {
-          // Set creation UI state before the operation
-          dispatch(setCreatingMarker(true));
-          
-          // Dispatch create marker thunk
-          const result = await dispatch(createMarker({
-            sceneId: scene.id,
-            startTime: startTime,
-            endTime: endTime,
-            tagId: selectedTag.id,
-          }));
-          
-          // On success, select the new marker
-          if (createMarker.fulfilled.match(result)) {
-            const newMarkerId = result.payload.id;
-            dispatch(setSelectedMarkerId(newMarkerId));
-          }
-        }
-      } catch (error) {
-        console.error("Failed to create or duplicate marker:", error);
-        dispatch(setError(`Failed to ${isDuplicate ? "duplicate" : "create"} marker: ${error}`));
-      } finally {
-        // Clean up UI state
-        if (isDuplicate) {
-          dispatch(setDuplicatingMarker(false));
-        } else {
-          dispatch(setCreatingMarker(false));
-        }
+      // Create temporary marker object
+      const tempMarker: SceneMarker = {
+        id: isDuplicate ? "temp-duplicate" : "temp-new",
+        seconds: startTime,
+        end_seconds: endTime ?? undefined,
+        primary_tag: selectedTag,
+        scene: scene,
+        tags: isDuplicate ? [] : [], // Both start with empty tags array
+        title: isDuplicate ? sourceMarker.title : "",
+        stream: isDuplicate ? sourceMarker.stream : "",
+        preview: isDuplicate ? sourceMarker.preview : "",
+        screenshot: isDuplicate ? sourceMarker.screenshot : "",
+      };
+
+      // Insert the temporary marker at the correct chronological position
+      const updatedMarkers = [...(markers || []), tempMarker].sort(
+        (a, b) => a.seconds - b.seconds
+      );
+
+      dispatch(setMarkers(updatedMarkers));
+      dispatch(setSelectedMarkerId(tempMarker.id));
+      if (isDuplicate) {
+        dispatch(setDuplicatingMarker(true));
+      } else {
+        dispatch(setCreatingMarker(true));
       }
     },
     [
@@ -740,6 +718,7 @@ function MarkerPageContent() {
       availableTags,
       filteredSwimlane,
       currentVideoTime,
+      markers,
       dispatch,
     ]
   );
@@ -2713,93 +2692,47 @@ function MarkerPageContent() {
                               videoElement={videoElementRef.current}
                               onSave={async (newStart, newEnd, newTagId) => {
                                 try {
-                                  // Create the marker and get the response with the new marker data
-                                  const createdMarker =
-                                    await stashappService.createSceneMarker(
-                                      marker.scene.id,
-                                      newTagId,
-                                      newStart,
-                                      newEnd ?? null,
-                                      [
-                                        stashappService.MARKER_SOURCE_MANUAL,
-                                        stashappService.MARKER_STATUS_CONFIRMED,
-                                      ]
-                                    );
-
-                                  console.log("Created marker:", createdMarker);
-
-                                  // Remove temp markers and add the newly created marker in one atomic operation
+                                  const isDuplicating = marker.id === "temp-duplicate";
+                                  
+                                  // Remove temp markers first
                                   const realMarkers = markers.filter(
                                     (m) => !m.id.startsWith("temp-")
                                   );
-                                  const updatedMarkers = [
-                                    ...realMarkers,
-                                    createdMarker,
-                                  ].sort((a, b) => a.seconds - b.seconds);
+                                  dispatch(setMarkers(realMarkers));
 
-                                  // Update state with new markers and clear creating flags atomically
-                                  dispatch(setMarkers(updatedMarkers));
+                                  // Create marker using Redux thunk
+                                  let result;
+                                  if (isDuplicating) {
+                                    // For duplication, we need the source marker ID
+                                    // Since this is a temp marker, we don't have the original source ID
+                                    // We'll use createMarker instead
+                                    result = await dispatch(createMarker({
+                                      sceneId: marker.scene.id,
+                                      startTime: newStart,
+                                      endTime: newEnd ?? null,
+                                      tagId: newTagId,
+                                    }));
+                                  } else {
+                                    result = await dispatch(createMarker({
+                                      sceneId: marker.scene.id,
+                                      startTime: newStart,
+                                      endTime: newEnd ?? null,
+                                      tagId: newTagId,
+                                    }));
+                                  }
+
+                                  // On success, select the new marker
+                                  if (createMarker.fulfilled.match(result)) {
+                                    const newMarkerId = result.payload.id;
+                                    dispatch(setSelectedMarkerId(newMarkerId));
+                                  }
+
+                                  // Clear UI flags
                                   dispatch(setCreatingMarker(false));
                                   dispatch(setDuplicatingMarker(false));
-
-                                  // Use setTimeout to ensure markers state has been updated before updating selected index
-                                  setTimeout(() => {
-                                    // Filter to get action markers from the updated data
-                                    const updatedActionMarkers =
-                                      updatedMarkers.filter((m) => {
-                                        // Always include temp markers regardless of their primary tag
-                                        if (m.id.startsWith("temp-")) {
-                                          return true;
-                                        }
-                                        // Filter out shot boundary markers for non-temp markers
-                                        return !isShotBoundaryMarker(m);
-                                      });
-
-                                    console.log(
-                                      "Looking for new marker ID:",
-                                      createdMarker.id,
-                                      "in",
-                                      updatedActionMarkers.length,
-                                      "action markers"
-                                    );
-
-                                    // Find the newly created marker in the updated action markers
-                                    const newMarkerIndex =
-                                      updatedActionMarkers.findIndex(
-                                        (m) => m.id === createdMarker.id
-                                      );
-
-                                    console.log(
-                                      "Found marker at index:",
-                                      newMarkerIndex
-                                    );
-
-                                    if (newMarkerIndex >= 0) {
-                                      console.log(
-                                        "Selecting marker at index:",
-                                        newMarkerIndex
-                                      );
-                                      dispatch(setSelectedMarkerId(createdMarker.id));
-                                    } else {
-                                      console.error(
-                                        "Created marker not found in action markers list"
-                                      );
-                                      // This should not happen with this approach, but log for debugging
-                                      console.log(
-                                        "Created marker:",
-                                        createdMarker
-                                      );
-                                      console.log(
-                                        "Is shot boundary?",
-                                        isShotBoundaryMarker(createdMarker)
-                                      );
-                                    }
-                                  }, 50); // Small delay to ensure state has been updated
                                 } catch (error) {
-                                  console.error(
-                                    "Error creating marker:",
-                                    error
-                                  );
+                                  console.error("Error creating marker:", error);
+                                  dispatch(setError(`Failed to create marker: ${error}`));
 
                                   // Clean up on error - remove temp markers and clear flags
                                   const realMarkers = markers.filter(
