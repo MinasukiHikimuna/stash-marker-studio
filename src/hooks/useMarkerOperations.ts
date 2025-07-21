@@ -27,6 +27,7 @@ import {
   updateMarkerTimes,
   pauseVideo,
   seekToTime,
+  setSelectedMarkerId,
 } from "../store/slices/markerSlice";
 import {
   formatSeconds,
@@ -128,7 +129,7 @@ export const useMarkerOperations = (
       dispatch(seekToTime(currentTime));
       
       // Keep the original marker selected (it now ends at the split time)
-      // dispatch(setSelectedMarkerId(currentMarker.id));
+      dispatch(setSelectedMarkerId(currentMarker.id));
     } catch (err) {
       console.error("Error splitting marker:", err);
       dispatch(setError(`Failed to split marker: ${err}`));
