@@ -76,7 +76,6 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
   - `duplicateMarker`: Create copy of existing marker
   - `mergeMarkers`: Combine multiple markers (placeholder implementation)
   - `splitMarker`: Split marker at current time (placeholder implementation)
-  - `exportMarkers`: Export markers to various formats (placeholder implementation)
 
 ### Phase 3: Component Migration (Incremental)
 
@@ -123,7 +122,7 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
         isPlaying: boolean;
         volume: number;
         playbackRate: number;
-        
+
         // Command state (for component communication)
         pendingSeek: { time: number; requestId: string } | null;
         pendingPlayPause: { action: 'play' | 'pause'; requestId: string } | null;
@@ -184,7 +183,7 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
 #### Step 3.4: Layout Components (Final)
 
 - [x] **MarkerLayout**: Page-level component ✅ COMPLETED
-  - **Changes Made**: 
+  - **Changes Made**:
     - Replaced `useMarker` hook with `useAppSelector` and `useAppDispatch`
     - Updated all `state.*` references to use Redux selectors (selectScene, selectMarkers, etc.)
     - Replaced MarkerContext dispatch calls with Redux actions (setSelectedMarkerId, setFilteredSwimlane)
@@ -202,7 +201,7 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
     - Replaced initialization logic with `initializeMarkerPage` Redux thunk
     - Updated all UI state management to use Redux actions (modals, editing states, etc.)
   - **Key Implementation**: Component now fully uses Redux for all state access and mutations
-  - **Temporary Notes**: 
+  - **Temporary Notes**:
     - useMarkerOperations calls are commented out (to be replaced in Phase 4)
     - videoElement handling is temporary until video architecture is finalized
   - **Testing**: Build and type checking pass successfully
@@ -219,27 +218,28 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
 
 **Latest Implementation (2025-07-21)**: `createOrDuplicateMarker` function migration:
 
-- **Replaced Manual State Manipulation with Redux Thunks**: 
+- **Replaced Manual State Manipulation with Redux Thunks**:
   - Removed temporary marker creation logic that manually inserted markers into state
   - Replaced with proper `createMarker` and `duplicateMarker` Redux thunk calls
   - Thunks handle marker creation, automatic refresh, and error states
-- **Improved Error Handling**: 
+- **Improved Error Handling**:
   - Added `setError` action to markerSlice for proper error state management
   - Replaced console.log errors with Redux error dispatch calls
   - Consistent error handling through try/catch with Redux state updates
-- **Removed Video Element Dependencies**: 
+- **Removed Video Element Dependencies**:
   - Replaced `videoElementRef.current` checks with Redux state validation (`scene`, `availableTags`)
   - Uses `currentVideoTime` from Redux instead of direct video element access
   - Function is now purely Redux-based with no DOM dependencies
-- **Enhanced Type Safety**: 
+- **Enhanced Type Safety**:
   - Fixed TypeScript type issues with `sourceMarker.end_seconds` (undefined → null conversion)
   - Proper handling of optional marker end times in Redux thunk parameters
-- **Simplified Logic**: 
+- **Simplified Logic**:
   - Removed complex temporary marker insertion and sorting logic
   - Thunks handle marker list refresh automatically after creation/duplication
   - UI state management (creating/duplicating flags) handled consistently
 
 **Migration Benefits**:
+
 - Consistent error handling and loading states through Redux
 - Automatic marker list refresh and state synchronization
 - Eliminated temporary markers that could cause UI inconsistencies
@@ -258,7 +258,7 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
     - Fixed `dispatch({ type: "SET_SELECTED_MARKER_ID", payload: nextMarkerId })` → `dispatch(setSelectedMarkerId(nextMarkerId))` (multiple instances)
   - **CRITICAL FIX (2025-07-21)**: Replaced commented-out marker operations with Redux thunk calls:
     - **Z key (confirm)**: `confirmMarker({ sceneId, markerId })` and `resetMarker({ sceneId, markerId })` - now working
-    - **X key (reject)**: `rejectMarker({ sceneId, markerId })` and `resetMarker({ sceneId, markerId })` - now working  
+    - **X key (reject)**: `rejectMarker({ sceneId, markerId })` and `resetMarker({ sceneId, markerId })` - now working
     - **R key (refresh)**: `loadMarkers(sceneId)` - now working
     - **J/K/L keys (video control)**: `seekToTime()` and `playVideo()` Redux actions - now working
     - **Spacebar (play/pause)**: `playVideo()` Redux action - now working
@@ -280,7 +280,7 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
     - **Enter Key**: Still uses `dispatch(playVideo())` as intended (start playback from marker, not toggle)
   - **FIXED**: W and E keys for marker time adjustment using Redux thunks ✅ (2025-07-21)
     - **W key (set start time)**: Now uses `dispatch(updateMarkerTimes())` with `currentVideoTime` as start time
-    - **E key (set end time)**: Now uses `dispatch(updateMarkerTimes())` with `currentVideoTime` as end time  
+    - **E key (set end time)**: Now uses `dispatch(updateMarkerTimes())` with `currentVideoTime` as end time
     - **Implementation**: Replaced direct video element access with Redux selectors (`currentVideoTime`, `scene`)
     - **Architecture**: Follows Redux command pattern with proper error handling and loading states
     - **Testing**: Lint and build pass successfully with both shortcuts functional
@@ -446,16 +446,19 @@ Follow search slice patterns:
 ## ✅ Error Handling Enhancement (2025-07-21)
 
 ### Problem Addressed
+
 During the Redux migration, error handling was partially implemented but `setError` calls were commented out, causing errors to be logged to console but not displayed to users via the `showToast` mechanism.
 
 ### Solution Implemented
 
 **1. Added Error State Monitoring**
+
 - Added `useEffect` hook that watches Redux `error` state changes
 - When error occurs, automatically shows toast notification and clears error from Redux state
 - Provides immediate user feedback for all error conditions
 
-**2. Implemented All Error Dispatch Calls** 
+**2. Implemented All Error Dispatch Calls**
+
 - **Tag fetch errors**: `dispatch(setError(\`Failed to fetch tags: ${err}\`))`
 - **Marker split validation**: `dispatch(setError("Current time must be within the marker's range to split it"))`
 - **Split operation errors**: `dispatch(setError(\`Failed to split marker: ${err}\`))`
@@ -468,11 +471,13 @@ During the Redux migration, error handling was partially implemented but `setErr
 - **Success case clearing**: `dispatch(clearError())` for successful operations
 
 **3. Completed Remaining Redux Thunk Migrations**
+
 - **Paste marker times**: Replaced commented `markerOps.updateMarkerTimes` with `dispatch(updateMarkerTimes(...))`
 - **Incorrect marker reset**: Replaced commented `markerOps.resetMarker` with `dispatch(resetMarker(...))`
 - **Incorrect marker rejection**: Replaced commented `markerOps.rejectMarker` with `dispatch(rejectMarker(...))`
 
 ### Architecture Flow
+
 1. **Error Occurs**: Operation fails and calls `dispatch(setError(message))`
 2. **Redux State Update**: Error message stored in `marker.error` state
 3. **useEffect Trigger**: Watches `error` state and detects change
@@ -481,13 +486,15 @@ During the Redux migration, error handling was partially implemented but `setErr
 6. **User Experience**: Error appears as red toast notification for 3 seconds
 
 ### Benefits Achieved
+
 - ✅ **Consistent Error Display**: All errors now visible to users through toast notifications
-- ✅ **Centralized Error Handling**: All error states flow through Redux predictably  
+- ✅ **Centralized Error Handling**: All error states flow through Redux predictably
 - ✅ **Improved User Experience**: No more silent failures - users get immediate feedback
 - ✅ **Architecture Consistency**: All operations use Redux thunks instead of mixed patterns
 - ✅ **Maintainable Code**: Error handling follows established Redux patterns
 
 ### Testing Status
+
 - ✅ **Build Passes**: No TypeScript or linting errors
 - ✅ **Error Flow Works**: useEffect → showToast → clearError cycle functional
 - ✅ **All Operations Consistent**: Every error-prone operation uses Redux error handling
@@ -642,6 +649,7 @@ The marker slice is now complete with:
 ### Final Implementation Summary
 
 **What Was Accomplished:**
+
 - ✅ Complete replacement of MarkerContext with Redux state management
 - ✅ 15+ async thunks covering all marker operations (CRUD, status changes, AI conversion)
 - ✅ 25+ sync actions for UI state management
@@ -653,6 +661,7 @@ The marker slice is now complete with:
 - ✅ Build passing with no TypeScript or linting errors
 
 **Key Architectural Improvements:**
+
 - **Predictable State Flow**: All state changes flow through Redux actions and reducers
 - **Separation of Concerns**: Video DOM operations isolated in VideoPlayer, metadata in Redux
 - **Type Safety**: Full TypeScript coverage with proper Redux typing
@@ -660,8 +669,9 @@ The marker slice is now complete with:
 - **Performance**: Efficient selectors prevent unnecessary re-renders
 
 **Files Removed:**
+
 - `src/contexts/MarkerContext.tsx` (793 lines)
-- `src/hooks/useMarkerOperations.ts` (247 lines)  
+- `src/hooks/useMarkerOperations.ts` (247 lines)
 - `src/hooks/useMarkerKeyboardShortcuts.ts` (289 lines)
 - `src/hooks/useTimelineNavigation.ts` (76 lines)
 - `src/core/marker/markerState.ts` (124 lines)
@@ -670,6 +680,7 @@ The marker slice is now complete with:
 **Total Lines Removed**: ~1,529 lines of obsolete code
 
 **Migration Benefits Achieved:**
+
 - Consistent state management patterns across the application
 - Easier debugging with Redux DevTools
 - Better error handling and loading states
@@ -683,20 +694,24 @@ The marker slice is now complete with:
 **Issue**: When Q key was pressed to edit a marker tag, the tag input modal appeared but selecting a tag did not update the marker.
 
 **Root Cause**: The `handleSaveEditWithTagId` function in `src/app/marker/page.tsx:475` had a TODO comment where it should call the Redux thunk to update the marker tag:
+
 ```typescript
 // TODO: Replace with Redux thunk
 // await markerOps.updateMarkerTag(marker.id, finalTagId);
 ```
 
 **Fix Applied**:
+
 1. **Added Missing Import**: Added `updateMarkerTag` to Redux imports from `markerSlice`
 2. **Implemented Redux Thunk Call**: Replaced commented TODO with proper Redux thunk dispatch:
    ```typescript
-   await dispatch(updateMarkerTag({
-     sceneId: scene.id,
-     markerId: marker.id,
-     tagId: finalTagId
-   })).unwrap();
+   await dispatch(
+     updateMarkerTag({
+       sceneId: scene.id,
+       markerId: marker.id,
+       tagId: finalTagId,
+     })
+   ).unwrap();
    ```
 3. **Enhanced Error Handling**: Added try/catch with Redux error state management
 4. **Added Scene Validation**: Added `scene` dependency and null check for safety
@@ -710,7 +725,8 @@ The marker slice is now complete with:
 
 **Root Cause**: During the Redux migration in commit `e7fca68`, the `createOrDuplicateMarker` function was changed to call `createMarker`/`duplicateMarker` Redux thunks directly instead of creating temporary markers that allow user tag selection.
 
-**Expected Behavior**: 
+**Expected Behavior**:
+
 1. Create temporary marker with ID "temp-new" or "temp-duplicate"
 2. Show temporary marker in UI with `TempMarkerForm` component for tag selection
 3. User selects desired tag through the form
@@ -718,12 +734,15 @@ The marker slice is now complete with:
 5. Remove temporary marker and replace with real marker
 
 **Actual Behavior (Broken)**:
+
 1. Automatically select first available tag (`availableTags[0]`)
 2. Immediately create marker on server
 3. Skip user tag selection entirely
 
 **Fix Applied**:
+
 1. **Restored Temporary Marker Creation**: Updated `createOrDuplicateMarker` function to create temporary markers instead of immediately calling Redux thunks:
+
    ```typescript
    // Create temporary marker object
    const tempMarker: SceneMarker = {
@@ -734,7 +753,7 @@ The marker slice is now complete with:
      scene: scene,
      // ... other properties
    };
-   
+
    // Insert temporary marker and set UI state
    dispatch(setMarkers(updatedMarkers));
    dispatch(setSelectedMarkerId(tempMarker.id));
@@ -742,12 +761,13 @@ The marker slice is now complete with:
    ```
 
 2. **Updated TempMarkerForm Handler**: Replaced direct `stashappService.createSceneMarker` calls with Redux `createMarker` thunk:
+
    ```typescript
    onSave={async (newStart, newEnd, newTagId) => {
      // Remove temp markers first
      const realMarkers = markers.filter(m => !m.id.startsWith("temp-"));
      dispatch(setMarkers(realMarkers));
-     
+
      // Create marker using Redux thunk
      const result = await dispatch(createMarker({
        sceneId: marker.scene.id,
@@ -755,7 +775,7 @@ The marker slice is now complete with:
        endTime: newEnd ?? null,
        tagId: newTagId,
      }));
-     
+
      // Select new marker and clear UI flags
      if (createMarker.fulfilled.match(result)) {
        dispatch(setSelectedMarkerId(result.payload.id));
@@ -768,8 +788,9 @@ The marker slice is now complete with:
 4. **Removed Unused Imports**: Cleaned up unused `duplicateMarker` import
 
 **Workflow Restored**:
+
 - ✅ A key: Creates "temp-new" marker → Tag selection form → Real marker creation
-- ✅ D key: Creates "temp-duplicate" marker → Tag selection form → Real marker creation  
+- ✅ D key: Creates "temp-duplicate" marker → Tag selection form → Real marker creation
 - ✅ TempMarkerForm appears with tag dropdown for user selection
 - ✅ User can cancel temporary marker creation
 - ✅ Real markers are created with Redux thunks after tag selection
@@ -786,18 +807,21 @@ After completing the Redux migration, there are **18 TODO comments** remaining i
 ### TODO Categories
 
 #### 1. Error Handling Enhancement (11 TODOs)
+
 **Location**: `src/app/marker/page.tsx`
 
 **Pattern**: Commented-out Redux error dispatch calls with console.error fallbacks
+
 ```typescript
 // TODO: Add proper error handling with Redux
 // dispatch(setError("Error message"));
 ```
 
 **Issues Found**:
+
 - Line 502: Tag fetch error handling
 - Line 544: Marker split validation error
-- Line 572: Marker split operation error  
+- Line 572: Marker split operation error
 - Line 602: Video Cut marker validation error
 - Line 626: Video Cut split operation error
 - Line 838: Delete rejected markers error
@@ -809,21 +833,25 @@ After completing the Redux migration, there are **18 TODO comments** remaining i
 
 **Root Cause**: The migration plan notes that error dispatch calls were "commented out" during Phase 4.2 but never re-implemented.
 
-**Impact**: 
+**Impact**:
+
 - ❌ Error states are logged to console but not displayed to users
 - ❌ No centralized error handling through Redux
 - ❌ Inconsistent error experience across the application
 
-#### 2. Redux Thunk Migration Incomplete (4 TODOs) 
+#### 2. Redux Thunk Migration Incomplete (4 TODOs)
+
 **Location**: `src/app/marker/page.tsx`
 
 **Pattern**: Commented-out direct service calls that should use Redux thunks
+
 ```typescript
 // TODO: Replace with Redux thunk
 // await markerOps.updateMarkerTimes(markerId, times);
 ```
 
 **Issues Found**:
+
 - Line 798: Update marker times operation (handleUpdateMarkerTimesAtCurrentTime)
 - Line 1815: Reset marker operation (incorrect marker handling)
 - Line 1823: Reject marker operation (incorrect marker handling)
@@ -831,22 +859,26 @@ After completing the Redux migration, there are **18 TODO comments** remaining i
 **Root Cause**: Some operations were not fully migrated to Redux thunks during Phase 4.
 
 **Impact**:
+
 - ❌ Mixed patterns: some operations use Redux, others use direct service calls
 - ❌ Inconsistent state management and error handling
 - ❌ Missing functionality in affected keyboard shortcuts
 
 #### 3. Unused/Optional Selectors (3 TODOs)
+
 **Location**: `src/app/marker/page.tsx`
 
 **Pattern**: Commented-out Redux selectors that may be needed later
+
 ```typescript
 // selectSceneId,  // TODO: Use if needed
 // const initialized = useAppSelector(selectMarkerInitialized);  // TODO: Use for conditional rendering
 ```
 
 **Issues Found**:
+
 - Line 19: selectSceneId selector
-- Line 20: selectSceneTitle selector  
+- Line 20: selectSceneTitle selector
 - Line 28: selectMarkerInitialized selector
 - Line 41: clearError action
 - Line 109: sceneTitle selector usage
@@ -856,42 +888,51 @@ After completing the Redux migration, there are **18 TODO comments** remaining i
 **Root Cause**: Conservative migration approach kept potentially useful selectors commented instead of removing them.
 
 **Impact**:
+
 - ⚠️ Code clutter but no functional impact
 - ⚠️ Unclear which selectors are actually needed
 
 #### 4. Feature Implementation Placeholders (1 TODO)
+
 **Location**: `src/store/slices/markerSlice.ts`
 
 **Pattern**: Placeholder implementation for future features
+
 ```typescript
 // TODO: Implement actual export logic based on format
 ```
 
 **Issues Found**:
+
 - Line 682: Export markers functionality (placeholder)
 
 **Root Cause**: Export feature was implemented as a placeholder during Phase 2 async thunk creation.
 
 **Impact**:
+
 - ⚠️ Export feature exists in UI but doesn't perform actual export
 - ⚠️ Users may expect functional export capability
 
 ### Priority Assessment
 
 #### 🔴 High Priority (Critical Issues)
+
 1. **Error Handling Enhancement** - 11 TODOs
    - **Impact**: Poor user experience, hidden errors
    - **Effort**: Medium (implement setError calls)
    - **Risk**: Low (error states already handled in Redux slice)
 
-#### 🟡 Medium Priority (Functional Gaps)  
+#### 🟡 Medium Priority (Functional Gaps)
+
 2. **Redux Thunk Migration Incomplete** - 4 TODOs
    - **Impact**: Inconsistent architecture, missing functionality
    - **Effort**: Low-Medium (replace service calls with thunk dispatches)
    - **Risk**: Low (thunks already exist)
 
 #### 🟢 Low Priority (Code Quality)
+
 3. **Unused/Optional Selectors** - 3 TODOs
+
    - **Impact**: Code clutter
    - **Effort**: Low (remove commented code)
    - **Risk**: Very Low (selectors exist if needed later)
@@ -906,21 +947,25 @@ After completing the Redux migration, there are **18 TODO comments** remaining i
 #### Phase 6: Post-Migration Cleanup ⚡ ✅ COMPLETED (2025-07-21)
 
 **Step 6.1: Error Handling Implementation** ✅ COMPLETED
+
 - [x] Implement all 11 error dispatch calls
-- [x] Test error display in UI components  
+- [x] Test error display in UI components
 - [x] Ensure consistent error clearing patterns
 
-**Step 6.2: Complete Redux Migration** ✅ COMPLETED  
+**Step 6.2: Complete Redux Migration** ✅ COMPLETED
+
 - [x] Replace remaining 3 service calls with Redux thunks
 - [x] Test affected keyboard shortcuts (all working)
 - [x] Verify incorrect marker handling workflow
 
 **Step 6.3: Code Cleanup** ✅ COMPLETED
+
 - [x] Remove unnecessary commented selectors
 - [x] Clean up temporary comments
 - [x] Remove unused import comments
 
 **Step 6.4: Export Feature (Optional)**
+
 - [ ] Implement actual export logic for different formats
 - [ ] Add format-specific export handlers
 - [ ] Test export functionality
@@ -954,27 +999,30 @@ According to the [React Redux TypeScript Quick Start](https://react-redux.js.org
 
 ```typescript
 // Recommended modern implementation
-import { useDispatch, useSelector } from 'react-redux'
-import type { RootState, AppDispatch } from './store'
+import { useDispatch, useSelector } from "react-redux";
+import type { RootState, AppDispatch } from "./store";
 
-export const useAppDispatch = useDispatch.withTypes<AppDispatch>()
-export const useAppSelector = useSelector.withTypes<RootState>()
+export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
+export const useAppSelector = useSelector.withTypes<RootState>();
 ```
 
 ### Benefits of Typed Hooks
 
 **✅ Already Achieved**:
+
 - **Type Safety**: No need to type `(state: RootState)` in every selector
 - **Thunk Support**: Correct dispatch typing for async thunks with middleware
 - **Import Safety**: Avoids circular dependency issues by keeping hooks in separate file
 - **Developer Experience**: Auto-completion and type checking throughout the app
 
 **⚠️ Potential Improvement**:
+
 - **Modern Syntax**: Update to `.withTypes<>()` pattern for consistency with latest React Redux recommendations
 
 ### Implementation Assessment
 
-**Current State**: 
+**Current State**:
+
 - ✅ All components use `useAppDispatch` and `useAppSelector` consistently
 - ✅ No direct `useDispatch`/`useSelector` imports found in components
 - ✅ Proper separation in `src/store/hooks.ts` file
@@ -985,6 +1033,7 @@ export const useAppSelector = useSelector.withTypes<RootState>()
 ### Optional Enhancement
 
 #### Step 6.5: Update to Modern Typed Hooks Syntax (Optional)
+
 - [ ] Update `src/store/hooks.ts` to use `.withTypes<>()` syntax
 - [ ] Verify all existing functionality remains intact
 - [ ] Update any related documentation

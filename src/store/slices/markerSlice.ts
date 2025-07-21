@@ -660,39 +660,6 @@ export const splitMarker = createAsyncThunk(
   }
 );
 
-// Export markers (placeholder - would need custom export functionality)
-export const exportMarkers = createAsyncThunk(
-  "marker/exportMarkers",
-  async (
-    params: {
-      sceneId: string;
-      format: "csv" | "json" | "vtt";
-      markerIds?: string[];
-    },
-    { getState, rejectWithValue }
-  ) => {
-    try {
-      // This is a placeholder - would need to implement export functionality
-      // For now, just return the current markers
-      const state = getState() as { marker: MarkerState };
-      const markersToExport = params.markerIds
-        ? state.marker.markers.filter((m) => params.markerIds!.includes(m.id))
-        : state.marker.markers;
-
-      // TODO: Implement actual export logic based on format
-      console.log(
-        `Exporting ${markersToExport.length} markers in ${params.format} format`
-      );
-
-      return { format: params.format, count: markersToExport.length };
-    } catch (error) {
-      return rejectWithValue(
-        error instanceof Error ? error.message : "Failed to export markers"
-      );
-    }
-  }
-);
-
 // Create the slice with basic sync actions
 const markerSlice = createSlice({
   name: "marker",
@@ -1174,20 +1141,6 @@ const markerSlice = createSlice({
       .addCase(splitMarker.rejected, (state, action) => {
         state.loading = false;
         state.error = (action.payload as string) || "Failed to split marker";
-      })
-
-      // Handle export markers
-      .addCase(exportMarkers.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(exportMarkers.fulfilled, (state) => {
-        state.loading = false;
-        // No state changes for export
-      })
-      .addCase(exportMarkers.rejected, (state, action) => {
-        state.loading = false;
-        state.error = (action.payload as string) || "Failed to export markers";
       });
   },
 });
