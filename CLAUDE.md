@@ -71,6 +71,10 @@ Stash Marker Studio is a companion app for Stashapp that makes working with vide
 
 ## Development Notes
 
+### Git commit messages
+
+Keep the git commit messages as brief as possible while still giving enough details. Tell what the state would have been without this change and how does this change make it better. Avoid repetition in the commit message.
+
 ### Planning and Architecture
 
 - **Current Plan**: Always check `.plan.md` for the current refactoring or development plan before making significant changes
