@@ -27,7 +27,7 @@ Stash Marker Studio is a companion app for Stashapp that makes working with vide
 
 ### Core Architecture Patterns
 
-**State Management**: Uses React Context with useReducer pattern (`src/contexts/MarkerContext.tsx`) for global marker state management. All marker operations flow through the MarkerContext reducer.
+**State Management**: Uses Redux Toolkit (`src/store/`) for global state management. All marker operations flow through Redux slices and thunks. Prefer Redux over local state for any shared application state.
 
 **Service Layer**: `StashappService` (`src/services/StashappService.ts`) handles all GraphQL communication with Stashapp backend. Configuration is injected at runtime via `applyConfig()` method.
 
@@ -67,8 +67,15 @@ Stash Marker Studio is a companion app for Stashapp that makes working with vide
 - `src/hooks/useMarkerKeyboardShortcuts.ts` - Keyboard-centric UI logic
 - `src/components/Timeline.tsx` - Main timeline visualization component
 - `src/serverConfig.ts` - Runtime configuration structure
+- `.plan.md` - Current refactoring/development plan (keep this in mind when making changes)
 
 ## Development Notes
+
+### Planning and Architecture
+
+- **Current Plan**: Always check `.plan.md` for the current refactoring or development plan before making significant changes
+- **State Management**: Use Redux for all shared application state. Avoid local state for data that could be shared between components
+- **Component Design**: Follow the component architecture outlined in the current plan when creating or modifying components
 
 ### Configuration
 
