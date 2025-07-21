@@ -221,7 +221,7 @@ export const createMarker = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      await stashappService.createSceneMarker(
+      const newMarker = await stashappService.createSceneMarker(
         params.sceneId,
         params.tagId,
         params.startTime,
@@ -235,7 +235,7 @@ export const createMarker = createAsyncThunk(
       // Refresh markers after creation
       await dispatch(loadMarkers(params.sceneId));
 
-      return true;
+      return newMarker;
     } catch (error) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to create marker"
@@ -547,7 +547,7 @@ export const duplicateMarker = createAsyncThunk(
   ) => {
     try {
       // Create a new marker with the same properties but different times
-      await stashappService.createSceneMarker(
+      const newMarker = await stashappService.createSceneMarker(
         params.sceneId,
         params.tagId,
         params.newStartTime,
@@ -561,10 +561,7 @@ export const duplicateMarker = createAsyncThunk(
       // Refresh markers after creation
       await dispatch(loadMarkers(params.sceneId));
 
-      return {
-        sourceMarkerId: params.sourceMarkerId,
-        newStartTime: params.newStartTime,
-      };
+      return newMarker;
     } catch (error) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to duplicate marker"
@@ -904,6 +901,9 @@ const markerSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    setError: (state, action: PayloadAction<string>) => {
+      state.error = action.payload;
+    },
 
     // Reset state
     resetState: () => initialState,
@@ -1233,6 +1233,7 @@ export const {
   clearPendingPlayPause,
   setFilteredSwimlane,
   clearError,
+  setError,
   resetState,
 } = markerSlice.actions;
 

@@ -58,11 +58,14 @@ import {
   rejectMarker,
   resetMarker,
   loadMarkers,
+  createMarker,
+  duplicateMarker,
   splitMarker,
   seekToTime,
   playVideo,
   pauseVideo,
-  togglePlayPause
+  togglePlayPause,
+  setError
 } from "../../store/slices/markerSlice";
 import { useConfig } from "@/contexts/ConfigContext";
 import Toast from "../components/Toast";
@@ -622,25 +625,22 @@ function MarkerPageContent() {
   }, [markers, currentVideoTime, scene, dispatch, showToast]);
 
   const createOrDuplicateMarker = useCallback(
-    (sourceMarker?: SceneMarker) => {
+    async (sourceMarker?: SceneMarker) => {
       console.log("createOrDuplicateMarker called with state:", {
-        hasVideoElement: !!videoElementRef.current,
         hasScene: !!scene,
         availableTagsCount: availableTags?.length || 0,
         isDuplicate: !!sourceMarker,
+        currentTime: currentVideoTime,
       });
 
-      if (!videoElementRef.current || !scene || !availableTags?.length) {
-        if (!videoElementRef.current) {
-          console.log("Failed to create marker: No video element");
-        }
+      if (!scene || !availableTags?.length) {
         if (!scene) {
           console.log("Failed to create marker: No scene data");
+          dispatch(setError("No scene data available"));
         }
         if (!availableTags?.length) {
           console.log("Failed to create marker: No available tags");
-          // TODO: Add proper error handling with Redux
-          // dispatch(setError("No tags available. Please wait for tags to load or check if tags exist in Stash."));
+          dispatch(setError("No tags available. Please wait for tags to load or check if tags exist in Stash."));
         }
         return;
       }
@@ -650,7 +650,7 @@ function MarkerPageContent() {
 
       // Determine time values
       const startTime = isDuplicate ? sourceMarker.seconds : currentTime;
-      const endTime = isDuplicate ? sourceMarker.end_seconds : currentTime + 20; // Standard 20-second duration for new markers
+      const endTime = isDuplicate ? (sourceMarker.end_seconds ?? null) : currentTime + 20; // Standard 20-second duration for new markers
 
       // Determine tag to use
       let selectedTag: Tag;
@@ -681,38 +681,59 @@ function MarkerPageContent() {
         }
       }
 
-      // Create temporary marker object
-      const tempMarker: SceneMarker = {
-        id: isDuplicate ? "temp-duplicate" : "temp-new",
-        seconds: startTime,
-        end_seconds: endTime,
-        primary_tag: selectedTag,
-        scene: scene,
-        tags: isDuplicate ? [] : [], // Both start with empty tags array
-        title: isDuplicate ? sourceMarker.title : "",
-        stream: isDuplicate ? sourceMarker.stream : "",
-        preview: isDuplicate ? sourceMarker.preview : "",
-        screenshot: isDuplicate ? sourceMarker.screenshot : "",
-      };
-
-      // Insert the temporary marker at the correct chronological position
-      const updatedMarkers = [...(markers || []), tempMarker].sort(
-        (a, b) => a.seconds - b.seconds
-      );
-
-      dispatch(setMarkers(updatedMarkers));
-      dispatch(setSelectedMarkerId(tempMarker.id));
-      if (isDuplicate) {
-        dispatch(setDuplicatingMarker(true));
-      } else {
-        dispatch(setCreatingMarker(true));
+      try {
+        if (isDuplicate) {
+          // Set duplication UI state before the operation
+          dispatch(setDuplicatingMarker(true));
+          
+          // Dispatch duplicate marker thunk
+          const result = await dispatch(duplicateMarker({
+            sceneId: scene.id,
+            sourceMarkerId: sourceMarker.id,
+            newStartTime: startTime,
+            newEndTime: endTime,
+            tagId: selectedTag.id,
+          }));
+          
+          // On success, select the new marker
+          if (duplicateMarker.fulfilled.match(result)) {
+            const newMarkerId = result.payload.id;
+            dispatch(setSelectedMarkerId(newMarkerId));
+          }
+        } else {
+          // Set creation UI state before the operation
+          dispatch(setCreatingMarker(true));
+          
+          // Dispatch create marker thunk
+          const result = await dispatch(createMarker({
+            sceneId: scene.id,
+            startTime: startTime,
+            endTime: endTime,
+            tagId: selectedTag.id,
+          }));
+          
+          // On success, select the new marker
+          if (createMarker.fulfilled.match(result)) {
+            const newMarkerId = result.payload.id;
+            dispatch(setSelectedMarkerId(newMarkerId));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to create or duplicate marker:", error);
+        dispatch(setError(`Failed to ${isDuplicate ? "duplicate" : "create"} marker: ${error}`));
+      } finally {
+        // Clean up UI state
+        if (isDuplicate) {
+          dispatch(setDuplicatingMarker(false));
+        } else {
+          dispatch(setCreatingMarker(false));
+        }
       }
     },
     [
       scene,
       availableTags,
       filteredSwimlane,
-      markers,
       currentVideoTime,
       dispatch,
     ]

@@ -211,11 +211,40 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
 
 **Goal**: Refactor or eliminate custom hooks that handle state
 
-#### Step 4.1: useMarkerOperations
+#### Step 4.1: useMarkerOperations ✅ COMPLETED
 
-- [ ] Move async logic to Redux thunks (already done in Phase 2)
-- [ ] Convert to simple utility functions for complex operations
-- [ ] Update components to use Redux dispatch directly
+- [x] Move async logic to Redux thunks (already done in Phase 2)
+- [x] Convert to simple utility functions for complex operations
+- [x] Update components to use Redux dispatch directly
+
+**Latest Implementation (2025-07-21)**: `createOrDuplicateMarker` function migration:
+
+- **Replaced Manual State Manipulation with Redux Thunks**: 
+  - Removed temporary marker creation logic that manually inserted markers into state
+  - Replaced with proper `createMarker` and `duplicateMarker` Redux thunk calls
+  - Thunks handle marker creation, automatic refresh, and error states
+- **Improved Error Handling**: 
+  - Added `setError` action to markerSlice for proper error state management
+  - Replaced console.log errors with Redux error dispatch calls
+  - Consistent error handling through try/catch with Redux state updates
+- **Removed Video Element Dependencies**: 
+  - Replaced `videoElementRef.current` checks with Redux state validation (`scene`, `availableTags`)
+  - Uses `currentVideoTime` from Redux instead of direct video element access
+  - Function is now purely Redux-based with no DOM dependencies
+- **Enhanced Type Safety**: 
+  - Fixed TypeScript type issues with `sourceMarker.end_seconds` (undefined → null conversion)
+  - Proper handling of optional marker end times in Redux thunk parameters
+- **Simplified Logic**: 
+  - Removed complex temporary marker insertion and sorting logic
+  - Thunks handle marker list refresh automatically after creation/duplication
+  - UI state management (creating/duplicating flags) handled consistently
+
+**Migration Benefits**:
+- Consistent error handling and loading states through Redux
+- Automatic marker list refresh and state synchronization
+- Eliminated temporary markers that could cause UI inconsistencies
+- Simplified component logic with centralized marker operations
+- Better TypeScript type safety and error prevention
 
 #### Step 4.2: useMarkerKeyboardShortcuts ✅ COMPLETED
 
