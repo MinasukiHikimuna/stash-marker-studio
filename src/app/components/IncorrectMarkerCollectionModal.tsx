@@ -164,15 +164,6 @@ export const IncorrectMarkerCollectionModal: React.FC<
 
       await onConfirm();
 
-      // Mark all markers as rejected
-      for (const marker of currentSceneMarkers) {
-        try {
-          await stashappService.rejectMarker(marker.markerId, currentSceneId);
-        } catch (error) {
-          console.error(`Failed to reject marker ${marker.markerId}:`, error);
-        }
-      }
-
       // Refresh the markers in the UI
       await refreshMarkersOnly();
 
@@ -216,8 +207,7 @@ export const IncorrectMarkerCollectionModal: React.FC<
           </div>
           <p className="text-gray-300 mb-4">
             The following markers in this scene have been marked as incorrect
-            and will be collected for feedback. After collecting, the markers
-            will be marked as rejected.
+            and will be collected for feedback.
           </p>
         </div>
 
