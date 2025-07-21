@@ -81,7 +81,7 @@ type ToastState = {
   type: "success" | "error";
 } | null;
 
-function MarkerPageContent() {
+export default function MarkerPage() {
   const dispatch = useAppDispatch();
   
   // Redux selectors
@@ -984,8 +984,3 @@ function MarkerPageContent() {
     </div>
   );
 }
-
-export default function MarkerPage() {
-  return <MarkerPageContent />;
-}
-
