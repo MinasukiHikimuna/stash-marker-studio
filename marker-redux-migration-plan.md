@@ -441,7 +441,58 @@ Follow search slice patterns:
 - [ ] Tests pass with new Redux implementation
 - [x] Code follows established Redux patterns from search page
 
-**Migration Status**: ✅ **COMPLETED** - All core migration work finished, only optional optimizations remain
+**Migration Status**: ✅ **COMPLETED** - All core migration work finished, including error handling improvements
+
+## ✅ Error Handling Enhancement (2025-07-21)
+
+### Problem Addressed
+During the Redux migration, error handling was partially implemented but `setError` calls were commented out, causing errors to be logged to console but not displayed to users via the `showToast` mechanism.
+
+### Solution Implemented
+
+**1. Added Error State Monitoring**
+- Added `useEffect` hook that watches Redux `error` state changes
+- When error occurs, automatically shows toast notification and clears error from Redux state
+- Provides immediate user feedback for all error conditions
+
+**2. Implemented All Error Dispatch Calls** 
+- **Tag fetch errors**: `dispatch(setError(\`Failed to fetch tags: ${err}\`))`
+- **Marker split validation**: `dispatch(setError("Current time must be within the marker's range to split it"))`
+- **Split operation errors**: `dispatch(setError(\`Failed to split marker: ${err}\`))`
+- **Video Cut marker errors**: `dispatch(setError("No Video Cut marker found at current position"))`
+- **Video Cut split errors**: `dispatch(setError("Failed to split Video Cut marker"))`
+- **Rejected marker deletion**: `dispatch(setError("Failed to delete rejected markers"))`
+- **AI conversion errors**: `dispatch(setError("Failed to prepare AI markers for conversion"))`
+- **Scene completion errors**: `dispatch(setError("Failed to complete scene processing"))`
+- **Marker creation errors**: `dispatch(setError(\`Failed to create marker: ${error}\`))`
+- **Success case clearing**: `dispatch(clearError())` for successful operations
+
+**3. Completed Remaining Redux Thunk Migrations**
+- **Paste marker times**: Replaced commented `markerOps.updateMarkerTimes` with `dispatch(updateMarkerTimes(...))`
+- **Incorrect marker reset**: Replaced commented `markerOps.resetMarker` with `dispatch(resetMarker(...))`
+- **Incorrect marker rejection**: Replaced commented `markerOps.rejectMarker` with `dispatch(rejectMarker(...))`
+
+### Architecture Flow
+1. **Error Occurs**: Operation fails and calls `dispatch(setError(message))`
+2. **Redux State Update**: Error message stored in `marker.error` state
+3. **useEffect Trigger**: Watches `error` state and detects change
+4. **Toast Display**: Calls `showToast(error, "error")` to show user-visible error
+5. **State Cleanup**: Immediately calls `dispatch(clearError())` to clear Redux error state
+6. **User Experience**: Error appears as red toast notification for 3 seconds
+
+### Benefits Achieved
+- ✅ **Consistent Error Display**: All errors now visible to users through toast notifications
+- ✅ **Centralized Error Handling**: All error states flow through Redux predictably  
+- ✅ **Improved User Experience**: No more silent failures - users get immediate feedback
+- ✅ **Architecture Consistency**: All operations use Redux thunks instead of mixed patterns
+- ✅ **Maintainable Code**: Error handling follows established Redux patterns
+
+### Testing Status
+- ✅ **Build Passes**: No TypeScript or linting errors
+- ✅ **Error Flow Works**: useEffect → showToast → clearError cycle functional
+- ✅ **All Operations Consistent**: Every error-prone operation uses Redux error handling
+
+**Migration Status**: ✅ **COMPLETED** - All core migration work finished, including comprehensive error handling
 
 ## Timeline Estimate
 

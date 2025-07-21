@@ -38,7 +38,7 @@ import {
   selectCopiedMarkerTimes,
   setFilteredSwimlane,
   setSelectedMarkerId,
-  // clearError, // TODO: Use for error handling
+  clearError,
   setAvailableTags,
   setRejectedMarkers,
   setDeletingRejected,
@@ -381,6 +381,15 @@ function MarkerPageContent() {
     };
   }, [fetchData]);
 
+  // Watch for Redux error state changes and show error toasts
+  useEffect(() => {
+    if (error) {
+      showToast(error, "error");
+      // Clear the error after showing it
+      dispatch(clearError());
+    }
+  }, [error, showToast, dispatch]);
+
   // Get action markers (non-shot boundary) for display and navigation
   const actionMarkers = useMemo(() => {
     if (!markers) {
@@ -499,7 +508,7 @@ function MarkerPageContent() {
       dispatch(setAvailableTags(result.findTags.tags));
     } catch (err) {
       console.error("Error fetching tags:", err);
-      // TODO: Implement proper error handling for tag fetch
+      dispatch(setError(`Failed to fetch tags: ${err}`));
     }
   }, [dispatch]);
 
@@ -541,8 +550,7 @@ function MarkerPageContent() {
       (currentMarker.end_seconds && currentTime >= currentMarker.end_seconds)
     ) {
       console.log("Split failed: Current time not within marker range");
-      // TODO: Add proper error handling with Redux
-      // dispatch(setError("Current time must be within the marker's range to split it"));
+      dispatch(setError("Current time must be within the marker's range to split it"));
       return;
     }
 
@@ -569,7 +577,7 @@ function MarkerPageContent() {
       dispatch(setSelectedMarkerId(currentMarker.id));
     } catch (err) {
       console.error("Error splitting marker:", err);
-      // TODO: Implement proper error handling for marker operations
+      dispatch(setError(`Failed to split marker: ${err}`));
     }
   }, [
     getActionMarkers,
@@ -599,8 +607,7 @@ function MarkerPageContent() {
         hasEndTime: !!videoCutMarker?.end_seconds,
         hasScene: !!scene,
       });
-      // TODO: Add proper error handling with Redux
-      // dispatch(setError("No Video Cut marker found at current position"));
+      dispatch(setError("No Video Cut marker found at current position"));
       return;
     }
 
@@ -623,8 +630,7 @@ function MarkerPageContent() {
       showToast("Video Cut marker split successfully", "success");
     } catch (err) {
       console.error("Error splitting Video Cut marker:", err);
-      // TODO: Add proper error handling with Redux
-      // dispatch(setError("Failed to split Video Cut marker"));
+      dispatch(setError("Failed to split Video Cut marker"));
     }
   }, [markers, currentVideoTime, scene, dispatch, showToast]);
 
@@ -835,8 +841,7 @@ function MarkerPageContent() {
       dispatch(setRejectedMarkers([]));
     } catch (err) {
       console.error("Error deleting rejected markers:", err);
-      // TODO: Add proper error handling with Redux
-      // dispatch(setError("Failed to delete rejected markers"));
+      dispatch(setError("Failed to delete rejected markers"));
     }
   }, [rejectedMarkers, dispatch, scene?.id]);
 
@@ -852,8 +857,7 @@ function MarkerPageContent() {
       dispatch(setAIConversionModalOpen(true));
     } catch (err) {
       console.error("Error preparing AI conversion:", err);
-      // TODO: Add proper error handling with Redux
-      // dispatch(setError("Failed to prepare AI markers for conversion"));
+      dispatch(setError("Failed to prepare AI markers for conversion"));
     }
   }, [getActionMarkers, dispatch]);
 
@@ -1128,12 +1132,10 @@ function MarkerPageContent() {
       }, 2000); // Give generation time to complete
 
       // Clear any existing errors on success
-      // TODO: Add error clearing action
-      // dispatch(clearError());
+      dispatch(clearError());
     } catch (err) {
       console.error("Error completing scene:", err);
-      // TODO: Add error handling action
-      // dispatch(setError("Failed to complete scene processing"));
+      dispatch(setError("Failed to complete scene processing"));
     } finally {
       // Loading state is managed by async thunks
       setIsCompletionModalOpen(false);
@@ -1812,16 +1814,14 @@ function MarkerPageContent() {
               );
 
               if (isIncorrect) {
-                // TODO: Replace with Redux thunk
-                // await markerOps.resetMarker(markerToHandle.id);
+                await dispatch(resetMarker({ sceneId: scene.id, markerId: markerToHandle.id }));
                 incorrectMarkerStorage.removeIncorrectMarker(
                   scene.id,
                   markerToHandle.id
                 );
                 showToast("Removed incorrect marker feedback", "success");
               } else {
-                // TODO: Replace with Redux thunk
-                // await markerOps.rejectMarker(markerToHandle.id);
+                await dispatch(rejectMarker({ sceneId: scene.id, markerId: markerToHandle.id }));
                 incorrectMarkerStorage.addIncorrectMarker(scene.id, {
                   markerId: markerToHandle.id,
                   tagName: markerToHandle.primary_tag.name,
