@@ -224,9 +224,23 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
   - Replaced all old MarkerContext dispatch calls (`dispatch({ type: "...", payload: ... })`) with Redux actions
   - Fixed `setSelectedMarkerId`, `setKeyboardShortcutsModalOpen`, `setMarkers`, `setCreatingMarker`, `setDuplicatingMarker`, `setIncorrectMarkers`, `setCopiedMarkerTimes`, `setCurrentVideoTime`, `setVideoDuration` dispatch calls
   - Commented out error dispatch calls (TODO: implement proper Redux error handling)
+  - **LATEST FIX (2025-07-21)**: Fixed remaining broken dispatch calls that were causing keyboard shortcuts to fail:
+    - Fixed `dispatch({ type: "SET_MARKERS", payload: realMarkers })` → `dispatch(setMarkers(realMarkers))`
+    - Fixed `dispatch({ type: "SET_SELECTED_MARKER_ID", payload: nextMarkerId })` → `dispatch(setSelectedMarkerId(nextMarkerId))` (multiple instances)
+  - **CRITICAL FIX (2025-07-21)**: Replaced commented-out marker operations with Redux thunk calls:
+    - **Z key (confirm)**: `confirmMarker({ sceneId, markerId })` and `resetMarker({ sceneId, markerId })` - now working
+    - **X key (reject)**: `rejectMarker({ sceneId, markerId })` and `resetMarker({ sceneId, markerId })` - now working  
+    - **R key (refresh)**: `loadMarkers(sceneId)` - now working
+    - **J/K/L keys (video control)**: `seekToTime()` and `playVideo()` Redux actions - now working
+    - **Spacebar (play/pause)**: `playVideo()` Redux action - now working
+  - **Video Architecture Fix**: Replaced direct `videoElementRef.current` access with Redux video command pattern
+    - Video seeking now uses `dispatch(seekToTime(time))` instead of `videoElementRef.current.currentTime = time`
+    - Video play/pause uses `dispatch(playVideo())` instead of `videoElementRef.current.play()/pause()`
+    - Uses `currentVideoTime` and `videoDuration` from Redux selectors instead of DOM access
   - All keyboard shortcuts now work with Redux state and actions
 - [x] **Status**: Keyboard shortcuts are now functional and fully Redux-based
 - [x] **Note**: The `useMarkerKeyboardShortcuts` hook is not used in the current implementation - keyboard handling is inline in main marker page
+- [x] **Build Status**: Lint and build pass successfully with all keyboard shortcuts working
 
 ### Phase 5: Cleanup and Optimization
 

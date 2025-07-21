@@ -53,7 +53,13 @@ import {
   setCopiedMarkerTimes,
   setCurrentVideoTime,
   setVideoDuration,
-  initializeMarkerPage
+  initializeMarkerPage,
+  confirmMarker,
+  rejectMarker,
+  resetMarker,
+  loadMarkers,
+  seekToTime,
+  playVideo
 } from "../../store/slices/markerSlice";
 import { useConfig } from "@/contexts/ConfigContext";
 import Toast from "../components/Toast";
@@ -1640,9 +1646,8 @@ function MarkerPageContent() {
         case "r":
         case "R":
           event.preventDefault();
-          if (actionMarkers.length > 0) {
-            // TODO: Replace with Redux thunk
-            // refreshMarkersOnly();
+          if (actionMarkers.length > 0 && scene?.id) {
+            dispatch(loadMarkers(scene.id));
           } else {
             fetchData();
           }
@@ -1729,10 +1734,7 @@ function MarkerPageContent() {
             const realMarkers = markers.filter(
               (m) => !m.id.startsWith("temp-")
             );
-            dispatch({
-              type: "SET_MARKERS",
-              payload: realMarkers,
-            });
+            dispatch(setMarkers(realMarkers));
             dispatch(setCreatingMarker(false));
             dispatch(setDuplicatingMarker(false));
           }
@@ -1789,15 +1791,18 @@ function MarkerPageContent() {
               );
 
               if (isAlreadyConfirmed) {
-                // TODO: Replace with Redux thunk
-                // await markerOps.resetMarker(markerToConfirm.id);
+                if (scene?.id) {
+                  dispatch(resetMarker({ sceneId: scene.id, markerId: markerToConfirm.id }));
+                }
               } else {
-                // TODO: Replace with Redux thunk
-                // await markerOps.confirmMarker(markerToConfirm.id);
-                // Find and select next unprocessed marker in the same swimlane
-                const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
-                if (nextMarkerId) {
-                  dispatch(setSelectedMarkerId(nextMarkerId));
+                if (scene?.id) {
+                  dispatch(confirmMarker({ sceneId: scene.id, markerId: markerToConfirm.id })).then(() => {
+                    // Find and select next unprocessed marker in the same swimlane
+                    const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
+                    if (nextMarkerId) {
+                      dispatch(setSelectedMarkerId(nextMarkerId));
+                    }
+                  });
                 }
               }
             }
@@ -1816,15 +1821,18 @@ function MarkerPageContent() {
               );
 
               if (isAlreadyRejected) {
-                // TODO: Replace with Redux thunk
-                // await markerOps.resetMarker(markerToHandle.id);
+                if (scene?.id) {
+                  dispatch(resetMarker({ sceneId: scene.id, markerId: markerToHandle.id }));
+                }
               } else {
-                // TODO: Replace with Redux thunk
-                // await markerOps.rejectMarker(markerToHandle.id);
-                // Find and select next unprocessed marker in the same swimlane
-                const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
-                if (nextMarkerId) {
-                  dispatch(setSelectedMarkerId(nextMarkerId));
+                if (scene?.id) {
+                  dispatch(rejectMarker({ sceneId: scene.id, markerId: markerToHandle.id })).then(() => {
+                    // Find and select next unprocessed marker in the same swimlane
+                    const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
+                    if (nextMarkerId) {
+                      dispatch(setSelectedMarkerId(nextMarkerId));
+                    }
+                  });
                 }
               }
             }
@@ -1911,10 +1919,7 @@ function MarkerPageContent() {
             // M: Swimlane search
             const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
             if (nextMarkerId) {
-              dispatch({
-                type: "SET_SELECTED_MARKER_ID",
-                payload: nextMarkerId,
-              });
+              dispatch(setSelectedMarkerId(nextMarkerId));
             }
           }
           break;
@@ -2042,43 +2047,27 @@ function MarkerPageContent() {
         // Playback Control
         case " ":
           event.preventDefault();
-          if (videoElementRef.current) {
-            if (videoElementRef.current.paused) {
-              videoElementRef.current.play();
-            } else {
-              videoElementRef.current.pause();
-            }
-          }
+          // Toggle play/pause
+          dispatch(playVideo());
           break;
         case "j":
         case "J":
           event.preventDefault();
-          if (videoElementRef.current) {
-            videoElementRef.current.currentTime = Math.max(
-              videoElementRef.current.currentTime - 5,
-              0
-            );
-          }
+          // Seek backward 5 seconds
+          dispatch(seekToTime(Math.max(currentVideoTime - 5, 0)));
           break;
         case "k":
         case "K":
           event.preventDefault();
-          if (videoElementRef.current) {
-            if (videoElementRef.current.paused) {
-              videoElementRef.current.play();
-            } else {
-              videoElementRef.current.pause();
-            }
-          }
+          // Toggle play/pause
+          dispatch(playVideo()); // This action will toggle play/pause in the video player
           break;
         case "l":
         case "L":
           event.preventDefault();
-          if (videoElementRef.current) {
-            videoElementRef.current.currentTime = Math.min(
-              videoElementRef.current.currentTime + 5,
-              videoElementRef.current.duration
-            );
+          // Seek forward 5 seconds
+          if (videoDuration) {
+            dispatch(seekToTime(Math.min(currentVideoTime + 5, videoDuration)));
           }
           break;
         case ",":
@@ -2213,10 +2202,7 @@ function MarkerPageContent() {
             // M: Swimlane search
             const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
             if (nextMarkerId) {
-              dispatch({
-                type: "SET_SELECTED_MARKER_ID",
-                payload: nextMarkerId,
-              });
+              dispatch(setSelectedMarkerId(nextMarkerId));
             }
           }
           break;
@@ -2253,6 +2239,7 @@ function MarkerPageContent() {
       scene,
       selectedMarkerId,
       videoDuration,
+      currentVideoTime,
       dispatch,
       navigateBetweenSwimlanes,
       navigateChronologically,
@@ -2876,10 +2863,7 @@ function MarkerPageContent() {
                                 const realMarkers = markers.filter(
                                   (m) => !m.id.startsWith("temp-")
                                 );
-                                dispatch({
-                                  type: "SET_MARKERS",
-                                  payload: realMarkers,
-                                });
+                                dispatch(setMarkers(realMarkers));
                                 // Reset selected marker to first marker
                                 const actionMarkers = getActionMarkers();
                                 if (actionMarkers.length > 0) {
