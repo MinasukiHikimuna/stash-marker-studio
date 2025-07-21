@@ -14,6 +14,7 @@ import { AITagConversionModal } from "../components/AITagConversionModal";
 import { TagAutocomplete } from "../../components/marker/TagAutocomplete";
 import { TempMarkerForm } from "../../components/marker/TempMarkerForm";
 import { MarkerPageHeader } from "../../components/marker/MarkerPageHeader";
+import { MarkerSummary } from "../../components/marker/MarkerSummary";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import { useMarkerKeyboardShortcuts } from "../../hooks/useMarkerKeyboardShortcuts";
 import { useMarkerNavigation } from "../../hooks/useMarkerNavigation";
@@ -823,186 +824,21 @@ function MarkerPageContent() {
             {/* Video player and marker list in equal height container */}
             <div className="flex flex-1 min-h-0">
               <div className="w-1/3 flex flex-col border-r border-gray-300 min-h-0">
-                {/* Sticky marker summary */}
-                <div
-                  className="bg-gray-700 p-4 mb-4 rounded-none flex items-center justify-between sticky top-0 z-10"
-                  data-testid="marker-summary"
-                >
-                  <div className="flex items-center space-x-4">
-                    {filteredSwimlane && (
-                      <div className="flex items-center bg-yellow-600 text-yellow-100 px-2 py-1 rounded-sm text-xs">
-                        <span className="mr-1">🔍</span>
-                        <span>Filtered: {filteredSwimlane}</span>
-                        <button
-                          onClick={() => handleSwimlaneFilter(null)}
-                          className="ml-2 text-yellow-200 hover:text-white"
-                          title="Clear filter"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
-                    <div className="flex items-center">
-                      <span className="text-green-400 mr-1">✓</span>
-                      <span className="text-white">
-                        {getMarkerSummary().confirmed}
-                      </span>
-                    </div>
-                    <div className="flex items-center">
-                      <span className="text-red-400 mr-1">✗</span>
-                      <span className="text-white">
-                        {getMarkerSummary().rejected}
-                      </span>
-                    </div>
-                    <div className="flex items-center">
-                      <span className="text-yellow-400 mr-1">?</span>
-                      <span className="text-white">
-                        {getMarkerSummary().unknown}
-                      </span>
-                    </div>
-                    {getShotBoundaries().length > 0 && (
-                      <div className="flex items-center">
-                        <span className="text-gray-400 mr-1">🎥</span>
-                        <span className="text-white text-xs">
-                          {getShotBoundaries().length} shots
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  {/* Compact marker action buttons */}
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={handleCreateMarker}
-                      disabled={
-                        isCreatingMarker ||
-                        isDuplicatingMarker ||
-                        markers.some((m) => m.id.startsWith("temp-"))
-                      }
-                      title="Create New Marker (A)"
-                      className={`px-2 py-1 rounded-sm text-xs flex items-center ${
-                        isCreatingMarker ||
-                        isDuplicatingMarker ||
-                        markers.some((m) => m.id.startsWith("temp-"))
-                          ? "bg-gray-500 cursor-not-allowed text-gray-300"
-                          : "bg-green-500 hover:bg-green-700 text-white"
-                      }`}
-                    >
-                      <svg
-                        className="w-4 h-4 mr-1"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M12 9v3m0 0v3m0-3h3m-3 0H9m9 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      New
-                    </button>
-                    <button
-                      onClick={() => splitCurrentMarker()}
-                      title="Split Current Marker (S)"
-                      className="bg-blue-500 hover:bg-blue-700 text-white px-2 py-1 rounded-sm text-xs flex items-center"
-                    >
-                      <svg
-                        className="w-4 h-4 mr-1"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M4 6h16M4 12h8m-8 6h16"
-                        />
-                      </svg>
-                      Split
-                    </button>
-                    <button
-                      onClick={() => {
-                        const actionMarkers = getActionMarkers();
-                        const currentMarker = actionMarkers.find(
-                          (m) => m.id === selectedMarkerId
-                        );
-                        if (!currentMarker) {
-                          console.log(
-                            "Cannot duplicate marker: No current marker found"
-                          );
-                          return;
-                        }
-                        createOrDuplicateMarker(currentMarker);
-                      }}
-                      disabled={
-                        isCreatingMarker ||
-                        isDuplicatingMarker ||
-                        markers.some((m) => m.id.startsWith("temp-"))
-                      }
-                      title="Duplicate Current Marker (D)"
-                      className={`px-2 py-1 rounded-sm text-xs flex items-center ${
-                        isCreatingMarker ||
-                        isDuplicatingMarker ||
-                        markers.some((m) => m.id.startsWith("temp-"))
-                          ? "bg-gray-500 cursor-not-allowed text-gray-300"
-                          : "bg-indigo-500 hover:bg-indigo-700 text-white"
-                      }`}
-                    >
-                      <svg
-                        className="w-4 h-4 mr-1"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        viewBox="0 0 24 24"
-                      >
-                        <rect
-                          x="9"
-                          y="9"
-                          width="13"
-                          height="13"
-                          rx="2"
-                          ry="2"
-                        />
-                        <rect
-                          x="1"
-                          y="1"
-                          width="13"
-                          height="13"
-                          rx="2"
-                          ry="2"
-                        />
-                      </svg>
-                      Duplicate
-                    </button>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <button
-                      onClick={() =>
-                        dispatch(setKeyboardShortcutsModalOpen(true))
-                      }
-                      className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-sm text-sm transition-colors flex items-center space-x-1"
-                      title="Show keyboard shortcuts"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-                        />
-                      </svg>
-                      <span>Shortcuts</span>
-                    </button>
-                  </div>
-                </div>
+                <MarkerSummary
+                  filteredSwimlane={filteredSwimlane}
+                  markerSummary={getMarkerSummary()}
+                  shotBoundariesCount={getShotBoundaries().length}
+                  markers={markers}
+                  isCreatingMarker={isCreatingMarker}
+                  isDuplicatingMarker={isDuplicatingMarker}
+                  selectedMarkerId={selectedMarkerId}
+                  onClearFilter={() => handleSwimlaneFilter(null)}
+                  onCreateMarker={handleCreateMarker}
+                  onSplitMarker={() => splitCurrentMarker()}
+                  onShowShortcuts={() => dispatch(setKeyboardShortcutsModalOpen(true))}
+                  getActionMarkers={getActionMarkers}
+                  createOrDuplicateMarker={createOrDuplicateMarker}
+                />
                 {/* Scrollable marker list - now with grow to push edit section to bottom */}
                 <div
                   ref={markerListRef}
