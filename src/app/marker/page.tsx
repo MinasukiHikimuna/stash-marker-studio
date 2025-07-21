@@ -16,8 +16,6 @@ import {
   selectMarkers,
   selectScene,
   selectAvailableTags,
-  // selectSceneId,  // TODO: Use if needed
-  // selectSceneTitle,  // TODO: Use if needed
   selectSelectedMarkerId,
   selectFilteredSwimlane,
   selectIncorrectMarkers,
@@ -25,7 +23,6 @@ import {
   selectCurrentVideoTime,
   selectMarkerLoading,
   selectMarkerError,
-  // selectMarkerInitialized,  // TODO: Use for conditional rendering
   selectIsEditingMarker,
   selectIsCreatingMarker,
   selectIsDuplicatingMarker,
@@ -106,7 +103,6 @@ function MarkerPageContent() {
   // Redux selectors
   const markers = useAppSelector(selectMarkers);
   const scene = useAppSelector(selectScene);
-  // const sceneTitle = useAppSelector(selectSceneTitle);  // TODO: Use if needed
   const availableTags = useAppSelector(selectAvailableTags);
   const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
   const filteredSwimlane = useAppSelector(selectFilteredSwimlane);
@@ -115,7 +111,6 @@ function MarkerPageContent() {
   const currentVideoTime = useAppSelector(selectCurrentVideoTime);
   const isLoading = useAppSelector(selectMarkerLoading);
   const error = useAppSelector(selectMarkerError);
-  // const initialized = useAppSelector(selectMarkerInitialized);  // TODO: Use for conditional rendering
   const isEditingMarker = useAppSelector(selectIsEditingMarker);
   const isCreatingMarker = useAppSelector(selectIsCreatingMarker);
   const isDuplicatingMarker = useAppSelector(selectIsDuplicatingMarker);
@@ -128,8 +123,7 @@ function MarkerPageContent() {
   const copiedMarkerTimes = useAppSelector(selectCopiedMarkerTimes);
   
   const markerListRef = useRef<HTMLDivElement>(null);
-  // TODO: Remove videoElement ref after full Redux migration is complete
-  // This is temporary to maintain compatibility during migration
+  // Temporary ref for video element compatibility - can be removed when VideoPlayer fully handles all video interactions
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const router = useRouter();
   const { STASH_URL } = useConfig(); // STASH_API_KEY removed - now handled in VideoPlayer
@@ -795,18 +789,18 @@ function MarkerPageContent() {
     const currentMarker = actionMarkers.find(
       (m) => m.id === selectedMarkerId
     );
-    if (!currentMarker) {
-      console.log("Cannot paste marker times: No current marker found");
+    if (!currentMarker || !scene) {
+      console.log("Cannot paste marker times: No current marker or scene found");
       return;
     }
 
     try {
-      // TODO: Replace with Redux thunk
-      // await markerOps.updateMarkerTimes(
-      //   currentMarker.id,
-      //   copiedMarkerTimes.start,
-      //   copiedMarkerTimes.end ?? null
-      // );
+      await dispatch(updateMarkerTimes({
+        sceneId: scene.id,
+        markerId: currentMarker.id,
+        startTime: copiedMarkerTimes.start,
+        endTime: copiedMarkerTimes.end ?? null
+      })).unwrap();
 
       // Show toast notification
       const endTimeStr = copiedMarkerTimes.end
@@ -829,6 +823,8 @@ function MarkerPageContent() {
     getActionMarkers,
     selectedMarkerId,
     showToast,
+    dispatch,
+    scene,
   ]);
 
   const confirmDeleteRejectedMarkers = useCallback(async () => {
