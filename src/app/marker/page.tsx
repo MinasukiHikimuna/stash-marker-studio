@@ -86,7 +86,6 @@ import {
   calculateMarkerSummary,
 } from "../../core/marker/markerLogic";
 import { MarkerStatus } from "../../core/marker/types";
-// TODO: Remove useMarkerOperations after Phase 4 migration
 
 // Add this type definition at the top of the file
 type MarkerSummary = {
@@ -107,7 +106,6 @@ function MarkerPageContent() {
   // Redux selectors
   const markers = useAppSelector(selectMarkers);
   const scene = useAppSelector(selectScene);
-  // const sceneId = useAppSelector(selectSceneId);  // TODO: Use if needed
   // const sceneTitle = useAppSelector(selectSceneTitle);  // TODO: Use if needed
   const availableTags = useAppSelector(selectAvailableTags);
   const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
@@ -456,10 +454,7 @@ function MarkerPageContent() {
     }
   }, [actionMarkers, selectedMarkerId, dispatch]);
 
-  // TODO: Replace useMarkerOperations with direct Redux thunk dispatches
-  // For now, skip this - will be handled in Phase 4
-  // const markerOps = null; // useMarkerOperations({ state, dispatch });
-  const refreshMarkersOnly = null; // markerOps?.refreshMarkersOnly;
+  // useMarkerOperations replaced with Redux thunks
 
   const handleEditMarker = useCallback((marker: SceneMarker) => {
     setEditingMarkerId(marker.id);
@@ -847,8 +842,7 @@ function MarkerPageContent() {
       await stashappService.deleteMarkers(
         rejectedMarkers.map((m) => m.id)
       );
-      // TODO: Replace with Redux thunk
-      // await refreshMarkersOnly();
+      if (scene?.id) await dispatch(loadMarkers(scene.id)).unwrap();
       dispatch(setDeletingRejected(false));
       dispatch(setRejectedMarkers([]));
     } catch (err) {
@@ -856,7 +850,7 @@ function MarkerPageContent() {
       // TODO: Add proper error handling with Redux
       // dispatch(setError("Failed to delete rejected markers"));
     }
-  }, [rejectedMarkers, dispatch]);
+  }, [rejectedMarkers, dispatch, scene?.id]);
 
   const handleAIConversion = useCallback(async () => {
     const actionMarkers = getActionMarkers();
@@ -883,13 +877,12 @@ function MarkerPageContent() {
           correspondingTag.id
         );
       }
-      // TODO: Replace with Redux thunk
-      // await refreshMarkersOnly();
+      if (scene?.id) await dispatch(loadMarkers(scene.id)).unwrap();
     } catch (err) {
       console.error("Error converting AI markers:", err);
       throw err; // Let the modal handle the error display
     }
-  }, [confirmedAIMarkers]);
+  }, [confirmedAIMarkers, dispatch, scene?.id]);
 
   // Check if all markers are approved (confirmed, rejected, or manual)
   const checkAllMarkersApproved = useCallback(() => {
@@ -1142,8 +1135,9 @@ function MarkerPageContent() {
       await stashappService.updateScene(scene, tagsToAdd, tagsToRemove);
 
       // Step 5: Refresh markers to show generated content
-      // TODO: Replace with Redux thunk
-      // setTimeout(refreshMarkersOnly, 2000); // Give generation time to complete
+      setTimeout(() => {
+        if (scene?.id) dispatch(loadMarkers(scene.id));
+      }, 2000); // Give generation time to complete
 
       // Clear any existing errors on success
       // TODO: Add error clearing action
@@ -1161,6 +1155,7 @@ function MarkerPageContent() {
     videoCutMarkersToDelete,
     scene,
     identifyAITagsToRemove,
+    dispatch,
   ]);
 
   // Update handleMarkerClick to use marker IDs
@@ -3260,7 +3255,11 @@ function MarkerPageContent() {
               dispatch(setIncorrectMarkers([]));
             }
           }}
-          refreshMarkersOnly={refreshMarkersOnly || (() => Promise.resolve())}
+          refreshMarkersOnly={async () => {
+            if (scene?.id) {
+              await dispatch(loadMarkers(scene.id)).unwrap();
+            }
+          }}
         />
       )}
     </div>
