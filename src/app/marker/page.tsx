@@ -15,6 +15,7 @@ import { MarkerPageHeader } from "../../components/marker/MarkerPageHeader";
 import { MarkerSummary } from "../../components/marker/MarkerSummary";
 import { MarkerList } from "../../components/marker/MarkerList";
 import { CompletionModal } from "../../components/marker/CompletionModal";
+import { DeleteRejectedModal } from "../../components/marker/DeleteRejectedModal";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import { useMarkerKeyboardShortcuts } from "../../hooks/useMarkerKeyboardShortcuts";
 import { useMarkerNavigation } from "../../hooks/useMarkerNavigation";
@@ -901,69 +902,15 @@ function MarkerPageContent() {
         )}
       </div>
 
-      {isDeletingRejected && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 p-6 rounded-lg max-w-2xl w-full">
-            <h3 className="text-xl font-bold mb-4">Delete Rejected Markers</h3>
-            <p className="mb-4">The following markers will be deleted:</p>
-            <div className="max-h-96 overflow-y-auto mb-4">
-              {rejectedMarkers.map((marker) => (
-                <div
-                  key={marker.id}
-                  className="flex items-center justify-between p-2 bg-gray-700 rounded-sm mb-2"
-                >
-                  <div>
-                    <span className="font-bold">{marker.primary_tag.name}</span>
-                    <span className="text-sm text-gray-400 ml-2">
-                      {marker.end_seconds
-                        ? `${formatSeconds(
-                            marker.seconds,
-                            true
-                          )} - ${formatSeconds(marker.end_seconds, true)}`
-                        : formatSeconds(marker.seconds, true)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-gray-400">
-                Press{" "}
-                <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">
-                  Enter
-                </kbd>{" "}
-                or{" "}
-                <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">Y</kbd>{" "}
-                to confirm,{" "}
-                <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">
-                  Esc
-                </kbd>{" "}
-                or{" "}
-                <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">N</kbd>{" "}
-                to cancel
-              </div>
-              <div className="flex space-x-4">
-                <button
-                  onClick={() => {
-                    dispatch(setDeletingRejected(false));
-                    dispatch(setRejectedMarkers([]));
-                  }}
-                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmDeleteRejectedMarkers}
-                  className="bg-red-500 hover:bg-red-700 text-white px-4 py-2 rounded-sm"
-                >
-                  Delete {rejectedMarkers.length} Marker
-                  {rejectedMarkers.length !== 1 ? "s" : ""}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteRejectedModal
+        isOpen={isDeletingRejected}
+        rejectedMarkers={rejectedMarkers}
+        onCancel={() => {
+          dispatch(setDeletingRejected(false));
+          dispatch(setRejectedMarkers([]));
+        }}
+        onConfirm={confirmDeleteRejectedMarkers}
+      />
 
       <AITagConversionModal
         isOpen={isAIConversionModalOpen}
