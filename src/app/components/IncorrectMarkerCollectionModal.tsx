@@ -2,7 +2,6 @@ import React from "react";
 import type { IncorrectMarker } from "@/utils/incorrectMarkerStorage";
 import { useConfig } from "@/contexts/ConfigContext";
 import JSZip from "jszip";
-import { stashappService } from "@/services/StashappService";
 
 interface IncorrectMarkerCollectionModalProps {
   isOpen: boolean;
