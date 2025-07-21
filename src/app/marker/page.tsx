@@ -58,6 +58,7 @@ import {
   rejectMarker,
   resetMarker,
   loadMarkers,
+  splitMarker,
   seekToTime,
   playVideo,
   pauseVideo,
@@ -501,11 +502,11 @@ function MarkerPageContent() {
 
   const splitCurrentMarker = useCallback(async () => {
     const actionMarkers = getActionMarkers();
-    if (!actionMarkers || !selectedMarkerId || !videoElementRef.current) {
+    if (!actionMarkers || !selectedMarkerId || !scene) {
       console.log("Cannot split marker:", {
         hasActionMarkers: !!actionMarkers,
         selectedMarkerId: selectedMarkerId,
-        hasVideoElement: !!videoElementRef.current,
+        hasScene: !!scene,
       });
       return;
     }
@@ -539,72 +540,31 @@ function MarkerPageContent() {
     }
 
     try {
+      // Use Redux splitMarker thunk
       const originalTagIds = currentMarker.tags.map((tag) => tag.id);
+      const result = await dispatch(splitMarker({
+        sceneId: scene.id,
+        sourceMarkerId: currentMarker.id,
+        splitTime: currentTime,
+        tagId: currentMarker.primary_tag.id,
+        originalTagIds: originalTagIds,
+        sourceStartTime: currentMarker.seconds,
+        sourceEndTime: currentMarker.end_seconds || null,
+      })).unwrap();
 
-      // Create the first part of the split (original start to current time)
-      const firstPartMarker = await stashappService.createSceneMarker(
-        currentMarker.scene.id,
-        currentMarker.primary_tag.id,
-        currentMarker.seconds,
-        currentTime,
-        originalTagIds
-      );
+      console.log("Split marker completed:", result);
 
-      console.log("Created first part:", {
-        markerId: firstPartMarker.id,
-        start: firstPartMarker.seconds,
-        end: firstPartMarker.end_seconds,
-      });
-
-      const secondPartMarker = await stashappService.createSceneMarker(
-        currentMarker.scene.id,
-        currentMarker.primary_tag.id,
-        currentTime,
-        currentMarker.end_seconds || null,
-        originalTagIds
-      );
-
-      console.log("Created second part:", {
-        markerId: secondPartMarker.id,
-        start: secondPartMarker.seconds,
-        end: secondPartMarker.end_seconds,
-      });
-
-      await stashappService.deleteMarker(currentMarker.id);
-      console.log("Deleted original marker:", currentMarker.id);
-
-      const updatedMarkers = markers
-        .filter((m) => m.id !== currentMarker.id)
-        .concat([firstPartMarker, secondPartMarker])
-        .sort((a, b) => a.seconds - b.seconds);
-
-      dispatch(setMarkers(updatedMarkers));
-
-      const updatedActionMarkers = updatedMarkers.filter(
-        (m) => m.id.startsWith("temp-") || !isShotBoundaryMarker(m)
-      );
-      const firstPartIndex = updatedActionMarkers.findIndex(
-        (m) => m.id === firstPartMarker.id
-      );
-
-      console.log("Selecting first part:", {
-        firstPartIndex,
-        totalActionMarkers: updatedActionMarkers.length,
-      });
-
-      if (firstPartIndex >= 0) {
-        dispatch(setSelectedMarkerId(firstPartMarker.id));
-        dispatch(pauseVideo());
-        dispatch(seekToTime(currentTime));
-      }
+      // After split, pause video and seek to split time
+      dispatch(pauseVideo());
+      dispatch(seekToTime(currentTime));
     } catch (err) {
       console.error("Error splitting marker:", err);
       // TODO: Implement proper error handling for marker operations
     }
   }, [
     getActionMarkers,
-    markers,
     selectedMarkerId,
+    scene,
     currentVideoTime,
     dispatch,
   ]);
@@ -623,40 +583,31 @@ function MarkerPageContent() {
         marker.end_seconds > currentTime
     );
 
-    if (!videoCutMarker || !videoCutMarker.end_seconds) {
+    if (!videoCutMarker || !videoCutMarker.end_seconds || !scene) {
+      console.log("Cannot split Video Cut marker:", {
+        hasMarker: !!videoCutMarker,
+        hasEndTime: !!videoCutMarker?.end_seconds,
+        hasScene: !!scene,
+      });
       // TODO: Add proper error handling with Redux
       // dispatch(setError("No Video Cut marker found at current position"));
       return;
     }
 
     try {
-      // Create two new markers from the split
-      const firstMarker = await stashappService.createSceneMarker(
-        videoCutMarker.scene.id,
-        videoCutMarker.primary_tag.id,
-        videoCutMarker.seconds,
-        currentTime,
-        [stashappService.MARKER_SOURCE_MANUAL] // Set source as Manual for new markers
-      );
+      // Use Redux splitMarker thunk
+      const originalTagIds = videoCutMarker.tags.map((tag) => tag.id);
+      const result = await dispatch(splitMarker({
+        sceneId: scene.id,
+        sourceMarkerId: videoCutMarker.id,
+        splitTime: currentTime,
+        tagId: videoCutMarker.primary_tag.id,
+        originalTagIds: originalTagIds,
+        sourceStartTime: videoCutMarker.seconds,
+        sourceEndTime: videoCutMarker.end_seconds || null,
+      })).unwrap();
 
-      const secondMarker = await stashappService.createSceneMarker(
-        videoCutMarker.scene.id,
-        videoCutMarker.primary_tag.id,
-        currentTime,
-        videoCutMarker.end_seconds,
-        [stashappService.MARKER_SOURCE_MANUAL] // Set source as Manual for new markers
-      );
-
-      // Delete the original marker
-      await stashappService.deleteMarker(videoCutMarker.id);
-
-      // Update markers list
-      const updatedMarkers = markers
-        .filter((m) => m.id !== videoCutMarker.id)
-        .concat([firstMarker, secondMarker])
-        .sort((a, b) => a.seconds - b.seconds);
-
-      dispatch(setMarkers(updatedMarkers));
+      console.log("Split Video Cut marker completed:", result);
 
       // Show success message
       showToast("Video Cut marker split successfully", "success");
@@ -665,7 +616,7 @@ function MarkerPageContent() {
       // TODO: Add proper error handling with Redux
       // dispatch(setError("Failed to split Video Cut marker"));
     }
-  }, [markers, currentVideoTime, dispatch, showToast]);
+  }, [markers, currentVideoTime, scene, dispatch, showToast]);
 
   const createOrDuplicateMarker = useCallback(
     (sourceMarker?: SceneMarker) => {

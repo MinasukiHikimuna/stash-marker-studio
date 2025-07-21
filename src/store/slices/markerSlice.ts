@@ -623,38 +623,28 @@ export const splitMarker = createAsyncThunk(
       sourceMarkerId: string;
       splitTime: number;
       tagId: string;
+      originalTagIds: string[];
       sourceStartTime: number;
       sourceEndTime: number | null;
     },
     { dispatch, rejectWithValue }
   ) => {
     try {
-      // Delete the original marker
-      await stashappService.deleteMarkers([params.sourceMarkerId]);
-
-      // Create first part (start to split time)
-      await stashappService.createSceneMarker(
-        params.sceneId,
-        params.tagId,
+      // Update the original marker to end at the split time
+      await stashappService.updateMarkerTimes(
+        params.sourceMarkerId,
         params.sourceStartTime,
-        params.splitTime,
-        [
-          stashappService.MARKER_SOURCE_MANUAL,
-          stashappService.MARKER_STATUS_CONFIRMED,
-        ]
+        params.splitTime
       );
 
-      // Create second part (split time to end)
-      if (params.sourceEndTime) {
+      // Create second part (split time to end) only if there's remaining time
+      if (params.sourceEndTime && params.splitTime < params.sourceEndTime) {
         await stashappService.createSceneMarker(
           params.sceneId,
           params.tagId,
           params.splitTime,
           params.sourceEndTime,
-          [
-            stashappService.MARKER_SOURCE_MANUAL,
-            stashappService.MARKER_STATUS_CONFIRMED,
-          ]
+          params.originalTagIds // Preserve all original tags
         );
       }
 

@@ -254,6 +254,39 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
 - [x] **Note**: The `useMarkerKeyboardShortcuts` hook is not used in the current implementation - keyboard handling is inline in main marker page
 - [x] **Build Status**: Lint and build pass successfully with all keyboard shortcuts working
 
+#### Step 4.3: Split Marker Functions ✅ COMPLETED
+
+- [x] **splitCurrentMarker**: Updated to use Redux `splitMarker` thunk ✅ COMPLETED (2025-07-21)
+  - **Changes Made**:
+    - Replaced direct StashappService calls with Redux `splitMarker` thunk dispatch
+    - Updated function parameters to match Redux thunk interface (sceneId, sourceMarkerId, splitTime, tagId, sourceStartTime, sourceEndTime)
+    - Fixed TypeScript type issue: `end_seconds || null` to handle `undefined` → `number | null` conversion
+    - Maintained all validation logic (current time within marker range)
+    - Simplified logic by relying on Redux thunk for marker refresh and state updates
+    - Preserved post-split behavior: pause video and seek to split time
+  - **splitVideoCutMarker**: Updated to use Redux `splitMarker` thunk ✅ COMPLETED (2025-07-21)
+    - **Changes Made**:
+      - Replaced direct StashappService calls with Redux `splitMarker` thunk dispatch
+      - Updated function parameters to match Redux thunk interface
+      - Fixed TypeScript type issue: `end_seconds || null`
+      - Maintained Video Cut marker detection logic
+      - Preserved success toast notification
+  - **Keyboard Integration**: Both functions work correctly with keyboard shortcuts
+    - **S key**: Calls `splitCurrentMarker()` for action markers ✅
+    - **V key**: Calls `splitVideoCutMarker()` for shot boundary markers ✅
+  - **Build Status**: Lint and build pass successfully ✅
+  - **Key Benefits**:
+    - Consistent error handling through Redux thunk rejection
+    - Automatic marker list refresh after split operations
+    - Loading state management handled by Redux
+    - Simplified component logic with centralized split operations
+  - **IMPROVED IMPLEMENTATION (2025-07-21)**: Enhanced split logic for better data preservation
+    - **Non-destructive splitting**: Instead of deleting original marker and creating two new ones, now updates original marker end time and creates only one new marker
+    - **Tag preservation**: Preserves all original tags (both primary and additional) in the new split marker via `originalTagIds` parameter
+    - **Status preservation**: Removes forced Manual/Confirmed status - split markers inherit original marker's status and source
+    - **Cleaner operation**: Uses `updateMarkerTimes` for original marker modification instead of delete-and-recreate pattern
+    - **Edge case handling**: Only creates new marker if there's remaining time after split point
+
 ### Phase 5: Cleanup and Optimization
 
 **Goal**: Remove old code and optimize performance
