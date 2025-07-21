@@ -60,7 +60,8 @@ import {
   loadMarkers,
   seekToTime,
   playVideo,
-  pauseVideo
+  pauseVideo,
+  togglePlayPause
 } from "../../store/slices/markerSlice";
 import { useConfig } from "@/contexts/ConfigContext";
 import Toast from "../components/Toast";
@@ -2041,7 +2042,7 @@ function MarkerPageContent() {
         case " ":
           event.preventDefault();
           // Toggle play/pause
-          dispatch(playVideo());
+          dispatch(togglePlayPause());
           break;
         case "j":
         case "J":
@@ -2053,7 +2054,7 @@ function MarkerPageContent() {
         case "K":
           event.preventDefault();
           // Toggle play/pause
-          dispatch(playVideo()); // This action will toggle play/pause in the video player
+          dispatch(togglePlayPause());
           break;
         case "l":
         case "L":

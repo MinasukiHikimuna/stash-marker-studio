@@ -244,11 +244,12 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
     - **Y/U keys**: Shot navigation using Redux selectors instead of direct video access - now working
     - **All video time references**: Replaced `videoElementRef.current.currentTime` with `currentVideoTime` selector
     - **Split marker functions**: Updated to use Redux state instead of direct video element access
-  - **KNOWN ISSUE**: K and Space keys currently call `playVideo()` which only starts playback but doesn't pause
-    - **TODO**: Create `togglePlayback` Redux action to properly toggle play/pause state
-    - **TODO**: Update VideoPlayer component to handle toggle logic
-    - **TODO**: Replace `dispatch(playVideo())` with `dispatch(togglePlayback())` for K and Space keys
-  - All keyboard shortcuts now work with Redux state and actions (except K/Space toggle issue)
+  - **FIXED**: K and Space keys now properly toggle playback using `togglePlayPause()` Redux action ✅
+    - **Implementation**: Used existing `togglePlayPause` action instead of creating new one
+    - **VideoPlayer**: Already handles toggle logic correctly via `pendingPlayPause` command pattern
+    - **Keyboard Shortcuts**: Updated K and Space keys to use `dispatch(togglePlayPause())` instead of `dispatch(playVideo())`
+    - **Enter Key**: Still uses `dispatch(playVideo())` as intended (start playback from marker, not toggle)
+  - All keyboard shortcuts now work with Redux state and actions ✅
 - [x] **Status**: Keyboard shortcuts are now functional and fully Redux-based
 - [x] **Note**: The `useMarkerKeyboardShortcuts` hook is not used in the current implementation - keyboard handling is inline in main marker page
 - [x] **Build Status**: Lint and build pass successfully with all keyboard shortcuts working
