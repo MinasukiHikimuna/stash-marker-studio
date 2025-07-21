@@ -12,3 +12,4 @@
 - Also if this is an option, perhaps zooming in/out will automatically lower the seek time window
 - Document how AI Collection works
 - Remove references in comments to manual being its own state
+- Handle marker splitting by not deleting the original but shortening it and creating a new one for the rest of it
