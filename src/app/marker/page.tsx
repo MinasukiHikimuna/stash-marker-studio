@@ -61,6 +61,7 @@ import {
   createMarker,
   duplicateMarker,
   splitMarker,
+  updateMarkerTimes,
   seekToTime,
   playVideo,
   pauseVideo,
@@ -1929,20 +1930,19 @@ function MarkerPageContent() {
         case "W":
           event.preventDefault();
           {
-            if (videoElementRef.current) {
-              const markerToUpdate = actionMarkers.find(
-                (m) => m.id === selectedMarkerId
-              );
-              if (markerToUpdate) {
-                // const newStartTime = videoElementRef.current.currentTime;
-                // const newEndTime = markerToUpdate.end_seconds ?? null;
-                // TODO: Replace with Redux thunk
-                // markerOps.updateMarkerTimes(
-                //   markerToUpdate.id,
-                //   newStartTime,
-                //   newEndTime
-                // );
-              }
+            const markerToUpdate = actionMarkers.find(
+              (m) => m.id === selectedMarkerId
+            );
+            if (markerToUpdate && scene) {
+              const newStartTime = currentVideoTime;
+              const newEndTime = markerToUpdate.end_seconds ?? null;
+              
+              dispatch(updateMarkerTimes({
+                sceneId: scene.id,
+                markerId: markerToUpdate.id,
+                startTime: newStartTime,
+                endTime: newEndTime
+              }));
             }
           }
           break;
@@ -1950,20 +1950,19 @@ function MarkerPageContent() {
         case "E":
           event.preventDefault();
           {
-            if (videoElementRef.current) {
-              const markerToSetEnd = actionMarkers.find(
-                (m) => m.id === selectedMarkerId
-              );
-              if (markerToSetEnd) {
-                // const newStartTime = markerToSetEnd.seconds;
-                // const newEndTime = videoElementRef.current.currentTime;
-                // TODO: Replace with Redux thunk
-                // markerOps.updateMarkerTimes(
-                //   markerToSetEnd.id,
-                //   newStartTime,
-                //   newEndTime
-                // );
-              }
+            const markerToSetEnd = actionMarkers.find(
+              (m) => m.id === selectedMarkerId
+            );
+            if (markerToSetEnd && scene) {
+              const newStartTime = markerToSetEnd.seconds;
+              const newEndTime = currentVideoTime;
+              
+              dispatch(updateMarkerTimes({
+                sceneId: scene.id,
+                markerId: markerToSetEnd.id,
+                startTime: newStartTime,
+                endTime: newEndTime
+              }));
             }
           }
           break;
