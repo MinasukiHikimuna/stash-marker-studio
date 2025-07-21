@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { useConfig } from "@/contexts/ConfigContext";
 import type { Scene, SceneMarker } from "../../services/StashappService";
 import { isMarkerRejected } from "../../core/marker/markerLogic";
-import { IncorrectMarkerData } from "../../core/marker/types";
+import { IncorrectMarker } from "../../utils/incorrectMarkerStorage";
 
 interface MarkerPageHeaderProps {
   scene: Scene | null;
   markers: SceneMarker[] | null;
-  incorrectMarkers: IncorrectMarkerData[];
+  incorrectMarkers: IncorrectMarker[];
   isLoading: boolean;
   checkAllMarkersApproved: () => boolean;
   onDeleteRejected: () => void;
