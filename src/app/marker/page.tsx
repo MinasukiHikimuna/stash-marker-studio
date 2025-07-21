@@ -13,6 +13,7 @@ import { MarkerWithTrack, TagGroup } from "../../core/marker/types";
 import { AITagConversionModal } from "../components/AITagConversionModal";
 import { TagAutocomplete } from "../../components/marker/TagAutocomplete";
 import { TempMarkerForm } from "../../components/marker/TempMarkerForm";
+import { MarkerPageHeader } from "../../components/marker/MarkerPageHeader";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import { useMarkerKeyboardShortcuts } from "../../hooks/useMarkerKeyboardShortcuts";
 import { useMarkerNavigation } from "../../hooks/useMarkerNavigation";
@@ -60,7 +61,6 @@ import {
   seekToTime,
   setError
 } from "../../store/slices/markerSlice";
-import { useConfig } from "@/contexts/ConfigContext";
 import Toast from "../components/Toast";
 import { useRouter } from "next/navigation";
 import { incorrectMarkerStorage } from "@/utils/incorrectMarkerStorage";
@@ -110,7 +110,6 @@ function MarkerPageContent() {
   // Temporary ref for video element compatibility - can be removed when VideoPlayer fully handles all video interactions
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const router = useRouter();
-  const { STASH_URL } = useConfig(); // STASH_API_KEY removed - now handled in VideoPlayer
 
   const [toastState, setToastState] = useState<ToastState>(null);
   const showToast = useCallback(
@@ -799,89 +798,17 @@ function MarkerPageContent() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      {/* Header Section */}
-      <div className="bg-gray-900 text-white px-6 py-4 border-b border-gray-700 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-bold">
-                {scene ? scene.title : "Scene Markers"}
-              </h1>
-              {scene && (
-                <a
-                  href={`${STASH_URL}/scenes/${scene.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-300 text-sm"
-                >
-                  View in Stash ↗
-                </a>
-              )}
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => router.push("/search")}
-                className="bg-blue-500 hover:bg-blue-700 text-white px-3 py-1.5 rounded-sm text-sm transition-colors"
-                title="Switch to a different scene"
-              >
-                Switch Scene
-              </button>
-              <button
-                onClick={handleDeleteRejectedMarkers}
-                disabled={
-                  isLoading || !markers?.some(isMarkerRejected)
-                }
-                title="Delete All Rejected Markers"
-                className="bg-red-500 hover:bg-red-700 text-white px-3 py-1.5 rounded-sm text-sm transition-colors"
-              >
-                Delete Rejected
-              </button>
-              <button
-                onClick={() =>
-                  dispatch(setCollectingModalOpen(true))
-                }
-                className={`px-3 py-1.5 rounded-sm text-sm font-medium transition-colors
-                  ${
-                    incorrectMarkers.length > 0
-                      ? "bg-purple-600 hover:bg-purple-700"
-                      : "bg-gray-600"
-                  } text-white`}
-                disabled={incorrectMarkers.length === 0}
-              >
-                Collect AI Feedback{" "}
-                {incorrectMarkers.length > 0 &&
-                  `(${incorrectMarkers.length})`}
-              </button>
-              <button
-                onClick={handleAIConversion}
-                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-sm text-sm transition-colors"
-              >
-                Convert AI Tags
-              </button>
-              <button
-                onClick={handleComplete}
-                disabled={isLoading}
-                className={`px-3 py-1.5 rounded-sm text-sm font-medium transition-colors ${
-                  !checkAllMarkersApproved()
-                    ? "bg-yellow-600 hover:bg-yellow-700 text-white"
-                    : "bg-green-600 hover:bg-green-700 text-white"
-                } disabled:bg-gray-600 disabled:cursor-not-allowed`}
-                title={
-                  !checkAllMarkersApproved()
-                    ? "Complete scene (some markers not approved - warnings will be shown)"
-                    : "Complete scene (generate markers, mark as reviewed, and clean up AI tags)"
-                }
-              >
-                {!checkAllMarkersApproved() ? "⚠️ Complete" : "Complete"}
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center">
-            {/* Space reserved for hamburger menu */}
-            <div className="w-10"></div>
-          </div>
-        </div>
-      </div>
+      <MarkerPageHeader
+        scene={scene}
+        markers={markers}
+        incorrectMarkers={incorrectMarkers}
+        isLoading={isLoading}
+        checkAllMarkersApproved={checkAllMarkersApproved}
+        onDeleteRejected={handleDeleteRejectedMarkers}
+        onOpenCollectModal={() => dispatch(setCollectingModalOpen(true))}
+        onAIConversion={handleAIConversion}
+        onComplete={handleComplete}
+      />
 
       {error && (
         <div className="w-full text-center p-4 bg-red-900 text-red-100 flex-shrink-0">
