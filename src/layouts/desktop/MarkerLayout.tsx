@@ -3,22 +3,43 @@ import { MarkerList } from "../../components/marker/list/MarkerList";
 import { MarkerHeader } from "../../components/marker/header/MarkerHeader";
 import { MarkerSummary } from "../../components/marker/summary/MarkerSummary";
 import Timeline from "../../components/Timeline";
-import { useMarker } from "../../contexts/MarkerContext";
 import { getActionMarkers } from "../../core/marker/markerLogic";
+import { useAppSelector, useAppDispatch } from "../../store/hooks";
+import {
+  selectScene,
+  selectMarkers,
+  selectSelectedMarkerId,
+  selectVideoDuration,
+  selectCurrentVideoTime,
+  selectIsCreatingMarker,
+  selectNewMarkerStartTime,
+  selectNewMarkerEndTime,
+  selectIsEditingMarker,
+  selectFilteredSwimlane,
+  setSelectedMarkerId,
+  setFilteredSwimlane,
+} from "../../store/slices/markerSlice";
 
 import { SceneMarker } from "../../services/StashappService";
 
 export function MarkerLayout() {
-  const { state, dispatch } = useMarker();
+  const dispatch = useAppDispatch();
+  const scene = useAppSelector(selectScene);
+  const markers = useAppSelector(selectMarkers);
+  const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
+  const videoDuration = useAppSelector(selectVideoDuration);
+  const currentTime = useAppSelector(selectCurrentVideoTime);
+  const isCreatingMarker = useAppSelector(selectIsCreatingMarker);
+  const newMarkerStartTime = useAppSelector(selectNewMarkerStartTime);
+  const newMarkerEndTime = useAppSelector(selectNewMarkerEndTime);
+  const isEditingMarker = useAppSelector(selectIsEditingMarker);
+  const filteredSwimlane = useAppSelector(selectFilteredSwimlane);
 
-  if (!state.scene) {
+  if (!scene || videoDuration === null) {
     return null;
   }
 
-  const actionMarkers = getActionMarkers(
-    state.markers || [],
-    state.filteredSwimlane
-  );
+  const actionMarkers = getActionMarkers(markers || [], filteredSwimlane);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -42,29 +63,28 @@ export function MarkerLayout() {
       {/* Timeline at the bottom */}
       <div className="border-t border-gray-300 flex-shrink-0">
         <Timeline
-          markers={state.markers || []}
+          markers={markers || []}
           actionMarkers={actionMarkers}
           selectedMarker={
-            actionMarkers && actionMarkers.length > 0 && state.selectedMarkerId
-              ? actionMarkers.find((m) => m.id === state.selectedMarkerId) ||
-                null
+            actionMarkers && actionMarkers.length > 0 && selectedMarkerId
+              ? actionMarkers.find((m) => m.id === selectedMarkerId) || null
               : null
           }
-          videoDuration={state.videoDuration}
-          currentTime={state.currentVideoTime}
+          videoDuration={videoDuration}
+          currentTime={currentTime}
           onMarkerClick={(marker: SceneMarker) => {
-            dispatch({ type: "SET_SELECTED_MARKER_ID", payload: marker.id });
+            dispatch(setSelectedMarkerId(marker.id));
           }}
-          selectedMarkerId={state.selectedMarkerId}
-          isCreatingMarker={state.isCreatingMarker}
-          newMarkerStartTime={state.newMarkerStartTime}
-          newMarkerEndTime={state.newMarkerEndTime}
-          isEditingMarker={state.isEditingMarker}
-          filteredSwimlane={state.filteredSwimlane}
+          selectedMarkerId={selectedMarkerId}
+          isCreatingMarker={isCreatingMarker}
+          newMarkerStartTime={newMarkerStartTime}
+          newMarkerEndTime={newMarkerEndTime}
+          isEditingMarker={isEditingMarker}
+          filteredSwimlane={filteredSwimlane}
           onSwimlaneFilter={(swimlane: string | null) => {
-            dispatch({ type: "SET_FILTERED_SWIMLANE", payload: swimlane });
+            dispatch(setFilteredSwimlane(swimlane));
           }}
-          scene={state.scene}
+          scene={scene}
           zoom={1} // We'll handle zoom state in a separate component
         />
       </div>
