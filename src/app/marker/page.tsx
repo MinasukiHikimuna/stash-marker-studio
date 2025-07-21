@@ -59,7 +59,8 @@ import {
   resetMarker,
   loadMarkers,
   seekToTime,
-  playVideo
+  playVideo,
+  pauseVideo
 } from "../../store/slices/markerSlice";
 import { useConfig } from "@/contexts/ConfigContext";
 import Toast from "../components/Toast";
@@ -516,7 +517,7 @@ function MarkerPageContent() {
       return;
     }
 
-    const currentTime = videoElementRef.current.currentTime;
+    const currentTime = currentVideoTime;
 
     console.log("Attempting to split marker:", {
       markerId: currentMarker.id,
@@ -592,10 +593,8 @@ function MarkerPageContent() {
 
       if (firstPartIndex >= 0) {
         dispatch(setSelectedMarkerId(firstPartMarker.id));
-        if (videoElementRef.current) {
-          videoElementRef.current.pause();
-          videoElementRef.current.currentTime = currentTime;
-        }
+        dispatch(pauseVideo());
+        dispatch(seekToTime(currentTime));
       }
     } catch (err) {
       console.error("Error splitting marker:", err);
@@ -605,14 +604,13 @@ function MarkerPageContent() {
     getActionMarkers,
     markers,
     selectedMarkerId,
+    currentVideoTime,
     dispatch,
   ]);
 
   // Split a Video Cut marker at the current playhead position
   const splitVideoCutMarker = useCallback(async () => {
-    if (!videoElementRef.current) return;
-
-    const currentTime = videoElementRef.current.currentTime;
+    const currentTime = currentVideoTime;
     const allMarkers = markers || [];
 
     // Find the Video Cut marker that contains the current time
@@ -666,7 +664,7 @@ function MarkerPageContent() {
       // TODO: Add proper error handling with Redux
       // dispatch(setError("Failed to split Video Cut marker"));
     }
-  }, [markers, dispatch, showToast]);
+  }, [markers, currentVideoTime, dispatch, showToast]);
 
   const createOrDuplicateMarker = useCallback(
     (sourceMarker?: SceneMarker) => {
@@ -693,7 +691,7 @@ function MarkerPageContent() {
       }
 
       const isDuplicate = !!sourceMarker;
-      const currentTime = videoElementRef.current.currentTime;
+      const currentTime = currentVideoTime;
 
       // Determine time values
       const startTime = isDuplicate ? sourceMarker.seconds : currentTime;
@@ -760,6 +758,7 @@ function MarkerPageContent() {
       availableTags,
       filteredSwimlane,
       markers,
+      currentVideoTime,
       dispatch,
     ]
   );
@@ -1210,32 +1209,26 @@ function MarkerPageContent() {
 
   // Navigate to next/previous shot
   const jumpToNextShot = useCallback(() => {
-    if (!videoElementRef.current) return;
-
     const shotBoundaries = getShotBoundaries();
-    const currentTime = videoElementRef.current.currentTime;
     const nextShot = shotBoundaries.find(
-      (shot) => shot.seconds > currentTime + 0.1
+      (shot) => shot.seconds > currentVideoTime + 0.1
     );
 
     if (nextShot) {
-      videoElementRef.current.currentTime = nextShot.seconds;
+      dispatch(seekToTime(nextShot.seconds));
     }
-  }, [getShotBoundaries]);
+  }, [getShotBoundaries, currentVideoTime, dispatch]);
 
   const jumpToPreviousShot = useCallback(() => {
-    if (!videoElementRef.current) return;
-
     const shotBoundaries = getShotBoundaries();
-    const currentTime = videoElementRef.current.currentTime;
     const previousShot = [...shotBoundaries]
       .reverse()
-      .find((shot) => shot.seconds < currentTime - 0.1);
+      .find((shot) => shot.seconds < currentVideoTime - 0.1);
 
     if (previousShot) {
-      videoElementRef.current.currentTime = previousShot.seconds;
+      dispatch(seekToTime(previousShot.seconds));
     }
-  }, [getShotBoundaries]);
+  }, [getShotBoundaries, currentVideoTime, dispatch]);
 
   // Helper function to find next unprocessed marker
   const findNextUnprocessedMarker = useCallback((): string | null => {
@@ -2021,7 +2014,7 @@ function MarkerPageContent() {
               "[data-timeline-container]"
             ) as HTMLElement;
             if (timelineElement) {
-              const currentTime = videoElementRef.current.currentTime;
+              const currentTime = currentVideoTime;
               // Calculate pixels per second based on timeline's actual width and video duration
               const timelineContent =
                 timelineElement.firstElementChild as HTMLElement;
@@ -2072,34 +2065,20 @@ function MarkerPageContent() {
           break;
         case ",":
           event.preventDefault();
-          if (videoElementRef.current) {
-            // Pause video first to ensure frame stepping works properly
-            const wasPlaying = !videoElementRef.current.paused;
-            if (wasPlaying) {
-              videoElementRef.current.pause();
-            }
-            // Use 1/30 second for frame stepping (30fps)
-            const frameTime = 1 / 30;
-            videoElementRef.current.currentTime = Math.max(
-              videoElementRef.current.currentTime - frameTime,
-              0
-            );
-          }
+          // Pause video first to ensure frame stepping works properly
+          dispatch(pauseVideo());
+          // Use 1/30 second for frame stepping (30fps)
+          const frameTime = 1 / 30;
+          dispatch(seekToTime(Math.max(currentVideoTime - frameTime, 0)));
           break;
         case ".":
           event.preventDefault();
-          if (videoElementRef.current) {
-            // Pause video first to ensure frame stepping works properly
-            const wasPlaying = !videoElementRef.current.paused;
-            if (wasPlaying) {
-              videoElementRef.current.pause();
-            }
-            // Use 1/30 second for frame stepping (30fps)
-            const frameTime = 1 / 30;
-            videoElementRef.current.currentTime = Math.min(
-              videoElementRef.current.currentTime + frameTime,
-              videoElementRef.current.duration || 0
-            );
+          // Pause video first to ensure frame stepping works properly
+          dispatch(pauseVideo());
+          // Use 1/30 second for frame stepping (30fps)
+          const frameTimeForward = 1 / 30;
+          if (videoDuration) {
+            dispatch(seekToTime(Math.min(currentVideoTime + frameTimeForward, videoDuration)));
           }
           break;
 
@@ -2107,39 +2086,35 @@ function MarkerPageContent() {
         case "i":
         case "I":
           event.preventDefault();
-          if (videoElementRef.current) {
-            if (hasShift) {
-              // Shift+I: Jump to beginning of scene
-              videoElementRef.current.currentTime = 0;
-            } else {
-              // I: Jump to start of current marker
-              const marker = actionMarkers.find(
-                (m) => m.id === selectedMarkerId
-              );
-              if (marker) {
-                videoElementRef.current.currentTime = marker.seconds;
-              }
+          if (hasShift) {
+            // Shift+I: Jump to beginning of scene
+            dispatch(seekToTime(0));
+          } else {
+            // I: Jump to start of current marker
+            const marker = actionMarkers.find(
+              (m) => m.id === selectedMarkerId
+            );
+            if (marker) {
+              dispatch(seekToTime(marker.seconds));
             }
           }
           break;
         case "o":
         case "O":
           event.preventDefault();
-          if (videoElementRef.current) {
-            if (hasShift) {
-              // Shift+O: Jump to end of scene
-              if (videoDuration && videoDuration > 0) {
-                videoElementRef.current.currentTime = videoDuration;
-              }
-            } else {
-              // O: Jump to end of current marker
-              const marker = actionMarkers.find(
-                (m) => m.id === selectedMarkerId
-              );
-              if (marker) {
-                const endTime = marker.end_seconds ?? marker.seconds + 1;
-                videoElementRef.current.currentTime = endTime;
-              }
+          if (hasShift) {
+            // Shift+O: Jump to end of scene
+            if (videoDuration && videoDuration > 0) {
+              dispatch(seekToTime(videoDuration));
+            }
+          } else {
+            // O: Jump to end of current marker
+            const marker = actionMarkers.find(
+              (m) => m.id === selectedMarkerId
+            );
+            if (marker) {
+              const endTime = marker.end_seconds ?? marker.seconds + 1;
+              dispatch(seekToTime(endTime));
             }
           }
           break;
@@ -2159,14 +2134,12 @@ function MarkerPageContent() {
         // Enter key - Start playback from current marker
         case "Enter":
           event.preventDefault();
-          if (videoElementRef.current) {
-            const marker = actionMarkers.find(
-              (m) => m.id === selectedMarkerId
-            );
-            if (marker) {
-              videoElementRef.current.currentTime = marker.seconds;
-              videoElementRef.current.play();
-            }
+          const marker = actionMarkers.find(
+            (m) => m.id === selectedMarkerId
+          );
+          if (marker) {
+            dispatch(seekToTime(marker.seconds));
+            dispatch(playVideo());
           }
           break;
 

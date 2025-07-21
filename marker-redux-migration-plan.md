@@ -237,7 +237,18 @@ This plan outlines the step-by-step migration of the Marker page from React Cont
     - Video seeking now uses `dispatch(seekToTime(time))` instead of `videoElementRef.current.currentTime = time`
     - Video play/pause uses `dispatch(playVideo())` instead of `videoElementRef.current.play()/pause()`
     - Uses `currentVideoTime` and `videoDuration` from Redux selectors instead of DOM access
-  - All keyboard shortcuts now work with Redux state and actions
+  - **ADDITIONAL FIXES (2025-07-21)**: Fixed remaining video shortcuts and navigation:
+    - **I/O keys**: Jump to marker start/end and scene start/end using `dispatch(seekToTime())` - now working
+    - **Enter key**: Play from current marker using `dispatch(seekToTime())` + `dispatch(playVideo())` - now working
+    - **Comma/Period keys**: Frame stepping using `dispatch(pauseVideo())` + `dispatch(seekToTime())` - now working
+    - **Y/U keys**: Shot navigation using Redux selectors instead of direct video access - now working
+    - **All video time references**: Replaced `videoElementRef.current.currentTime` with `currentVideoTime` selector
+    - **Split marker functions**: Updated to use Redux state instead of direct video element access
+  - **KNOWN ISSUE**: K and Space keys currently call `playVideo()` which only starts playback but doesn't pause
+    - **TODO**: Create `togglePlayback` Redux action to properly toggle play/pause state
+    - **TODO**: Update VideoPlayer component to handle toggle logic
+    - **TODO**: Replace `dispatch(playVideo())` with `dispatch(togglePlayback())` for K and Space keys
+  - All keyboard shortcuts now work with Redux state and actions (except K/Space toggle issue)
 - [x] **Status**: Keyboard shortcuts are now functional and fully Redux-based
 - [x] **Note**: The `useMarkerKeyboardShortcuts` hook is not used in the current implementation - keyboard handling is inline in main marker page
 - [x] **Build Status**: Lint and build pass successfully with all keyboard shortcuts working
