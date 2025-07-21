@@ -47,6 +47,11 @@ import {
   setCollectingModalOpen,
   setCreatingMarker,
   setDuplicatingMarker,
+  setKeyboardShortcutsModalOpen,
+  setMarkers,
+  setIncorrectMarkers,
+  setCopiedMarkerTimes,
+  setCurrentVideoTime,
   setVideoDuration,
   initializeMarkerPage
 } from "../../store/slices/markerSlice";
@@ -440,7 +445,7 @@ function MarkerPageContent() {
 
   // TODO: Replace useMarkerOperations with direct Redux thunk dispatches
   // For now, skip this - will be handled in Phase 4
-  const markerOps = null; // useMarkerOperations({ state, dispatch });
+  // const markerOps = null; // useMarkerOperations({ state, dispatch });
   const refreshMarkersOnly = null; // markerOps?.refreshMarkersOnly;
 
   const handleEditMarker = useCallback((marker: SceneMarker) => {
@@ -464,7 +469,7 @@ function MarkerPageContent() {
       setEditingMarkerId(null);
       setEditingTagId("");
     },
-    [editingTagId, markerOps]
+    [editingTagId]
   );
 
   const handleCancelEdit = useCallback(() => {
@@ -520,10 +525,8 @@ function MarkerPageContent() {
       (currentMarker.end_seconds && currentTime >= currentMarker.end_seconds)
     ) {
       console.log("Split failed: Current time not within marker range");
-      dispatch({
-        type: "SET_ERROR",
-        payload: "Current time must be within the marker's range to split it",
-      });
+      // TODO: Add proper error handling with Redux
+      // dispatch(setError("Current time must be within the marker's range to split it"));
       return;
     }
 
@@ -567,10 +570,7 @@ function MarkerPageContent() {
         .concat([firstPartMarker, secondPartMarker])
         .sort((a, b) => a.seconds - b.seconds);
 
-      dispatch({
-        type: "SET_MARKERS",
-        payload: updatedMarkers,
-      });
+      dispatch(setMarkers(updatedMarkers));
 
       const updatedActionMarkers = updatedMarkers.filter(
         (m) => m.id.startsWith("temp-") || !isShotBoundaryMarker(m)
@@ -585,10 +585,7 @@ function MarkerPageContent() {
       });
 
       if (firstPartIndex >= 0) {
-        dispatch({
-          type: "SET_SELECTED_MARKER_ID",
-          payload: firstPartMarker.id,
-        });
+        dispatch(setSelectedMarkerId(firstPartMarker.id));
         if (videoElementRef.current) {
           videoElementRef.current.pause();
           videoElementRef.current.currentTime = currentTime;
@@ -602,7 +599,6 @@ function MarkerPageContent() {
     getActionMarkers,
     markers,
     selectedMarkerId,
-    videoElementRef.current,
     dispatch,
   ]);
 
@@ -623,10 +619,8 @@ function MarkerPageContent() {
     );
 
     if (!videoCutMarker || !videoCutMarker.end_seconds) {
-      dispatch({
-        type: "SET_ERROR",
-        payload: "No Video Cut marker found at current position",
-      });
+      // TODO: Add proper error handling with Redux
+      // dispatch(setError("No Video Cut marker found at current position"));
       return;
     }
 
@@ -657,21 +651,16 @@ function MarkerPageContent() {
         .concat([firstMarker, secondMarker])
         .sort((a, b) => a.seconds - b.seconds);
 
-      dispatch({
-        type: "SET_MARKERS",
-        payload: updatedMarkers,
-      });
+      dispatch(setMarkers(updatedMarkers));
 
       // Show success message
       showToast("Video Cut marker split successfully", "success");
     } catch (err) {
       console.error("Error splitting Video Cut marker:", err);
-      dispatch({
-        type: "SET_ERROR",
-        payload: "Failed to split Video Cut marker",
-      });
+      // TODO: Add proper error handling with Redux
+      // dispatch(setError("Failed to split Video Cut marker"));
     }
-  }, [markers, videoElementRef.current, dispatch, showToast]);
+  }, [markers, dispatch, showToast]);
 
   const createOrDuplicateMarker = useCallback(
     (sourceMarker?: SceneMarker) => {
@@ -691,11 +680,8 @@ function MarkerPageContent() {
         }
         if (!availableTags?.length) {
           console.log("Failed to create marker: No available tags");
-          dispatch({
-            type: "SET_ERROR",
-            payload:
-              "No tags available. Please wait for tags to load or check if tags exist in Stash.",
-          });
+          // TODO: Add proper error handling with Redux
+          // dispatch(setError("No tags available. Please wait for tags to load or check if tags exist in Stash."));
         }
         return;
       }
@@ -755,18 +741,15 @@ function MarkerPageContent() {
         (a, b) => a.seconds - b.seconds
       );
 
-      dispatch({
-        type: "SET_MARKERS",
-        payload: updatedMarkers,
-      });
+      dispatch(setMarkers(updatedMarkers));
       dispatch(setSelectedMarkerId(tempMarker.id));
-      dispatch({
-        type: isDuplicate ? "SET_DUPLICATING_MARKER" : "SET_CREATING_MARKER",
-        payload: true,
-      });
+      if (isDuplicate) {
+        dispatch(setDuplicatingMarker(true));
+      } else {
+        dispatch(setCreatingMarker(true));
+      }
     },
     [
-      videoElementRef.current,
       scene,
       availableTags,
       filteredSwimlane,
@@ -813,10 +796,7 @@ function MarkerPageContent() {
       end: currentMarker.end_seconds,
     };
 
-    dispatch({
-      type: "SET_COPIED_MARKER_TIMES",
-      payload: copiedTimes,
-    });
+    dispatch(setCopiedMarkerTimes(copiedTimes));
 
     // Show toast notification
     const endTimeStr = copiedTimes.end
@@ -874,7 +854,6 @@ function MarkerPageContent() {
       showToast("Failed to paste marker times", "error");
     }
   }, [
-    markerOps,
     copiedMarkerTimes,
     getActionMarkers,
     selectedMarkerId,
@@ -892,12 +871,10 @@ function MarkerPageContent() {
       dispatch(setRejectedMarkers([]));
     } catch (err) {
       console.error("Error deleting rejected markers:", err);
-      dispatch({
-        type: "SET_ERROR",
-        payload: "Failed to delete rejected markers",
-      });
+      // TODO: Add proper error handling with Redux
+      // dispatch(setError("Failed to delete rejected markers"));
     }
-  }, [rejectedMarkers, refreshMarkersOnly, dispatch]);
+  }, [rejectedMarkers, dispatch]);
 
   const handleAIConversion = useCallback(async () => {
     const actionMarkers = getActionMarkers();
@@ -911,10 +888,8 @@ function MarkerPageContent() {
       dispatch(setAIConversionModalOpen(true));
     } catch (err) {
       console.error("Error preparing AI conversion:", err);
-      dispatch({
-        type: "SET_ERROR",
-        payload: "Failed to prepare AI markers for conversion",
-      });
+      // TODO: Add proper error handling with Redux
+      // dispatch(setError("Failed to prepare AI markers for conversion"));
     }
   }, [getActionMarkers, dispatch]);
 
@@ -932,7 +907,7 @@ function MarkerPageContent() {
       console.error("Error converting AI markers:", err);
       throw err; // Let the modal handle the error display
     }
-  }, [confirmedAIMarkers, refreshMarkersOnly]);
+  }, [confirmedAIMarkers]);
 
   // Check if all markers are approved (confirmed, rejected, or manual)
   const checkAllMarkersApproved = useCallback(() => {
@@ -1202,10 +1177,8 @@ function MarkerPageContent() {
   }, [
     getActionMarkers,
     videoCutMarkersToDelete,
-    refreshMarkersOnly,
     scene,
     identifyAITagsToRemove,
-    dispatch,
   ]);
 
   // Update handleMarkerClick to use marker IDs
@@ -1242,7 +1215,7 @@ function MarkerPageContent() {
     if (nextShot) {
       videoElementRef.current.currentTime = nextShot.seconds;
     }
-  }, [videoElementRef.current, getShotBoundaries]);
+  }, [getShotBoundaries]);
 
   const jumpToPreviousShot = useCallback(() => {
     if (!videoElementRef.current) return;
@@ -1256,7 +1229,7 @@ function MarkerPageContent() {
     if (previousShot) {
       videoElementRef.current.currentTime = previousShot.seconds;
     }
-  }, [videoElementRef.current, getShotBoundaries]);
+  }, [getShotBoundaries]);
 
   // Helper function to find next unprocessed marker
   const findNextUnprocessedMarker = useCallback((): string | null => {
@@ -1419,10 +1392,7 @@ function MarkerPageContent() {
       if (!currentMarker) {
         // If no marker is selected, select the first one
         if (actionMarkers.length > 0) {
-          dispatch({
-            type: "SET_SELECTED_MARKER_ID",
-            payload: actionMarkers[0].id,
-          });
+          dispatch(setSelectedMarkerId(actionMarkers[0].id));
         }
         return;
       }
@@ -1468,10 +1438,7 @@ function MarkerPageContent() {
       if (!currentMarker) {
         // If no marker is selected, select the first one
         if (actionMarkers.length > 0) {
-          dispatch({
-            type: "SET_SELECTED_MARKER_ID",
-            payload: actionMarkers[0].id,
-          });
+          dispatch(setSelectedMarkerId(actionMarkers[0].id));
         }
         return;
       }
@@ -1548,10 +1515,7 @@ function MarkerPageContent() {
       if (!currentMarker) {
         // If no marker is selected, select the first one
         if (actionMarkers.length > 0) {
-          dispatch({
-            type: "SET_SELECTED_MARKER_ID",
-            payload: actionMarkers[0].id,
-          });
+          dispatch(setSelectedMarkerId(actionMarkers[0].id));
         }
         return;
       }
@@ -1744,20 +1708,11 @@ function MarkerPageContent() {
               }
 
               if (currentMarkerId) {
-                dispatch({
-                  type: "SET_SELECTED_MARKER_ID",
-                  payload: currentMarkerId,
-                });
+                dispatch(setSelectedMarkerId(currentMarkerId));
               } else if (newFilteredMarkers.length > 0) {
-                dispatch({
-                  type: "SET_SELECTED_MARKER_ID",
-                  payload: newFilteredMarkers[0].id,
-                });
+                dispatch(setSelectedMarkerId(newFilteredMarkers[0].id));
               } else {
-                dispatch({
-                  type: "SET_SELECTED_MARKER_ID",
-                  payload: null,
-                });
+                dispatch(setSelectedMarkerId(null));
               }
             }, 0);
           } else if (filteredSwimlane) {
@@ -1842,10 +1797,7 @@ function MarkerPageContent() {
                 // Find and select next unprocessed marker in the same swimlane
                 const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
                 if (nextMarkerId) {
-                  dispatch({
-                    type: "SET_SELECTED_MARKER_ID",
-                    payload: nextMarkerId,
-                  });
+                  dispatch(setSelectedMarkerId(nextMarkerId));
                 }
               }
             }
@@ -1872,10 +1824,7 @@ function MarkerPageContent() {
                 // Find and select next unprocessed marker in the same swimlane
                 const nextMarkerId = findNextUnprocessedMarkerInSwimlane();
                 if (nextMarkerId) {
-                  dispatch({
-                    type: "SET_SELECTED_MARKER_ID",
-                    payload: nextMarkerId,
-                  });
+                  dispatch(setSelectedMarkerId(nextMarkerId));
                 }
               }
             }
@@ -1925,12 +1874,9 @@ function MarkerPageContent() {
               }
 
               // Update state
-              dispatch({
-                type: "SET_INCORRECT_MARKERS",
-                payload: incorrectMarkerStorage.getIncorrectMarkers(
+              dispatch(setIncorrectMarkers(incorrectMarkerStorage.getIncorrectMarkers(
                   scene.id
-                ),
-              });
+                )));
             }
           }
           break;
@@ -1941,19 +1887,13 @@ function MarkerPageContent() {
             // Shift+N: Global search
             const prevMarkerId = findPreviousUnprocessedMarker();
             if (prevMarkerId) {
-              dispatch({
-                type: "SET_SELECTED_MARKER_ID",
-                payload: prevMarkerId,
-              });
+              dispatch(setSelectedMarkerId(prevMarkerId));
             }
           } else {
             // N: Swimlane search
             const prevMarkerId = findPreviousUnprocessedMarkerInSwimlane();
             if (prevMarkerId) {
-              dispatch({
-                type: "SET_SELECTED_MARKER_ID",
-                payload: prevMarkerId,
-              });
+              dispatch(setSelectedMarkerId(prevMarkerId));
             }
           }
           break;
@@ -1965,10 +1905,7 @@ function MarkerPageContent() {
             // Shift+M: Global search
             const nextMarkerId = findNextUnprocessedMarker();
             if (nextMarkerId) {
-              dispatch({
-                type: "SET_SELECTED_MARKER_ID",
-                payload: nextMarkerId,
-              });
+              dispatch(setSelectedMarkerId(nextMarkerId));
             }
           } else {
             // M: Swimlane search
@@ -2252,19 +2189,13 @@ function MarkerPageContent() {
             // Shift+N: Global search
             const prevMarkerId = findPreviousUnprocessedMarker();
             if (prevMarkerId) {
-              dispatch({
-                type: "SET_SELECTED_MARKER_ID",
-                payload: prevMarkerId,
-              });
+              dispatch(setSelectedMarkerId(prevMarkerId));
             }
           } else {
             // N: Swimlane search
             const prevMarkerId = findPreviousUnprocessedMarkerInSwimlane();
             if (prevMarkerId) {
-              dispatch({
-                type: "SET_SELECTED_MARKER_ID",
-                payload: prevMarkerId,
-              });
+              dispatch(setSelectedMarkerId(prevMarkerId));
             }
           }
           break;
@@ -2276,10 +2207,7 @@ function MarkerPageContent() {
             // Shift+M: Global search
             const nextMarkerId = findNextUnprocessedMarker();
             if (nextMarkerId) {
-              dispatch({
-                type: "SET_SELECTED_MARKER_ID",
-                payload: nextMarkerId,
-              });
+              dispatch(setSelectedMarkerId(nextMarkerId));
             }
           } else {
             // M: Swimlane search
@@ -2312,7 +2240,6 @@ function MarkerPageContent() {
     },
     [
       actionMarkers,
-      refreshMarkersOnly,
       fetchData,
       editingMarkerId,
       handleCancelEdit,
@@ -2338,7 +2265,6 @@ function MarkerPageContent() {
       handleCreateMarker,
       splitCurrentMarker,
       handleEditMarker,
-      markerOps,
       copyMarkerTimes,
       pasteMarkerTimes,
       zoomIn,
@@ -2457,29 +2383,25 @@ function MarkerPageContent() {
 
   // Update video duration and current time
   useEffect(() => {
-    if (videoElementRef.current) {
+    const video = videoElementRef.current;
+    if (video) {
       const handleLoadedMetadata = () => {
         if (videoElementRef.current) {
-          dispatch({
-            type: "SET_VIDEO_DURATION",
-            payload: videoElementRef.current.duration,
-          });
+          dispatch(setVideoDuration(videoElementRef.current.duration));
         }
       };
-      videoElementRef.current.addEventListener(
+      video.addEventListener(
         "loadedmetadata",
         handleLoadedMetadata
       );
       return () => {
-        if (videoElementRef.current) {
-          videoElementRef.current.removeEventListener(
-            "loadedmetadata",
-            handleLoadedMetadata
-          );
-        }
+        video.removeEventListener(
+          "loadedmetadata",
+          handleLoadedMetadata
+        );
       };
     }
-  }, [videoElementRef.current, dispatch]);
+  }, [dispatch]);
 
   // Load incorrect markers when scene changes
   useEffect(() => {
@@ -2487,21 +2409,15 @@ function MarkerPageContent() {
       const incorrectMarkers = incorrectMarkerStorage.getIncorrectMarkers(
         scene.id
       );
-      dispatch({
-        type: "SET_INCORRECT_MARKERS",
-        payload: incorrectMarkers,
-      });
+      dispatch(setIncorrectMarkers(incorrectMarkers));
     }
   }, [scene?.id, dispatch]);
 
   const updateCurrentTime = useCallback(() => {
     if (videoElementRef.current) {
-      dispatch({
-        type: "SET_CURRENT_VIDEO_TIME",
-        payload: videoElementRef.current.currentTime,
-      });
+      dispatch(setCurrentVideoTime(videoElementRef.current.currentTime));
     }
-  }, [videoElementRef.current, dispatch]);
+  }, [dispatch]);
 
   // Effect to update current time from video
   useEffect(() => {
@@ -2524,17 +2440,14 @@ function MarkerPageContent() {
         video.removeEventListener("seeked", updateCurrentTime);
       };
     }
-  }, [videoElementRef.current, updateCurrentTime, dispatch]);
+  }, [updateCurrentTime, dispatch]);
 
   useEffect(() => {
     if (scene) {
       const incorrectMarkers = incorrectMarkerStorage.getIncorrectMarkers(
         scene.id
       );
-      dispatch({
-        type: "SET_INCORRECT_MARKERS",
-        payload: incorrectMarkers,
-      });
+      dispatch(setIncorrectMarkers(incorrectMarkers));
     }
   }, [scene, dispatch]);
 
@@ -2794,10 +2707,7 @@ function MarkerPageContent() {
                   <div className="flex items-center space-x-4">
                     <button
                       onClick={() =>
-                        dispatch({
-                          type: "SET_KEYBOARD_SHORTCUTS_MODAL_OPEN",
-                          payload: true,
-                        })
+                        dispatch(setKeyboardShortcutsModalOpen(true))
                       }
                       className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-sm text-sm transition-colors flex items-center space-x-1"
                       title="Show keyboard shortcuts"
@@ -2889,18 +2799,9 @@ function MarkerPageContent() {
                                   ].sort((a, b) => a.seconds - b.seconds);
 
                                   // Update state with new markers and clear creating flags atomically
-                                  dispatch({
-                                    type: "SET_MARKERS",
-                                    payload: updatedMarkers,
-                                  });
-                                  dispatch({
-                                    type: "SET_CREATING_MARKER",
-                                    payload: false,
-                                  });
-                                  dispatch({
-                                    type: "SET_DUPLICATING_MARKER",
-                                    payload: false,
-                                  });
+                                  dispatch(setMarkers(updatedMarkers));
+                                  dispatch(setCreatingMarker(false));
+                                  dispatch(setDuplicatingMarker(false));
 
                                   // Use setTimeout to ensure markers state has been updated before updating selected index
                                   setTimeout(() => {
@@ -2939,10 +2840,7 @@ function MarkerPageContent() {
                                         "Selecting marker at index:",
                                         newMarkerIndex
                                       );
-                                      dispatch({
-                                        type: "SET_SELECTED_MARKER_ID",
-                                        payload: createdMarker.id,
-                                      });
+                                      dispatch(setSelectedMarkerId(createdMarker.id));
                                     } else {
                                       console.error(
                                         "Created marker not found in action markers list"
@@ -2968,18 +2866,9 @@ function MarkerPageContent() {
                                   const realMarkers = markers.filter(
                                     (m) => !m.id.startsWith("temp-")
                                   );
-                                  dispatch({
-                                    type: "SET_MARKERS",
-                                    payload: realMarkers,
-                                  });
-                                  dispatch({
-                                    type: "SET_CREATING_MARKER",
-                                    payload: false,
-                                  });
-                                  dispatch({
-                                    type: "SET_DUPLICATING_MARKER",
-                                    payload: false,
-                                  });
+                                  dispatch(setMarkers(realMarkers));
+                                  dispatch(setCreatingMarker(false));
+                                  dispatch(setDuplicatingMarker(false));
                                 }
                               }}
                               onCancel={() => {
@@ -2994,24 +2883,12 @@ function MarkerPageContent() {
                                 // Reset selected marker to first marker
                                 const actionMarkers = getActionMarkers();
                                 if (actionMarkers.length > 0) {
-                                  dispatch({
-                                    type: "SET_SELECTED_MARKER_ID",
-                                    payload: actionMarkers[0].id,
-                                  });
+                                  dispatch(setSelectedMarkerId(actionMarkers[0].id));
                                 } else {
-                                  dispatch({
-                                    type: "SET_SELECTED_MARKER_ID",
-                                    payload: null,
-                                  });
+                                  dispatch(setSelectedMarkerId(null));
                                 }
-                                dispatch({
-                                  type: "SET_CREATING_MARKER",
-                                  payload: false,
-                                });
-                                dispatch({
-                                  type: "SET_DUPLICATING_MARKER",
-                                  payload: false,
-                                });
+                                dispatch(setCreatingMarker(false));
+                                dispatch(setDuplicatingMarker(false));
                               }}
                               isDuplicate={marker.id === "temp-duplicate"}
                             />
@@ -3254,10 +3131,7 @@ function MarkerPageContent() {
       <KeyboardShortcutsModal
         isOpen={isKeyboardShortcutsModalOpen}
         onClose={() =>
-          dispatch({
-            type: "SET_KEYBOARD_SHORTCUTS_MODAL_OPEN",
-            payload: false,
-          })
+          dispatch(setKeyboardShortcutsModalOpen(false))
         }
       />
 
@@ -3443,21 +3317,15 @@ function MarkerPageContent() {
                 scene.id,
                 markerId
               );
-              dispatch({
-                type: "SET_INCORRECT_MARKERS",
-                payload: incorrectMarkerStorage.getIncorrectMarkers(
+              dispatch(setIncorrectMarkers(incorrectMarkerStorage.getIncorrectMarkers(
                   scene.id
-                ),
-              });
+                )));
             }
           }}
           onConfirm={async () => {
             if (scene?.id) {
               incorrectMarkerStorage.clearIncorrectMarkers(scene.id);
-              dispatch({
-                type: "SET_INCORRECT_MARKERS",
-                payload: [],
-              });
+              dispatch(setIncorrectMarkers([]));
             }
           }}
           refreshMarkersOnly={refreshMarkersOnly || (() => Promise.resolve())}
