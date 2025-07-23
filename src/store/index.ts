@@ -1,12 +1,14 @@
 import { configureStore } from '@reduxjs/toolkit';
 import searchReducer from './slices/searchSlice';
 import markerReducer from './slices/markerSlice';
+import configReducer from './slices/configSlice';
 import { persistenceMiddleware } from './middleware/persistenceMiddleware';
 
 export const store = configureStore({
   reducer: {
     search: searchReducer,
     marker: markerReducer,
+    config: configReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

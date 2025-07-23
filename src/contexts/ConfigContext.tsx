@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import type { AppConfig } from "@/serverConfig";
 import { stashappService } from "@/services/StashappService";
+import { useAppDispatch } from "@/store/hooks";
+import { setConfig as setReduxConfig } from "@/store/slices/configSlice";
 
 interface ConfigContextValue {
   config: AppConfig | null;
@@ -26,6 +28,7 @@ interface ConfigProviderProps {
 
 export function ConfigProvider({ children }: ConfigProviderProps) {
   const [config, setConfig] = useState<AppConfig | null>(null);
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     async function load() {
@@ -35,12 +38,17 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
         const json = (await res.json()) as AppConfig;
         stashappService.applyConfig(json);
         setConfig(json);
+        
+        // Dispatch config to Redux store
+        dispatch(setReduxConfig({
+          markerGroupParentId: json.MARKER_GROUP_PARENT_ID,
+        }));
       } catch (err) {
         console.error("Failed to load configuration", err);
       }
     }
     load();
-  }, []);
+  }, [dispatch]);
 
   if (!config) return null; // or loading indicator
 
