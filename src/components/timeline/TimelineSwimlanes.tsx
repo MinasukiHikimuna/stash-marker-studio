@@ -9,7 +9,7 @@ import {
   isMarkerConfirmed,
   isMarkerRejected,
 } from "../../core/marker/markerLogic";
-import { getMarkerGroupName } from "../../core/marker/markerGrouping";
+import { getMarkerGroupName, getTrackCountsByGroup, createMarkersWithTracks } from "../../core/marker/markerGrouping";
 
 type TimelineSwimlanesProps = {
   markerGroups: TagGroup[];
@@ -80,10 +80,26 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
     return null;
   }
 
+  // Calculate track counts for each group to determine swimlane heights
+  const trackCountsByGroup = getTrackCountsByGroup(markerGroups);
+  
+  // Create markers with track assignments for proper positioning
+  const markersWithTracks = createMarkersWithTracks(markerGroups);
+  
+  // Define track height constants
+  const TRACK_HEIGHT = 24; // Height per track in pixels
+  const TRACK_SPACING = 2; // Spacing between tracks
+  const SWIMLANE_PADDING = 4; // Padding at top and bottom of swimlane
+
   return (
     <div>
       {markerGroups.map((group, index) => {
         const markerGroup = getMarkerGroupName(group.markers[0], markerGroupParentId);
+        const trackCount = trackCountsByGroup[group.name] || 1;
+        const swimlaneHeight = (trackCount * TRACK_HEIGHT) + ((trackCount - 1) * TRACK_SPACING) + SWIMLANE_PADDING;
+        
+        // Get markers with track assignments for this group
+        const groupMarkersWithTracks = markersWithTracks.filter(m => m.tagGroup === group.name);
         
         // Calculate status counts
         const counts = {
@@ -96,50 +112,64 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
         
         return (
           <div key={group.name} className="flex">
-            {/* Left: Tag label */}
-            <div className="flex-shrink-0 w-48 bg-gray-900 border-r border-gray-600">
-              <div
-                className={`
-                  h-8 flex items-center px-3 text-sm cursor-pointer transition-colors
-                  ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-850'}
-                  ${filteredSwimlane === group.name ? 'bg-blue-600' : ''}
-                  ${group.isRejected ? 'bg-red-900/40' : ''}
-                  hover:bg-gray-700
-                `}
-                onClick={() => {
-                  if (onSwimlaneFilter) {
-                    const newFilter = filteredSwimlane === group.name ? null : group.name;
-                    onSwimlaneFilter(newFilter);
-                  }
-                }}
-              >
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2 truncate">
-                    {markerGroup && (
-                      <span className="text-blue-300 text-xs">
-                        {markerGroup.displayName}:
-                      </span>
-                    )}
-                    <span className="text-gray-200">
-                      {group.name}
-                      {group.isRejected && " (R)"}
-                      {filteredSwimlane === group.name && " 🔍"}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center gap-1 text-xs">
-                    {counts.confirmed > 0 && (
-                      <span className="text-green-400">✓{counts.confirmed}</span>
-                    )}
-                    {counts.rejected > 0 && (
-                      <span className="text-red-400">✗{counts.rejected}</span>
-                    )}
-                    {counts.pending > 0 && (
-                      <span className="text-yellow-400">?{counts.pending}</span>
-                    )}
-                  </div>
+            {/* Left: Tag label - render multiple rows for multi-track swimlanes */}
+            <div className="flex-shrink-0 w-48 bg-gray-900 border-r border-gray-600 flex flex-col">
+              {Array.from({ length: trackCount }).map((_, trackIndex) => (
+                <div
+                  key={trackIndex}
+                  className={`
+                    flex items-center px-3 text-sm cursor-pointer transition-colors
+                    ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-850'}
+                    ${filteredSwimlane === group.name ? 'bg-blue-600' : ''}
+                    ${group.isRejected ? 'bg-red-900/40' : ''}
+                    hover:bg-gray-700
+                    ${trackIndex === trackCount - 1 ? 'border-b border-gray-600' : ''}
+                  `}
+                  style={{
+                    height: `${TRACK_HEIGHT + (trackIndex === trackCount - 1 ? TRACK_SPACING : 0)}px`,
+                  }}
+                  onClick={() => {
+                    if (onSwimlaneFilter) {
+                      const newFilter = filteredSwimlane === group.name ? null : group.name;
+                      onSwimlaneFilter(newFilter);
+                    }
+                  }}
+                >
+                  {/* Only show label and counts on the first track */}
+                  {trackIndex === 0 ? (
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2 truncate">
+                        {markerGroup && (
+                          <span className="text-blue-300 text-xs">
+                            {markerGroup.displayName}:
+                          </span>
+                        )}
+                        <span className="text-gray-200">
+                          {group.name}
+                          {group.isRejected && " (R)"}
+                          {filteredSwimlane === group.name && " 🔍"}
+                          {trackCount > 1 && ` (${trackCount})`}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-1 text-xs">
+                        {counts.confirmed > 0 && (
+                          <span className="text-green-400">✓{counts.confirmed}</span>
+                        )}
+                        {counts.rejected > 0 && (
+                          <span className="text-red-400">✗{counts.rejected}</span>
+                        )}
+                        {counts.pending > 0 && (
+                          <span className="text-yellow-400">?{counts.pending}</span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    // For additional tracks, hide the label to draw attention to the special state
+                    <div></div>
+                  )}
                 </div>
-              </div>
+              ))}
             </div>
             
             {/* Right: Timeline swimlane */}
@@ -147,22 +177,29 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
               <div style={{ width: `${timelineWidth.width}px` }}>
                 <div
                   className={`
-                    h-8 border-b border-gray-600 relative
+                    border-b border-gray-600 relative
                     ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-750'}
                   `}
+                  style={{ height: `${swimlaneHeight}px` }}
                 >
                   {/* Current time indicator for this swimlane */}
                   <div
-                    className="absolute top-0 h-full w-0.5 bg-red-500 z-30 pointer-events-none"
-                    style={{ left: `${currentTime * timelineWidth.pixelsPerSecond}px` }}
+                    className="absolute top-0 w-0.5 bg-red-500 z-30 pointer-events-none"
+                    style={{ 
+                      left: `${currentTime * timelineWidth.pixelsPerSecond}px`,
+                      height: `${swimlaneHeight}px`
+                    }}
                   />
                   
                   {/* Markers in this swimlane */}
-                  {group.markers.map((marker) => {
+                  {groupMarkersWithTracks.map((marker) => {
                     const markerStart = marker.seconds * timelineWidth.pixelsPerSecond;
                     const markerDuration = (marker.end_seconds || marker.seconds + 1) - marker.seconds;
                     const markerWidth = markerDuration * timelineWidth.pixelsPerSecond;
                     const isSelected = marker.id === selectedMarkerId;
+                    
+                    // Calculate vertical position based on track
+                    const markerTop = SWIMLANE_PADDING / 2 + (marker.track * (TRACK_HEIGHT + TRACK_SPACING));
                     
                     // Determine marker color based on status
                     let markerColorClass = 'bg-yellow-500'; // Default: pending
@@ -176,7 +213,7 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                       <div
                         key={marker.id}
                         className={`
-                          absolute top-1 h-6 rounded cursor-pointer transition-all
+                          absolute rounded cursor-pointer transition-all
                           ${isSelected 
                             ? `${markerColorClass} ring-2 ring-white z-20 brightness-110` 
                             : `${markerColorClass} hover:brightness-110 z-10 opacity-80`
@@ -184,7 +221,9 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                         `}
                         style={{
                           left: `${markerStart}px`,
+                          top: `${markerTop}px`,
                           width: `${Math.max(markerWidth, 4)}px`,
+                          height: `${TRACK_HEIGHT - 4}px`, // Slightly smaller than track height for visual separation
                         }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -195,7 +234,7 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                         onMouseMove={(e) => handleMarkerMouseMove(e, marker)}
                         title={`${marker.primary_tag.name} - ${formatTime(marker.seconds)} - ${
                           isMarkerConfirmed(marker) ? 'Confirmed' : isMarkerRejected(marker) ? 'Rejected' : 'Pending'
-                        }`}
+                        } - Track ${marker.track + 1}`}
                       >
                         {/* Marker content indicator */}
                         <div className="w-full h-full flex items-center justify-center">

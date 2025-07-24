@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useRef, useState, useEffect } from "react";
-import { type SceneMarker, type SpriteFrame, stashappService } from "../../services/StashappService";
+import { type SceneMarker, type SpriteFrame, type Scene, stashappService } from "../../services/StashappService";
 import { useAppDispatch } from "../../store/hooks";
 import { seekToTime } from "../../store/slices/markerSlice";
 import { isShotBoundaryMarker } from "../../core/marker/markerLogic";
@@ -13,7 +13,7 @@ type TimelineHeaderProps = {
   currentTime: number;
   showShotBoundaries: boolean;
   timelineWidth: { width: number; pixelsPerSecond: number };
-  scene?: unknown;
+  scene?: Scene;
 };
 
 const TimelineHeader: React.FC<TimelineHeaderProps> = ({

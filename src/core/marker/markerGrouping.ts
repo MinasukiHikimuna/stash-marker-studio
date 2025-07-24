@@ -133,17 +133,65 @@ export function groupMarkersByTags(markers: SceneMarker[], markerGroupParentId: 
 }
 
 /**
+ * Check if two markers overlap in time
+ */
+function markersOverlap(marker1: SceneMarker, marker2: SceneMarker): boolean {
+  const marker1Start = marker1.seconds;
+  const marker1End = marker1.end_seconds || marker1Start + 1;
+  const marker2Start = marker2.seconds;
+  const marker2End = marker2.end_seconds || marker2Start + 1;
+
+  return (
+    (marker1Start >= marker2Start && marker1Start < marker2End) ||
+    (marker1End > marker2Start && marker1End <= marker2End) ||
+    (marker1Start <= marker2Start && marker1End >= marker2End)
+  );
+}
+
+/**
+ * Assign tracks to markers within a tag group to avoid overlaps
+ */
+function assignTracksWithinGroup(markers: SceneMarker[]): Array<SceneMarker & { assignedTrack: number }> {
+  // Sort markers by start time
+  const sortedMarkers = [...markers].sort((a, b) => a.seconds - b.seconds);
+  const markerTracks: Array<SceneMarker & { assignedTrack: number }> = [];
+  
+  for (const marker of sortedMarkers) {
+    let assignedTrack = 0;
+    
+    // Find the first available track
+    while (true) {
+      const trackOccupied = markerTracks
+        .filter(m => m.assignedTrack === assignedTrack)
+        .some(existingMarker => markersOverlap(marker, existingMarker));
+      
+      if (!trackOccupied) {
+        break;
+      }
+      assignedTrack++;
+    }
+    
+    markerTracks.push({ ...marker, assignedTrack });
+  }
+  
+  return markerTracks;
+}
+
+/**
  * Create MarkerWithTrack array from TagGroups for keyboard navigation
- * This assigns swimlane numbers that match the display order
+ * This assigns swimlane numbers that match the display order and handles overlapping markers
  */
 export function createMarkersWithTracks(tagGroups: TagGroup[]): MarkerWithTrack[] {
   const markersWithTracks: MarkerWithTrack[] = [];
   
   tagGroups.forEach((group, swimlaneIndex) => {
-    group.markers.forEach((marker, trackIndex) => {
+    // Assign tracks within this group to handle overlaps
+    const markersWithAssignedTracks = assignTracksWithinGroup(group.markers);
+    
+    markersWithAssignedTracks.forEach((marker) => {
       const markerWithTrack: MarkerWithTrack = {
         ...marker,
-        track: trackIndex,
+        track: marker.assignedTrack,
         swimlane: swimlaneIndex,  // This matches the display order
         tagGroup: group.name,
       };
@@ -154,7 +202,39 @@ export function createMarkersWithTracks(tagGroups: TagGroup[]): MarkerWithTrack[
   console.log("=== MARKERS WITH TRACKS ===");
   console.log(`Created ${markersWithTracks.length} markers with track data`);
   console.log("Swimlane assignments:", tagGroups.map((group, index) => `${index}: ${group.name} (${group.markers.length} markers)`));
+  
+  // Log track assignments for debugging
+  tagGroups.forEach((group, swimlaneIndex) => {
+    const trackCounts = markersWithTracks
+      .filter(m => m.swimlane === swimlaneIndex)
+      .reduce((counts, m) => {
+        counts[m.track] = (counts[m.track] || 0) + 1;
+        return counts;
+      }, {} as Record<number, number>);
+    
+    const maxTrack = Math.max(...markersWithTracks.filter(m => m.swimlane === swimlaneIndex).map(m => m.track));
+    console.log(`Swimlane ${swimlaneIndex} (${group.name}): ${maxTrack + 1} tracks, distribution:`, trackCounts);
+  });
+  
   console.log("=== END MARKERS WITH TRACKS ===");
 
   return markersWithTracks;
+}
+
+/**
+ * Calculate the maximum number of tracks needed for each tag group
+ * Returns a map of tag group name to track count
+ */
+export function getTrackCountsByGroup(tagGroups: TagGroup[]): Record<string, number> {
+  const trackCounts: Record<string, number> = {};
+  
+  tagGroups.forEach((group) => {
+    const markersWithTracks = assignTracksWithinGroup(group.markers);
+    const maxTrack = markersWithTracks.length > 0 
+      ? Math.max(...markersWithTracks.map(m => m.assignedTrack))
+      : -1;
+    trackCounts[group.name] = maxTrack + 1; // +1 because tracks are 0-indexed
+  });
+  
+  return trackCounts;
 }

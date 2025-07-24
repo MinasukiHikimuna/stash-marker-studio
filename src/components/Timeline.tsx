@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useEffect, useState, useCallback } from "react";
-import { type SceneMarker } from "../services/StashappService";
+import { type SceneMarker, type Scene } from "../services/StashappService";
 import { TagGroup, MarkerWithTrack } from "../core/marker/types";
 import TimelineHeader from "./timeline/TimelineHeader";
 import TimelineSwimlanes from "./timeline/TimelineSwimlanes";
@@ -27,7 +27,7 @@ type TimelineProps = {
   showShotBoundaries?: boolean;
   filteredSwimlane?: string | null;
   onSwimlaneFilter?: (swimlaneName: string | null) => void;
-  scene?: unknown;
+  scene?: Scene;
   zoom?: number;
   onZoomChange?: (zoom: number) => void;
   onSwimlaneDataUpdate?: (tagGroups: TagGroup[], markersWithTracks: MarkerWithTrack[]) => void;
@@ -49,7 +49,7 @@ export default function Timeline({
   showShotBoundaries = true,
   filteredSwimlane = null,
   onSwimlaneFilter,
-  scene = null,
+  scene = undefined,
   zoom = 1,
   onZoomChange: _onZoomChange,
   onSwimlaneDataUpdate,
