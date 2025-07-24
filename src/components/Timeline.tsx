@@ -314,6 +314,12 @@ export default function Timeline({
             
             {/* Swimlanes */}
             <div className="relative">
+              {/* Current time indicator spanning all swimlanes */}
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-30 pointer-events-none"
+                style={{ left: `${currentTime * timelineWidth.pixelsPerSecond}px` }}
+              />
+              
               {markerGroups.map((group, swimlaneIndex) => (
                 <div
                   key={group.name}
