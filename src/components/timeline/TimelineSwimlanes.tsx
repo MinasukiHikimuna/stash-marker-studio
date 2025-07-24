@@ -260,7 +260,7 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
             </div>
             
             {/* Right: Timeline swimlane */}
-            <div className="flex-1 overflow-x-auto">
+            <div className="flex-1">
               <div style={{ width: `${timelineWidth.width}px` }}>
                 <div
                   className={`

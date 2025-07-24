@@ -92,8 +92,11 @@ export default function Timeline({
       maxWidth = Math.max(maxWidth, estimatedWidth);
     });
     
-    // Cap at reasonable maximum (480px = w-120)
-    return Math.min(480, maxWidth);
+    // Cap at reasonable maximum (480px = w-120) and add small buffer to prevent overflow
+    const finalWidth = Math.min(470, maxWidth + 10); // Reduced max by 10px and add 10px buffer
+    console.log('=== LABEL WIDTH CALCULATION ===');
+    console.log('Calculated label width:', finalWidth);
+    return finalWidth;
   }, [markerGroups, markerGroupParentId]);
   
   // Update parent component with swimlane data for keyboard navigation
@@ -167,14 +170,33 @@ export default function Timeline({
   }, [handleSwimlaneResize]);
   
   
-  // Calculate timeline dimensions
+  // Calculate timeline dimensions with container width constraint
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  
   const timelineWidth = useMemo(() => {
     const basePixelsPerMinute = 300;
     const pixelsPerSecond = (basePixelsPerMinute / 60) * zoom;
-    const width = videoDuration * pixelsPerSecond;
+    const idealWidth = videoDuration * pixelsPerSecond;
     
-    return { width, pixelsPerSecond };
-  }, [videoDuration, zoom]);
+    // If we have container width, constrain timeline to fit without overflow
+    let actualWidth = idealWidth;
+    if (containerWidth > 0) {
+      const scrollbarMargin = 20; // Account for potential vertical scrollbar
+      const availableWidth = containerWidth - uniformTagLabelWidth - scrollbarMargin;
+      if (idealWidth > availableWidth) {
+        actualWidth = availableWidth;
+      }
+    }
+    
+    console.log('=== TIMELINE WIDTH CALCULATION ===');
+    console.log('Video duration:', videoDuration, 'seconds');
+    console.log('Pixels per second:', pixelsPerSecond);
+    console.log('Ideal timeline width:', idealWidth);
+    console.log('Available width:', containerWidth - uniformTagLabelWidth);
+    console.log('Actual timeline width:', actualWidth);
+    
+    return { width: actualWidth, pixelsPerSecond: actualWidth / videoDuration };
+  }, [videoDuration, zoom, containerWidth, uniformTagLabelWidth]);
   
 
   
@@ -188,7 +210,20 @@ export default function Timeline({
   }
   
   return (
-    <div className="bg-gray-800 rounded-lg overflow-hidden flex flex-col">
+    <div 
+      className="bg-gray-800 rounded-lg overflow-hidden flex flex-col"
+      ref={(el) => {
+        if (el && el.clientWidth !== containerWidth) {
+          setContainerWidth(el.clientWidth);
+          console.log('=== TIMELINE CONTAINER DIMENSIONS ===');
+          console.log('Container width:', el.clientWidth);
+          console.log('Label width:', uniformTagLabelWidth);
+          console.log('Timeline width:', timelineWidth.width);
+          console.log('Total needed width:', uniformTagLabelWidth + timelineWidth.width);
+          console.log('Available space for timeline:', el.clientWidth - uniformTagLabelWidth);
+        }
+      }}
+    >
       {/* Header row */}
       <TimelineHeader
         markers={markers}
