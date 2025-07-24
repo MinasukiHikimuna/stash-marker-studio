@@ -1,22 +1,19 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { type SceneMarker } from "../services/StashappService";
-import { TagGroup } from "../core/marker/types";
+import { TagGroup, MarkerWithTrack } from "../core/marker/types";
 import {
-  getMarkerStatus,
   isMarkerConfirmed,
   isMarkerRejected,
 } from "../core/marker/markerLogic";
-import { MarkerStatus } from "../core/marker/types";
 import { useAppSelector } from "../store/hooks";
 import { selectMarkerGroupParentId } from "../store/slices/configSlice";
-
-// Type for marker group info
-type MarkerGroupInfo = {
-  fullName: string;
-  displayName: string;
-} | null;
+import {
+  groupMarkersByTags,
+  getMarkerGroupName,
+  createMarkersWithTracks,
+} from "../core/marker/markerGrouping";
 
 type TimelineProps = {
   markers: SceneMarker[];
@@ -33,149 +30,51 @@ type TimelineProps = {
   showShotBoundaries?: boolean;
   filteredSwimlane?: string | null;
   onSwimlaneFilter?: (swimlaneName: string | null) => void;
-  scene?: any;
+  scene?: unknown;
   zoom?: number;
   onZoomChange?: (zoom: number) => void;
+  onSwimlaneDataUpdate?: (tagGroups: TagGroup[], markersWithTracks: MarkerWithTrack[]) => void;
 };
 
-// Helper function to extract marker group name from tag parents
-function getMarkerGroupName(marker: SceneMarker, markerGroupParentId: string): MarkerGroupInfo {
-  const parents = marker.primary_tag.parents;
-  if (!parents || parents.length === 0) {
-    return null;
-  }
-
-  // Look for a parent that starts with "Marker Group: " and has the correct grandparent
-  for (const parent of parents) {
-    if (
-      parent.name.startsWith("Marker Group: ") &&
-      parent.parents?.some(
-        (grandparent) =>
-          grandparent.id === markerGroupParentId
-      )
-    ) {
-      // Return an object containing both the full name and display name
-      return {
-        fullName: parent.name,
-        displayName: parent.name
-          .replace("Marker Group: ", "")
-          .replace(/^\d+\.\s*/, ""),
-      };
-    }
-  }
-
-  return null;
-}
-
-// Group markers by tags with proper marker group ordering
-function groupMarkersByTags(markers: SceneMarker[], markerGroupParentId: string): TagGroup[] {
-  console.log("=== MARKER GROUPING ===");
-  console.log("Input markers count:", markers.length);
-
-  // Group all markers by tag name (with AI tag correspondence)
-  const tagGroupMap = new Map<string, SceneMarker[]>();
-
-  for (const marker of markers) {
-    const groupName = marker.primary_tag.name.endsWith("_AI")
-      ? marker.primary_tag.name.replace("_AI", "") // Simple AI tag grouping
-      : marker.primary_tag.name;
-
-    console.log(`Processing marker ${marker.id}: tag="${marker.primary_tag.name}" -> group="${groupName}"`);
-
-    if (!tagGroupMap.has(groupName)) {
-      tagGroupMap.set(groupName, []);
-    }
-    tagGroupMap.get(groupName)!.push(marker);
-  }
-
-  // Convert to array of tag groups
-  const tagGroups: TagGroup[] = Array.from(tagGroupMap.entries())
-    .map(([name, markers]) => {
-      // A group is considered rejected only if ALL markers in it are rejected
-      const isRejected = markers.every(
-        (marker) => getMarkerStatus(marker) === MarkerStatus.REJECTED
-      );
-
-      // Get unique tags from markers
-      const uniqueTags = Array.from(
-        new Set(markers.map((m) => m.primary_tag.id))
-      )
-        .map((tagId) => {
-          const marker = markers.find((m) => m.primary_tag.id === tagId);
-          if (!marker) return null;
-          return {
-            id: marker.primary_tag.id,
-            name: marker.primary_tag.name,
-            description: marker.primary_tag.description,
-            parents: marker.primary_tag.parents,
-          };
-        })
-        .filter((tag): tag is NonNullable<typeof tag> => tag !== null);
-
-      return {
-        name,
-        markers: markers.sort((a, b) => a.seconds - b.seconds),
-        tags: uniqueTags,
-        isRejected,
-      };
-    })
-    .sort((a, b) => {
-      // Get marker group names for sorting
-      const aMarkerGroup = getMarkerGroupName(a.markers[0], markerGroupParentId);
-      const bMarkerGroup = getMarkerGroupName(b.markers[0], markerGroupParentId);
-
-      console.log(`Sorting: ${a.name} (group: ${aMarkerGroup?.fullName}) vs ${b.name} (group: ${bMarkerGroup?.fullName})`);
-
-      // If both have marker groups, sort by the full name to preserve numbering
-      if (aMarkerGroup && bMarkerGroup) {
-        if (aMarkerGroup.fullName !== bMarkerGroup.fullName) {
-          return aMarkerGroup.fullName.localeCompare(bMarkerGroup.fullName);
-        }
-        return a.name.localeCompare(b.name);
-      }
-
-      // If only one has a marker group, put the one with marker group first
-      if (aMarkerGroup && !bMarkerGroup) {
-        return -1;
-      }
-      if (!aMarkerGroup && bMarkerGroup) {
-        return 1;
-      }
-
-      // If neither has a marker group, sort alphabetically by tag name
-      return a.name.localeCompare(b.name);
-    });
-
-  console.log("Created groups:", tagGroups.map(g => `${g.name} (${g.markers.length}) - group: ${getMarkerGroupName(g.markers[0], markerGroupParentId)?.fullName || 'none'}`));
-  console.log("=== END MARKER GROUPING ===");
-
-  return tagGroups;
-}
-
+// TODO: Remove unused parameters once refactoring is complete
 export default function Timeline({
-  markers,
+  markers: _markers,
   actionMarkers,
-  selectedMarker,
+  selectedMarker: _selectedMarker,
   videoDuration,
   currentTime,
   onMarkerClick,
   selectedMarkerId,
-  isCreatingMarker = false,
-  newMarkerStartTime = null,
-  newMarkerEndTime = null,
-  isEditingMarker = false,
-  showShotBoundaries = true,
+  isCreatingMarker: _isCreatingMarker = false,
+  newMarkerStartTime: _newMarkerStartTime = null,
+  newMarkerEndTime: _newMarkerEndTime = null,
+  isEditingMarker: _isEditingMarker = false,
+  showShotBoundaries: _showShotBoundaries = true,
   filteredSwimlane = null,
   onSwimlaneFilter,
-  scene = null,
+  scene: _scene = null,
   zoom = 1,
+  onZoomChange: _onZoomChange,
+  onSwimlaneDataUpdate,
 }: TimelineProps) {
   const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
   
-  // Group markers by tag name with proper marker group ordering
+  // Group markers by tag name with proper marker group ordering using shared algorithm
   const markerGroups = useMemo(() => {
     return groupMarkersByTags(actionMarkers, markerGroupParentId);
   }, [actionMarkers, markerGroupParentId]);
+  
+  // Create markers with track data for keyboard navigation
+  const markersWithTracks = useMemo(() => {
+    return createMarkersWithTracks(markerGroups);
+  }, [markerGroups]);
+  
+  // Update parent component with swimlane data for keyboard navigation
+  useEffect(() => {
+    if (onSwimlaneDataUpdate) {
+      onSwimlaneDataUpdate(markerGroups, markersWithTracks);
+    }
+  }, [markerGroups, markersWithTracks, onSwimlaneDataUpdate]);
   
   // Calculate timeline dimensions
   const timelineWidth = useMemo(() => {
