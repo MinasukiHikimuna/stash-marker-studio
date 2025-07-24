@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState, useEffect } from "react";
 import { type SceneMarker, type SpriteFrame, stashappService } from "../../services/StashappService";
 import { useAppDispatch } from "../../store/hooks";
 import { seekToTime } from "../../store/slices/markerSlice";
@@ -13,7 +13,7 @@ type TimelineHeaderProps = {
   currentTime: number;
   showShotBoundaries: boolean;
   timelineWidth: { width: number; pixelsPerSecond: number };
-  spriteFrames: SpriteFrame[];
+  scene?: unknown;
 };
 
 const TimelineHeader: React.FC<TimelineHeaderProps> = ({
@@ -22,15 +22,51 @@ const TimelineHeader: React.FC<TimelineHeaderProps> = ({
   currentTime,
   showShotBoundaries,
   timelineWidth,
-  spriteFrames,
+  scene,
 }) => {
   const dispatch = useAppDispatch();
   const timelineRef = useRef<HTMLDivElement>(null);
+  const [spriteFrames, setSpriteFrames] = useState<SpriteFrame[]>([]);
   const [previewSprite, setPreviewSprite] = useState<{
     frame: SpriteFrame;
     x: number;
     y: number;
   } | null>(null);
+
+  // Fetch sprite frames for the scene using direct Stashapp URLs
+  useEffect(() => {
+    let isCancelled = false;
+
+    const fetchSpriteFrames = async () => {
+      if (scene?.paths?.vtt) {
+        try {
+          console.log("Fetching sprite frames for VTT:", scene.paths.vtt);
+          const frames = await stashappService.fetchSpriteFrames(
+            scene.paths.vtt
+          );
+          if (!isCancelled) {
+            setSpriteFrames(frames);
+            console.log("Loaded", frames.length, "sprite frames");
+          }
+        } catch (error) {
+          if (!isCancelled) {
+            console.error("Error loading sprite frames:", error);
+            setSpriteFrames([]);
+          }
+        }
+      } else {
+        if (!isCancelled) {
+          setSpriteFrames([]);
+        }
+      }
+    };
+
+    fetchSpriteFrames();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [scene?.paths?.vtt]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
