@@ -2,6 +2,21 @@
 
 import React, { useMemo } from "react";
 import { type SceneMarker } from "../services/StashappService";
+import { TagGroup } from "../core/marker/types";
+import {
+  getMarkerStatus,
+  isMarkerConfirmed,
+  isMarkerRejected,
+} from "../core/marker/markerLogic";
+import { MarkerStatus } from "../core/marker/types";
+import { useAppSelector } from "../store/hooks";
+import { selectMarkerGroupParentId } from "../store/slices/configSlice";
+
+// Type for marker group info
+type MarkerGroupInfo = {
+  fullName: string;
+  displayName: string;
+} | null;
 
 type TimelineProps = {
   markers: SceneMarker[];
@@ -23,32 +38,118 @@ type TimelineProps = {
   onZoomChange?: (zoom: number) => void;
 };
 
-// Group markers by tag name
-function groupMarkersByTag(markers: SceneMarker[]) {
+// Helper function to extract marker group name from tag parents
+function getMarkerGroupName(marker: SceneMarker, markerGroupParentId: string): MarkerGroupInfo {
+  const parents = marker.primary_tag.parents;
+  if (!parents || parents.length === 0) {
+    return null;
+  }
+
+  // Look for a parent that starts with "Marker Group: " and has the correct grandparent
+  for (const parent of parents) {
+    if (
+      parent.name.startsWith("Marker Group: ") &&
+      parent.parents?.some(
+        (grandparent) =>
+          grandparent.id === markerGroupParentId
+      )
+    ) {
+      // Return an object containing both the full name and display name
+      return {
+        fullName: parent.name,
+        displayName: parent.name
+          .replace("Marker Group: ", "")
+          .replace(/^\d+\.\s*/, ""),
+      };
+    }
+  }
+
+  return null;
+}
+
+// Group markers by tags with proper marker group ordering
+function groupMarkersByTags(markers: SceneMarker[], markerGroupParentId: string): TagGroup[] {
   console.log("=== MARKER GROUPING ===");
   console.log("Input markers count:", markers.length);
-  
-  const groups = new Map<string, SceneMarker[]>();
-  
-  markers.forEach(marker => {
-    const tagName = marker.primary_tag.name;
-    console.log(`Processing marker ${marker.id}: tag="${tagName}"`);
-    
-    if (!groups.has(tagName)) {
-      groups.set(tagName, []);
+
+  // Group all markers by tag name (with AI tag correspondence)
+  const tagGroupMap = new Map<string, SceneMarker[]>();
+
+  for (const marker of markers) {
+    const groupName = marker.primary_tag.name.endsWith("_AI")
+      ? marker.primary_tag.name.replace("_AI", "") // Simple AI tag grouping
+      : marker.primary_tag.name;
+
+    console.log(`Processing marker ${marker.id}: tag="${marker.primary_tag.name}" -> group="${groupName}"`);
+
+    if (!tagGroupMap.has(groupName)) {
+      tagGroupMap.set(groupName, []);
     }
-    groups.get(tagName)!.push(marker);
-  });
-  
-  const result = Array.from(groups.entries()).map(([tagName, markers]) => ({
-    tagName,
-    markers: markers.sort((a, b) => a.seconds - b.seconds)
-  }));
-  
-  console.log("Created groups:", result.map(g => `${g.tagName} (${g.markers.length})`));
+    tagGroupMap.get(groupName)!.push(marker);
+  }
+
+  // Convert to array of tag groups
+  const tagGroups: TagGroup[] = Array.from(tagGroupMap.entries())
+    .map(([name, markers]) => {
+      // A group is considered rejected only if ALL markers in it are rejected
+      const isRejected = markers.every(
+        (marker) => getMarkerStatus(marker) === MarkerStatus.REJECTED
+      );
+
+      // Get unique tags from markers
+      const uniqueTags = Array.from(
+        new Set(markers.map((m) => m.primary_tag.id))
+      )
+        .map((tagId) => {
+          const marker = markers.find((m) => m.primary_tag.id === tagId);
+          if (!marker) return null;
+          return {
+            id: marker.primary_tag.id,
+            name: marker.primary_tag.name,
+            description: marker.primary_tag.description,
+            parents: marker.primary_tag.parents,
+          };
+        })
+        .filter((tag): tag is NonNullable<typeof tag> => tag !== null);
+
+      return {
+        name,
+        markers: markers.sort((a, b) => a.seconds - b.seconds),
+        tags: uniqueTags,
+        isRejected,
+      };
+    })
+    .sort((a, b) => {
+      // Get marker group names for sorting
+      const aMarkerGroup = getMarkerGroupName(a.markers[0], markerGroupParentId);
+      const bMarkerGroup = getMarkerGroupName(b.markers[0], markerGroupParentId);
+
+      console.log(`Sorting: ${a.name} (group: ${aMarkerGroup?.fullName}) vs ${b.name} (group: ${bMarkerGroup?.fullName})`);
+
+      // If both have marker groups, sort by the full name to preserve numbering
+      if (aMarkerGroup && bMarkerGroup) {
+        if (aMarkerGroup.fullName !== bMarkerGroup.fullName) {
+          return aMarkerGroup.fullName.localeCompare(bMarkerGroup.fullName);
+        }
+        return a.name.localeCompare(b.name);
+      }
+
+      // If only one has a marker group, put the one with marker group first
+      if (aMarkerGroup && !bMarkerGroup) {
+        return -1;
+      }
+      if (!aMarkerGroup && bMarkerGroup) {
+        return 1;
+      }
+
+      // If neither has a marker group, sort alphabetically by tag name
+      return a.name.localeCompare(b.name);
+    });
+
+  console.log("Created groups:", tagGroups.map(g => `${g.name} (${g.markers.length}) - group: ${getMarkerGroupName(g.markers[0], markerGroupParentId)?.fullName || 'none'}`));
   console.log("=== END MARKER GROUPING ===");
-  
-  return result;
+
+  return tagGroups;
 }
 
 export default function Timeline({
@@ -69,11 +170,12 @@ export default function Timeline({
   scene = null,
   zoom = 1,
 }: TimelineProps) {
+  const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
   
-  // Group markers by tag name
+  // Group markers by tag name with proper marker group ordering
   const markerGroups = useMemo(() => {
-    return groupMarkersByTag(actionMarkers);
-  }, [actionMarkers]);
+    return groupMarkersByTags(actionMarkers, markerGroupParentId);
+  }, [actionMarkers, markerGroupParentId]);
   
   // Calculate timeline dimensions
   const timelineWidth = useMemo(() => {
@@ -124,27 +226,64 @@ export default function Timeline({
           
           {/* Tag labels */}
           <div className="space-y-0">
-            {markerGroups.map((group, index) => (
-              <div
-                key={group.tagName}
-                className={`
-                  h-8 flex items-center px-3 text-sm cursor-pointer transition-colors
-                  ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-850'}
-                  ${filteredSwimlane === group.tagName ? 'bg-blue-600' : ''}
-                  hover:bg-gray-700
-                `}
-                onClick={() => {
-                  if (onSwimlaneFilter) {
-                    const newFilter = filteredSwimlane === group.tagName ? null : group.tagName;
-                    onSwimlaneFilter(newFilter);
-                  }
-                }}
-              >
-                <span className="text-gray-200 truncate">
-                  {group.tagName} ({group.markers.length})
-                </span>
-              </div>
-            ))}
+            {markerGroups.map((group, index) => {
+              const markerGroup = getMarkerGroupName(group.markers[0], markerGroupParentId);
+              
+              // Calculate status counts
+              const counts = {
+                confirmed: group.markers.filter(isMarkerConfirmed).length,
+                rejected: group.markers.filter(isMarkerRejected).length,
+                pending: group.markers.filter(
+                  (marker) => !isMarkerConfirmed(marker) && !isMarkerRejected(marker)
+                ).length,
+              };
+              
+              return (
+                <div
+                  key={group.name}
+                  className={`
+                    h-8 flex items-center px-3 text-sm cursor-pointer transition-colors
+                    ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-850'}
+                    ${filteredSwimlane === group.name ? 'bg-blue-600' : ''}
+                    ${group.isRejected ? 'bg-red-900/40' : ''}
+                    hover:bg-gray-700
+                  `}
+                  onClick={() => {
+                    if (onSwimlaneFilter) {
+                      const newFilter = filteredSwimlane === group.name ? null : group.name;
+                      onSwimlaneFilter(newFilter);
+                    }
+                  }}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2 truncate">
+                      {markerGroup && (
+                        <span className="text-blue-300 text-xs">
+                          {markerGroup.displayName}:
+                        </span>
+                      )}
+                      <span className="text-gray-200">
+                        {group.name}
+                        {group.isRejected && " (R)"}
+                        {filteredSwimlane === group.name && " 🔍"}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 text-xs">
+                      {counts.confirmed > 0 && (
+                        <span className="text-green-400">✓{counts.confirmed}</span>
+                      )}
+                      {counts.rejected > 0 && (
+                        <span className="text-red-400">✗{counts.rejected}</span>
+                      )}
+                      {counts.pending > 0 && (
+                        <span className="text-yellow-400">?{counts.pending}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
         
@@ -190,12 +329,21 @@ export default function Timeline({
                     const markerWidth = markerDuration * timelineWidth.pixelsPerSecond;
                     const isSelected = marker.id === selectedMarkerId;
                     
+                    // Determine marker color based on status
+                    let markerColorClass = 'bg-yellow-500'; // Default: pending
+                    if (isMarkerConfirmed(marker)) {
+                      markerColorClass = 'bg-green-500';
+                    } else if (isMarkerRejected(marker)) {
+                      markerColorClass = 'bg-red-500';
+                    }
+                    
                     console.log(`=== MARKER ${marker.id} ===`);
                     console.log("Tag:", marker.primary_tag.name);
                     console.log("Start time:", marker.seconds, "seconds");
                     console.log("Duration:", markerDuration, "seconds");
                     console.log("Start position:", markerStart, "pixels");
                     console.log("Width:", markerWidth, "pixels");
+                    console.log("Status:", isMarkerConfirmed(marker) ? 'confirmed' : isMarkerRejected(marker) ? 'rejected' : 'pending');
                     console.log("=== END MARKER ===");
                     
                     return (
@@ -204,8 +352,8 @@ export default function Timeline({
                         className={`
                           absolute top-1 h-6 rounded cursor-pointer transition-all
                           ${isSelected 
-                            ? 'bg-yellow-400 ring-2 ring-white z-20' 
-                            : 'bg-blue-500 hover:bg-blue-400 z-10'
+                            ? `${markerColorClass} ring-2 ring-white z-20 brightness-110` 
+                            : `${markerColorClass} hover:brightness-110 z-10 opacity-80`
                           }
                         `}
                         style={{
@@ -216,11 +364,17 @@ export default function Timeline({
                           e.stopPropagation();
                           onMarkerClick(marker);
                         }}
-                        title={`${marker.primary_tag.name} - ${formatTime(marker.seconds)}`}
+                        title={`${marker.primary_tag.name} - ${formatTime(marker.seconds)} - ${
+                          isMarkerConfirmed(marker) ? 'Confirmed' : isMarkerRejected(marker) ? 'Rejected' : 'Pending'
+                        }`}
                       >
                         {/* Marker content indicator */}
                         <div className="w-full h-full flex items-center justify-center">
-                          <div className="w-1 h-1 bg-white rounded-full opacity-80" />
+                          {marker.primary_tag.name.endsWith("_AI") ? (
+                            <div className="w-2 h-2 bg-purple-300 rounded-full opacity-80" />
+                          ) : (
+                            <div className="w-1 h-1 bg-white rounded-full opacity-80" />
+                          )}
                         </div>
                       </div>
                     );
