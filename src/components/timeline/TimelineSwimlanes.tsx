@@ -81,7 +81,7 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
   }
 
   return (
-    <div className="flex-1">
+    <div>
       {markerGroups.map((group, index) => {
         const markerGroup = getMarkerGroupName(group.markers[0], markerGroupParentId);
         

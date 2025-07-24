@@ -133,6 +133,12 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
                 <li>+/=: Zoom in</li>
                 <li>-/_: Zoom out (min: fit to window)</li>
                 <li>0: Reset to fit window</li>
+                <li>
+                  <strong>Swimlane View:</strong>
+                </li>
+                <li>Alt++: Increase swimlane height</li>
+                <li>Alt+-: Decrease swimlane height</li>
+                <li>Alt+0: Reset to normal view</li>
               </ul>
             </div>
           </div>
