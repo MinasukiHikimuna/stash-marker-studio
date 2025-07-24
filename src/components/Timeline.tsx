@@ -82,13 +82,6 @@ export default function Timeline({
     const pixelsPerSecond = (basePixelsPerMinute / 60) * zoom;
     const width = videoDuration * pixelsPerSecond;
     
-    console.log("=== TIMELINE DIMENSIONS ===");
-    console.log("Video duration:", videoDuration, "seconds");
-    console.log("Zoom level:", zoom);
-    console.log("Pixels per second:", pixelsPerSecond);
-    console.log("Total timeline width:", width, "pixels");
-    console.log("=== END TIMELINE DIMENSIONS ===");
-    
     return { width, pixelsPerSecond };
   }, [videoDuration, zoom]);
   
@@ -108,14 +101,7 @@ export default function Timeline({
   }
   
   return (
-    <div className="bg-gray-800 rounded-lg overflow-hidden">
-      {/* Debug info */}
-      <div className="p-2 bg-gray-900 text-xs text-gray-400 border-b border-gray-700">
-        Groups: {markerGroups.length} | Video: {formatTime(videoDuration)} | Zoom: {zoom}x | Width: {Math.round(timelineWidth.width)}px
-      </div>
-      
-      {/* Main timeline layout */}
-      <div className="flex">
+    <div className="bg-gray-800 rounded-lg overflow-hidden flex">
         {/* Left sidebar with tag labels */}
         <div className="flex-shrink-0 w-48 bg-gray-900 border-r border-gray-600">
           {/* Header spacer */}
@@ -242,14 +228,6 @@ export default function Timeline({
                       markerColorClass = 'bg-red-500';
                     }
                     
-                    console.log(`=== MARKER ${marker.id} ===`);
-                    console.log("Tag:", marker.primary_tag.name);
-                    console.log("Start time:", marker.seconds, "seconds");
-                    console.log("Duration:", markerDuration, "seconds");
-                    console.log("Start position:", markerStart, "pixels");
-                    console.log("Width:", markerWidth, "pixels");
-                    console.log("Status:", isMarkerConfirmed(marker) ? 'confirmed' : isMarkerRejected(marker) ? 'rejected' : 'pending');
-                    console.log("=== END MARKER ===");
                     
                     return (
                       <div
@@ -289,7 +267,6 @@ export default function Timeline({
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }
