@@ -867,7 +867,7 @@ export default function MarkerPage() {
                   />
                 </div>
               </div>
-              <div className="w-2/3 p-6 flex flex-col min-h-0">
+              <div className="w-2/3 flex flex-col min-h-0 bg-black">
                 <VideoPlayer className="w-full h-full object-contain" />
               </div>
             </div>
