@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import {
   selectServerConfig,
-  selectMarkerStatusConfig,
+  selectMarkerConfig,
   selectMarkerGroupingConfig,
   selectShotBoundaryConfig,
   setFullConfig,
 } from "@/store/slices/configSlice";
-import { selectAvailableTags, loadAvailableTags } from "@/store/slices/markerSlice";
+import {
+  selectAvailableTags,
+  loadAvailableTags,
+} from "@/store/slices/markerSlice";
 import type { AppConfig } from "@/serverConfig";
 import { TagAutocomplete } from "@/components/marker/TagAutocomplete";
 
@@ -18,16 +21,26 @@ export default function ConfigPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const serverConfig = useAppSelector(selectServerConfig);
-  const markerStatusConfig = useAppSelector(selectMarkerStatusConfig);
+  const markerConfig = useAppSelector(selectMarkerConfig);
   const markerGroupingConfig = useAppSelector(selectMarkerGroupingConfig);
   const shotBoundaryConfig = useAppSelector(selectShotBoundaryConfig);
   const availableTags = useAppSelector(selectAvailableTags);
 
   const [formData, setFormData] = useState({
-    server: { url: "", apiKey: "" },
-    markerStatus: { confirmed: "", rejected: "", sourceManual: "", aiReviewed: "" },
-    markerGrouping: { parentId: "" },
-    shotBoundary: { marker: "", sourceDetection: "", aiTagged: "", processed: "" },
+    serverConfig: { url: "", apiKey: "" },
+    markerConfig: {
+      statusConfirmed: "",
+      statusRejected: "",
+      sourceManual: "",
+      aiReviewed: "",
+    },
+    markerGroupingConfig: { markerGroupParent: "" },
+    shotBoundaryConfig: {
+      shotBoundary: "",
+      sourceShotBoundaryAnalysis: "",
+      aiTagged: "",
+      shotBoundaryProcessed: "",
+    },
   });
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -37,17 +50,20 @@ export default function ConfigPage() {
   // Load current config into form
   useEffect(() => {
     // Check if this is initial setup (all configs are empty)
-    const isEmpty = !serverConfig.url && !serverConfig.apiKey && 
-                   !markerStatusConfig.confirmed && !markerStatusConfig.rejected;
+    const isEmpty =
+      !serverConfig.url &&
+      !serverConfig.apiKey &&
+      !markerConfig.statusConfirmed &&
+      !markerConfig.statusRejected;
     setIsInitialSetup(isEmpty);
-    
+
     setFormData({
-      server: serverConfig,
-      markerStatus: markerStatusConfig,
-      markerGrouping: markerGroupingConfig,
-      shotBoundary: shotBoundaryConfig,
+      serverConfig,
+      markerConfig,
+      markerGroupingConfig,
+      shotBoundaryConfig,
     });
-  }, [serverConfig, markerStatusConfig, markerGroupingConfig, shotBoundaryConfig]);
+  }, [serverConfig, markerConfig, markerGroupingConfig, shotBoundaryConfig]);
 
   // Load tags when server config is available
   useEffect(() => {
@@ -57,13 +73,15 @@ export default function ConfigPage() {
           // Apply current config to StashappService so it can make API calls
           const appConfig = {
             serverConfig,
-            markerConfig: markerStatusConfig,
+            markerConfig,
             markerGroupingConfig,
             shotBoundaryConfig,
           };
-          const { stashappService } = await import("@/services/StashappService");
+          const { stashappService } = await import(
+            "@/services/StashappService"
+          );
           stashappService.applyConfig(appConfig);
-          
+
           await dispatch(loadAvailableTags()).unwrap();
         } catch (error) {
           console.error("Failed to automatically load tags:", error);
@@ -72,10 +90,17 @@ export default function ConfigPage() {
       loadTags();
       setTagsLoaded(true);
     }
-  }, [serverConfig, markerStatusConfig, markerGroupingConfig, shotBoundaryConfig, tagsLoaded, dispatch]);
+  }, [
+    serverConfig,
+    markerConfig,
+    markerGroupingConfig,
+    shotBoundaryConfig,
+    tagsLoaded,
+    dispatch,
+  ]);
 
   const handleInputChange = (section: string, field: string, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [section]: {
         ...prev[section as keyof typeof prev],
@@ -91,24 +116,10 @@ export default function ConfigPage() {
     try {
       // Convert form data to AppConfig format with normalized URL
       const appConfig: AppConfig = {
+        ...formData,
         serverConfig: {
-          url: normalizeUrl(formData.server.url),
-          apiKey: formData.server.apiKey,
-        },
-        markerConfig: {
-          statusConfirmed: formData.markerStatus.confirmed,
-          statusRejected: formData.markerStatus.rejected,
-          sourceManual: formData.markerStatus.sourceManual,
-          aiReviewed: formData.markerStatus.aiReviewed,
-        },
-        markerGroupingConfig: {
-          markerGroupParent: formData.markerGrouping.parentId,
-        },
-        shotBoundaryConfig: {
-          aiTagged: formData.shotBoundary.aiTagged,
-          shotBoundary: formData.shotBoundary.marker,
-          sourceShotBoundaryAnalysis: formData.shotBoundary.sourceDetection,
-          shotBoundaryProcessed: formData.shotBoundary.processed,
+          ...formData.serverConfig,
+          url: normalizeUrl(formData.serverConfig.url),
         },
       };
 
@@ -125,19 +136,14 @@ export default function ConfigPage() {
       }
 
       // Update Redux store
-      dispatch(setFullConfig({
-        server: formData.server,
-        markerStatus: formData.markerStatus,
-        markerGrouping: formData.markerGrouping,
-        shotBoundary: formData.shotBoundary,
-      }));
+      dispatch(setFullConfig(appConfig));
 
       // Apply config to StashappService
       const { stashappService } = await import("@/services/StashappService");
       stashappService.applyConfig(appConfig);
 
       setMessage("Configuration saved successfully!");
-      
+
       // If this was initial setup, redirect to search after a short delay
       if (isInitialSetup) {
         setTimeout(() => {
@@ -153,18 +159,18 @@ export default function ConfigPage() {
 
   const normalizeUrl = (url: string): string => {
     // Remove trailing slash if present
-    let normalized = url.replace(/\/+$/, '');
-    
+    let normalized = url.replace(/\/+$/, "");
+
     // Ensure it starts with http:// or https://
     if (!normalized.match(/^https?:\/\//)) {
       normalized = `http://${normalized}`;
     }
-    
+
     return normalized;
   };
 
   const handleTestConnection = async () => {
-    if (!formData.server.url || !formData.server.apiKey) {
+    if (!formData.serverConfig.url || !formData.serverConfig.apiKey) {
       setMessage("Please enter both URL and API key to test connection");
       return;
     }
@@ -172,8 +178,8 @@ export default function ConfigPage() {
     setMessage("Testing connection...");
     try {
       // Normalize the URL to handle common issues
-      const normalizedUrl = normalizeUrl(formData.server.url);
-      
+      const normalizedUrl = normalizeUrl(formData.serverConfig.url);
+
       // Test connection directly from client side for better debugging
       const testQuery = `
         query Version {
@@ -187,18 +193,26 @@ export default function ConfigPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ApiKey: formData.server.apiKey,
+          ApiKey: formData.serverConfig.apiKey,
         },
         body: JSON.stringify({ query: testQuery }),
       });
 
       console.log("Response status:", response.status);
-      console.log("Response headers:", Object.fromEntries(response.headers.entries()));
+      console.log(
+        "Response headers:",
+        Object.fromEntries(response.headers.entries())
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
         console.log("Error response body:", errorText);
-        setMessage(`Connection failed: HTTP ${response.status} - ${errorText.substring(0, 200)}...`);
+        setMessage(
+          `Connection failed: HTTP ${response.status} - ${errorText.substring(
+            0,
+            200
+          )}...`
+        );
         return;
       }
 
@@ -206,12 +220,16 @@ export default function ConfigPage() {
       console.log("GraphQL response:", result);
 
       if (result.errors) {
-        setMessage(`GraphQL error: ${result.errors[0]?.message || "Unknown error"}`);
+        setMessage(
+          `GraphQL error: ${result.errors[0]?.message || "Unknown error"}`
+        );
         return;
       }
 
       if (result.data?.version?.version) {
-        setMessage(`Connection successful! Stash version: ${result.data.version.version}`);
+        setMessage(
+          `Connection successful! Stash version: ${result.data.version.version}`
+        );
       } else {
         setMessage("Connection successful but unexpected response format");
       }
@@ -229,16 +247,19 @@ export default function ConfigPage() {
         </h1>
         {isInitialSetup && (
           <p className="text-gray-300 mb-8">
-            Please configure your Stash server connection and tag settings to get started.
+            Please configure your Stash server connection and tag settings to
+            get started.
           </p>
         )}
-        
+
         {message && (
-          <div className={`mb-6 p-4 rounded ${
-            message.includes("Error") || message.includes("failed") 
-              ? "bg-red-900 border border-red-700" 
-              : "bg-green-900 border border-green-700"
-          }`}>
+          <div
+            className={`mb-6 p-4 rounded ${
+              message.includes("Error") || message.includes("failed")
+                ? "bg-red-900 border border-red-700"
+                : "bg-green-900 border border-green-700"
+            }`}
+          >
             {message}
           </div>
         )}
@@ -254,14 +275,16 @@ export default function ConfigPage() {
                 </label>
                 <input
                   type="url"
-                  value={formData.server.url}
-                  onChange={(e) => handleInputChange("server", "url", e.target.value)}
+                  value={formData.serverConfig.url}
+                  onChange={(e) =>
+                    handleInputChange("serverConfig", "url", e.target.value)
+                  }
                   placeholder="http://localhost:9999"
                   className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
                 />
-                {formData.server.url && (
+                {formData.serverConfig.url && (
                   <p className="text-xs text-gray-400 mt-1">
-                    Will be saved as: {normalizeUrl(formData.server.url)}
+                    Will be saved as: {normalizeUrl(formData.serverConfig.url)}
                   </p>
                 )}
               </div>
@@ -271,8 +294,10 @@ export default function ConfigPage() {
                 </label>
                 <input
                   type="password"
-                  value={formData.server.apiKey}
-                  onChange={(e) => handleInputChange("server", "apiKey", e.target.value)}
+                  value={formData.serverConfig.apiKey}
+                  onChange={(e) =>
+                    handleInputChange("serverConfig", "apiKey", e.target.value)
+                  }
                   placeholder="Your Stash API key"
                   className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
                 />
@@ -287,15 +312,20 @@ export default function ConfigPage() {
               </button>
               <button
                 onClick={async () => {
-                  if (formData.server.url && formData.server.apiKey) {
+                  if (
+                    formData.serverConfig.url &&
+                    formData.serverConfig.apiKey
+                  ) {
                     setMessage("Loading tags from Stash...");
                     try {
                       // Temporarily apply config to StashappService so it can make API calls
-                      const { stashappService } = await import("@/services/StashappService");
+                      const { stashappService } = await import(
+                        "@/services/StashappService"
+                      );
                       const tempConfig = {
                         serverConfig: {
-                          url: normalizeUrl(formData.server.url),
-                          apiKey: formData.server.apiKey,
+                          url: normalizeUrl(formData.serverConfig.url),
+                          apiKey: formData.serverConfig.apiKey,
                         },
                         markerConfig: {
                           statusConfirmed: "",
@@ -314,12 +344,18 @@ export default function ConfigPage() {
                         },
                       };
                       stashappService.applyConfig(tempConfig);
-                      
+
                       // Now load the tags
-                      const result = await dispatch(loadAvailableTags()).unwrap();
-                      setMessage(`Tags loaded successfully! Found ${result.length} tags.`);
+                      const result = await dispatch(
+                        loadAvailableTags()
+                      ).unwrap();
+                      setMessage(
+                        `Tags loaded successfully! Found ${result.length} tags.`
+                      );
                     } catch (error) {
-                      setMessage("Failed to load tags: " + (error as Error).message);
+                      setMessage(
+                        "Failed to load tags: " + (error as Error).message
+                      );
                     }
                   } else {
                     setMessage("Please enter URL and API key first");
@@ -341,8 +377,10 @@ export default function ConfigPage() {
                   Confirmed Status Tag ID
                 </label>
                 <TagAutocomplete
-                  value={formData.markerStatus.confirmed}
-                  onChange={(tagId) => handleInputChange("markerStatus", "confirmed", tagId)}
+                  value={formData.markerConfig.statusConfirmed}
+                  onChange={(tagId) =>
+                    handleInputChange("markerConfig", "statusConfirmed", tagId)
+                  }
                   availableTags={availableTags}
                   placeholder="Search for confirmed status tag..."
                   className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
@@ -353,8 +391,10 @@ export default function ConfigPage() {
                   Rejected Status Tag ID
                 </label>
                 <TagAutocomplete
-                  value={formData.markerStatus.rejected}
-                  onChange={(tagId) => handleInputChange("markerStatus", "rejected", tagId)}
+                  value={formData.markerConfig.statusRejected}
+                  onChange={(tagId) =>
+                    handleInputChange("markerConfig", "statusRejected", tagId)
+                  }
                   availableTags={availableTags}
                   placeholder="Search for rejected status tag..."
                   className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
@@ -365,8 +405,10 @@ export default function ConfigPage() {
                   Manual Source Tag ID
                 </label>
                 <TagAutocomplete
-                  value={formData.markerStatus.sourceManual}
-                  onChange={(tagId) => handleInputChange("markerStatus", "sourceManual", tagId)}
+                  value={formData.markerConfig.sourceManual}
+                  onChange={(tagId) =>
+                    handleInputChange("markerConfig", "sourceManual", tagId)
+                  }
                   availableTags={availableTags}
                   placeholder="Search for manual source tag..."
                   className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
@@ -377,8 +419,10 @@ export default function ConfigPage() {
                   AI Reviewed Tag ID
                 </label>
                 <TagAutocomplete
-                  value={formData.markerStatus.aiReviewed}
-                  onChange={(tagId) => handleInputChange("markerStatus", "aiReviewed", tagId)}
+                  value={formData.markerConfig.aiReviewed}
+                  onChange={(tagId) =>
+                    handleInputChange("markerConfig", "aiReviewed", tagId)
+                  }
                   availableTags={availableTags}
                   placeholder="Search for AI reviewed tag..."
                   className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
@@ -395,8 +439,14 @@ export default function ConfigPage() {
                 Marker Group Parent Tag ID
               </label>
               <TagAutocomplete
-                value={formData.markerGrouping.parentId}
-                onChange={(tagId) => handleInputChange("markerGrouping", "parentId", tagId)}
+                value={formData.markerGroupingConfig.markerGroupParent}
+                onChange={(tagId) =>
+                  handleInputChange(
+                    "markerGroupingConfig",
+                    "markerGroupParent",
+                    tagId
+                  )
+                }
                 availableTags={availableTags}
                 placeholder="Search for marker group parent tag..."
                 className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
@@ -406,15 +456,23 @@ export default function ConfigPage() {
 
           {/* Shot Boundary Configuration */}
           <div className="bg-gray-800 p-6 rounded-lg">
-            <h2 className="text-xl font-semibold mb-4">Shot Boundary Detection</h2>
+            <h2 className="text-xl font-semibold mb-4">
+              Shot Boundary Detection
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
                   Shot Boundary Tag ID
                 </label>
                 <TagAutocomplete
-                  value={formData.shotBoundary.marker}
-                  onChange={(tagId) => handleInputChange("shotBoundary", "marker", tagId)}
+                  value={formData.shotBoundaryConfig.shotBoundary}
+                  onChange={(tagId) =>
+                    handleInputChange(
+                      "shotBoundaryConfig",
+                      "shotBoundary",
+                      tagId
+                    )
+                  }
                   availableTags={availableTags}
                   placeholder="Search for shot boundary tag..."
                   className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
@@ -425,8 +483,14 @@ export default function ConfigPage() {
                   Source Detection Tag ID
                 </label>
                 <TagAutocomplete
-                  value={formData.shotBoundary.sourceDetection}
-                  onChange={(tagId) => handleInputChange("shotBoundary", "sourceDetection", tagId)}
+                  value={formData.shotBoundaryConfig.sourceShotBoundaryAnalysis}
+                  onChange={(tagId) =>
+                    handleInputChange(
+                      "shotBoundaryConfig",
+                      "sourceShotBoundaryAnalysis",
+                      tagId
+                    )
+                  }
                   availableTags={availableTags}
                   placeholder="Search for source detection tag..."
                   className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
@@ -437,8 +501,10 @@ export default function ConfigPage() {
                   AI Tagged ID
                 </label>
                 <TagAutocomplete
-                  value={formData.shotBoundary.aiTagged}
-                  onChange={(tagId) => handleInputChange("shotBoundary", "aiTagged", tagId)}
+                  value={formData.shotBoundaryConfig.aiTagged}
+                  onChange={(tagId) =>
+                    handleInputChange("shotBoundaryConfig", "aiTagged", tagId)
+                  }
                   availableTags={availableTags}
                   placeholder="Search for AI tagged tag..."
                   className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
@@ -449,8 +515,14 @@ export default function ConfigPage() {
                   Processed Tag ID
                 </label>
                 <TagAutocomplete
-                  value={formData.shotBoundary.processed}
-                  onChange={(tagId) => handleInputChange("shotBoundary", "processed", tagId)}
+                  value={formData.shotBoundaryConfig.shotBoundaryProcessed}
+                  onChange={(tagId) =>
+                    handleInputChange(
+                      "shotBoundaryConfig",
+                      "shotBoundaryProcessed",
+                      tagId
+                    )
+                  }
                   availableTags={availableTags}
                   placeholder="Search for processed tag..."
                   className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
@@ -466,7 +538,11 @@ export default function ConfigPage() {
               disabled={isSaving}
               className="px-8 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-md transition-colors text-lg font-medium"
             >
-              {isSaving ? "Saving..." : (isInitialSetup ? "Complete Setup" : "Save Configuration")}
+              {isSaving
+                ? "Saving..."
+                : isInitialSetup
+                ? "Complete Setup"
+                : "Save Configuration"}
             </button>
           </div>
         </div>

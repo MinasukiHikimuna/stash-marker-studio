@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import type { AppConfig } from "@/serverConfig";
 import { stashappService } from "@/services/StashappService";
@@ -36,7 +36,7 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const loadConfig = async () => {
+  const loadConfig = useCallback(async () => {
     try {
       const res = await fetch("/api/config");
       
@@ -59,39 +59,19 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
       setConfig(json);
       setIsConfigured(true);
       
-      // Dispatch config to Redux store with grouped structure
-      dispatch(setFullConfig({
-        server: {
-          url: json.serverConfig.url,
-          apiKey: json.serverConfig.apiKey,
-        },
-        markerStatus: {
-          confirmed: json.markerConfig.statusConfirmed,
-          rejected: json.markerConfig.statusRejected,
-          sourceManual: json.markerConfig.sourceManual,
-          aiReviewed: json.markerConfig.aiReviewed,
-        },
-        markerGrouping: {
-          parentId: json.markerGroupingConfig.markerGroupParent,
-        },
-        shotBoundary: {
-          marker: json.shotBoundaryConfig.shotBoundary,
-          sourceDetection: json.shotBoundaryConfig.sourceShotBoundaryAnalysis,
-          aiTagged: json.shotBoundaryConfig.aiTagged,
-          processed: json.shotBoundaryConfig.shotBoundaryProcessed,
-        },
-      }));
+      // Dispatch config directly to Redux store 
+      dispatch(setFullConfig(json));
     } catch (err) {
       console.error("Failed to load configuration", err);
       setIsConfigured(false);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [dispatch, router, pathname]);
 
   useEffect(() => {
     loadConfig();
-  }, [dispatch, router, pathname]);
+  }, [dispatch, router, pathname, loadConfig]);
 
   // Show loading state
   if (isLoading) {

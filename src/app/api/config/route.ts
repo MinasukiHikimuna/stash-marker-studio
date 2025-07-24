@@ -9,7 +9,7 @@ async function loadConfigFromFile(): Promise<AppConfig | null> {
   try {
     const configData = await fs.readFile(CONFIG_FILE_PATH, "utf-8");
     return JSON.parse(configData) as AppConfig;
-  } catch (error) {
+  } catch {
     // File doesn't exist or invalid JSON, return null
     return null;
   }
