@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useRef, useCallback } from "react";
 import { type SceneMarker } from "../services/StashappService";
 import { TagGroup, MarkerWithTrack } from "../core/marker/types";
 import {
   isMarkerConfirmed,
   isMarkerRejected,
 } from "../core/marker/markerLogic";
-import { useAppSelector } from "../store/hooks";
+import { useAppSelector, useAppDispatch } from "../store/hooks";
 import { selectMarkerGroupParentId } from "../store/slices/configSlice";
+import { seekToTime } from "../store/slices/markerSlice";
 import {
   groupMarkersByTags,
   getMarkerGroupName,
@@ -57,7 +58,9 @@ export default function Timeline({
   onZoomChange: _onZoomChange,
   onSwimlaneDataUpdate,
 }: TimelineProps) {
+  const dispatch = useAppDispatch();
   const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
+  const timelineRef = useRef<HTMLDivElement>(null);
   
   // Group markers by tag name with proper marker group ordering using shared algorithm
   const markerGroups = useMemo(() => {
@@ -90,6 +93,22 @@ export default function Timeline({
     const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
+  
+  // Handle click-to-seek on timeline header
+  const handleTimelineClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!timelineRef.current) return;
+
+      const rect = timelineRef.current.getBoundingClientRect();
+      const mouseXInDiv = e.clientX - rect.left;
+      const time = (mouseXInDiv + timelineRef.current.scrollLeft) / timelineWidth.pixelsPerSecond;
+
+      // Clamp time to video duration bounds
+      const seekTime = Math.max(0, Math.min(time, videoDuration));
+      dispatch(seekToTime(seekTime));
+    },
+    [timelineWidth.pixelsPerSecond, videoDuration, dispatch]
+  );
   
   // Don't render if video duration is not available yet
   if (videoDuration <= 0) {
@@ -173,10 +192,17 @@ export default function Timeline({
         </div>
         
         {/* Right side with timeline */}
-        <div className="flex-1 overflow-x-auto">
+        <div 
+          ref={timelineRef}
+          className="flex-1 overflow-x-auto"
+        >
           <div style={{ width: `${timelineWidth.width}px` }}>
             {/* Time header */}
-            <div className="h-8 bg-gray-700 border-b border-gray-600 relative">
+            <div 
+              className="h-8 bg-gray-700 border-b border-gray-600 relative cursor-pointer"
+              onClick={handleTimelineClick}
+              title="Click to seek to time"
+            >
               {/* Minute markers */}
               {Array.from({ length: Math.floor(videoDuration / 60) + 1 }).map((_, i) => (
                 <div
