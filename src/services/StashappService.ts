@@ -128,7 +128,6 @@ type TagsResponse = {
 
 export class StashappService {
   // Will be filled by runtime config injection
-  static STASH_URL = "";
   static MARKER_STATUS_CONFIRMED = "";
   static MARKER_STATUS_REJECTED = "";
   static MARKER_GROUP_PARENT_ID = "";
@@ -158,11 +157,12 @@ export class StashappService {
   }
 
   private apiKey: string | null = null;
+  private stashUrl: string = "";
 
   constructor() {}
 
   applyConfig(config: AppConfig) {
-    StashappService.STASH_URL = config.STASH_URL;
+    this.stashUrl = config.STASH_URL;
     StashappService.MARKER_STATUS_CONFIRMED = config.MARKER_STATUS_CONFIRMED;
     StashappService.MARKER_STATUS_REJECTED = config.MARKER_STATUS_REJECTED;
     StashappService.MARKER_GROUP_PARENT_ID = config.MARKER_GROUP_PARENT_ID;
@@ -181,7 +181,7 @@ export class StashappService {
       throw new Error("Not authenticated");
     }
 
-    const response = await fetch(`${StashappService.STASH_URL}/graphql`, {
+    const response = await fetch(`${this.stashUrl}/graphql`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -202,9 +202,9 @@ export class StashappService {
       data.findSceneMarkers.scene_markers =
         data.findSceneMarkers.scene_markers.map((marker) => ({
           ...marker,
-          screenshot: marker.screenshot.replace(StashappService.STASH_URL, ""),
-          preview: marker.preview.replace(StashappService.STASH_URL, ""),
-          stream: marker.stream.replace(StashappService.STASH_URL, ""),
+          screenshot: marker.screenshot.replace(this.stashUrl, ""),
+          preview: marker.preview.replace(this.stashUrl, ""),
+          stream: marker.stream.replace(this.stashUrl, ""),
         }));
     }
     return data;
@@ -1155,7 +1155,7 @@ export class StashappService {
 
     // If URL is relative (starts with /), prepend STASH_URL
     const fullUrl = url.startsWith("/")
-      ? `${StashappService.STASH_URL}${url}`
+      ? `${this.stashUrl}${url}`
       : url;
 
     return fullUrl.includes("?")

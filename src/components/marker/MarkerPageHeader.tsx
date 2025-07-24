@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useConfig } from "@/contexts/ConfigContext";
+import { useAppSelector } from "@/store/hooks";
 import type { Scene, SceneMarker } from "../../services/StashappService";
 import { isMarkerRejected } from "../../core/marker/markerLogic";
 import { IncorrectMarker } from "../../utils/incorrectMarkerStorage";
@@ -31,7 +31,7 @@ export function MarkerPageHeader({
   onComplete,
 }: MarkerPageHeaderProps) {
   const router = useRouter();
-  const { STASH_URL } = useConfig();
+  const stashUrl = useAppSelector((state) => state.config.stashUrl);
 
   const handleSwitchScene = useCallback(() => {
     router.push("/search");
@@ -47,7 +47,7 @@ export function MarkerPageHeader({
             </h1>
             {scene && (
               <a
-                href={`${STASH_URL}/scenes/${scene.id}`}
+                href={`${stashUrl}/scenes/${scene.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-400 hover:text-blue-300 text-sm"

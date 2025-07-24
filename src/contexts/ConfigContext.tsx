@@ -42,6 +42,8 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
         // Dispatch config to Redux store
         dispatch(setReduxConfig({
           markerGroupParentId: json.MARKER_GROUP_PARENT_ID,
+          stashUrl: json.STASH_URL,
+          stashApiKey: json.STASH_API_KEY,
         }));
       } catch (err) {
         console.error("Failed to load configuration", err);
