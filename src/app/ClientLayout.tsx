@@ -2,6 +2,7 @@
 
 import { ConfigProvider } from "../contexts/ConfigContext";
 import ReduxProvider from "../components/ReduxProvider";
+import Navigation from "../components/Navigation";
 
 export default function ClientLayout({
   children,
@@ -10,7 +11,14 @@ export default function ClientLayout({
 }>) {
   return (
     <ReduxProvider>
-      <ConfigProvider>{children}</ConfigProvider>
+      <ConfigProvider>
+        <div className="min-h-screen bg-gray-900 text-white">
+          <Navigation />
+          <main>
+            {children}
+          </main>
+        </div>
+      </ConfigProvider>
     </ReduxProvider>
   );
 }

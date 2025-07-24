@@ -31,6 +31,9 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# app configuration file (contains sensitive data)
+app-config.json
+
 # vercel
 .vercel
 

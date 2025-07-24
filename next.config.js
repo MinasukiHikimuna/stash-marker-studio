@@ -5,17 +5,12 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        // Parse STASH_URL to get protocol, hostname and port
-        protocol: process.env.STASH_URL
-          ? new URL(process.env.STASH_URL).protocol.replace(":", "")
-          : "http",
-        hostname: process.env.STASH_URL
-          ? new URL(process.env.STASH_URL).hostname
-          : "localhost",
-        // Only include port if it exists in the URL
-        ...(process.env.STASH_URL && new URL(process.env.STASH_URL).port
-          ? { port: new URL(process.env.STASH_URL).port }
-          : {}),
+        protocol: "http",
+        hostname: "**",
+      },
+      {
+        protocol: "https",
+        hostname: "**",
       },
     ],
     unoptimized: true, // Since we're dealing with local Stash server images
