@@ -1,4 +1,5 @@
 import React from "react";
+import { getModifierKeyName } from "../../utils/platform";
 
 interface KeyboardShortcutsModalProps {
   isOpen: boolean;
@@ -10,6 +11,8 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
   onClose,
 }) => {
   if (!isOpen) return null;
+  
+  const modifierKey = getModifierKeyName();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9000] p-4">
@@ -136,9 +139,9 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
                 <li>
                   <strong>Swimlane View:</strong>
                 </li>
-                <li>Alt++: Increase swimlane height</li>
-                <li>Alt+-: Decrease swimlane height</li>
-                <li>Alt+0: Reset to normal view</li>
+                <li>{modifierKey}++: Increase swimlane height</li>
+                <li>{modifierKey}+-: Decrease swimlane height</li>
+                <li>{modifierKey}+0: Reset to normal view</li>
               </ul>
             </div>
           </div>

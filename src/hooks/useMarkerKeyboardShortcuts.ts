@@ -239,6 +239,13 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
             "T",
           ],
         },
+        // Alt only for Timeline swimlane controls
+        {
+          ctrl: false,
+          alt: true,
+          shift: false,
+          keys: ["+", "=", "-", "–", "±", "0", "º", "≈"],
+        },
       ];
 
       // Check if current modifier combination is allowed

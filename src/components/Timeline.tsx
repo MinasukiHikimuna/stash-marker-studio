@@ -11,6 +11,7 @@ import {
   groupMarkersByTags,
   createMarkersWithTracks,
 } from "../core/marker/markerGrouping";
+import { isPlatformModifierPressed } from "../utils/platform";
 
 type TimelineProps = {
   markers: SceneMarker[];
@@ -118,14 +119,17 @@ export default function Timeline({
         return;
       }
       
-      // Handle Alt++ and Alt+- for swimlane resizing
-      if (event.altKey && (event.key === '=' || event.key === '+')) {
+      // Handle Alt++/Option++ and Alt+-/Option+- for swimlane resizing
+      if (isPlatformModifierPressed(event) && (event.key === '=' || event.key === '+' || event.key === '±')) {
+        // Handle regular plus/equals and Mac plus-minus (±) from Option++
         event.preventDefault();
         handleSwimlaneResize('increase');
-      } else if (event.altKey && event.key === '-') {
+      } else if (isPlatformModifierPressed(event) && (event.key === '-' || event.key === '–')) {
+        // Handle both regular hyphen (-) and Mac en dash (–) from Option+-
         event.preventDefault();
         handleSwimlaneResize('decrease');
-      } else if (event.altKey && event.key === '0') {
+      } else if (isPlatformModifierPressed(event) && (event.key === '0' || event.key === 'º' || event.key === '≈')) {
+        // Handle regular 0, Mac degree symbol (º), and approximately equal (≈) from Option combinations
         event.preventDefault();
         // Reset to normal state - disable resizing
         setSwimlaneResizeEnabled(false);

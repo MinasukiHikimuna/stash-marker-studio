@@ -90,7 +90,7 @@ const TimelineHeader: React.FC<TimelineHeaderProps> = ({
 
   const handleHeaderMouseMoveForPreview = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!timelineRef.current || spriteFrames.length === 0) {
+      if (!timelineRef.current || !spriteFrames || spriteFrames.length === 0) {
         setPreviewSprite(null);
         return;
       }
