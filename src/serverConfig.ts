@@ -1,31 +1,50 @@
+// Configuration interfaces only - no environment variable handling
+// Configuration is now managed through JSON files and the UI
+
 export interface AppConfig {
-  STASH_URL: string;
-  STASH_API_KEY: string;
-  MARKER_STATUS_CONFIRMED: string;
-  MARKER_STATUS_REJECTED: string;
-  MARKER_GROUP_PARENT_ID: string;
-  MARKER_SOURCE_MANUAL: string;
-  MARKER_SHOT_BOUNDARY: string;
-  MARKER_AI_REVIEWED: string;
+  serverConfig: ServerConfig;
+  markerConfig: MarkerConfig;
+  markerGroupingConfig: MarkerGroupingConfig;
+  shotBoundaryConfig: ShotBoundaryConfig;
 }
 
-function getEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Environment variable ${name} is required.`);
-  }
-  return value;
+export interface ServerConfig {
+  // Stashapp URL.
+  url: string;
+
+  // Stashapp API key.
+  apiKey: string;
 }
 
-export function getServerConfig(): AppConfig {
-  return {
-    STASH_URL: getEnv("STASH_URL"),
-    STASH_API_KEY: getEnv("STASH_API_KEY"),
-    MARKER_STATUS_CONFIRMED: getEnv("MARKER_STATUS_CONFIRMED"),
-    MARKER_STATUS_REJECTED: getEnv("MARKER_STATUS_REJECTED"),
-    MARKER_GROUP_PARENT_ID: getEnv("MARKER_GROUP_PARENT_ID"),
-    MARKER_SOURCE_MANUAL: getEnv("MARKER_SOURCE_MANUAL"),
-    MARKER_SHOT_BOUNDARY: getEnv("MARKER_SHOT_BOUNDARY"),
-    MARKER_AI_REVIEWED: getEnv("MARKER_AI_REVIEWED"),
-  };
+export interface MarkerConfig {
+  // Tag for markers which have been confirmed.
+  statusConfirmed: string;
+
+  // Tag for markers which have been rejected.
+  statusRejected: string;
+
+  // Tag for markers which have been created manually.
+  sourceManual: string;
+
+  // Tag for scenes which AI analysis has been reviewed.
+  aiReviewed: string;
+}
+
+export interface MarkerGroupingConfig {
+  // Parent tag for marker group tags.
+  markerGroupParent: string;
+}
+
+export interface ShotBoundaryConfig {
+  // Tag for scenes which have been AI analyzed.
+  aiTagged: string;
+  
+  // Tag for markers which indicate a shot boundary.
+  shotBoundary: string;
+  
+  // Tag for markers to indicate that the source of the marker is shot boundary analysis and not e.g. manual or AI.
+  sourceShotBoundaryAnalysis: string;
+  
+  // Tag for scenes which have been processed with shot boundary analysis.
+  shotBoundaryProcessed: string;
 }

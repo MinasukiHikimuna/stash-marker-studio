@@ -127,49 +127,49 @@ type TagsResponse = {
 };
 
 export class StashappService {
-  // Will be filled by runtime config injection
-  static STASH_URL = "";
-  static MARKER_STATUS_CONFIRMED = "";
-  static MARKER_STATUS_REJECTED = "";
-  static MARKER_GROUP_PARENT_ID = "";
-  static MARKER_SOURCE_MANUAL = "";
-  static MARKER_SHOT_BOUNDARY = "";
-  static MARKER_AI_REVIEWED = "";
-
-  // Add these getter methods to make the static properties accessible through the instance
-  get MARKER_STATUS_CONFIRMED() {
-    return StashappService.MARKER_STATUS_CONFIRMED;
-  }
-
-  get MARKER_STATUS_REJECTED() {
-    return StashappService.MARKER_STATUS_REJECTED;
-  }
-
-  get MARKER_SOURCE_MANUAL() {
-    return StashappService.MARKER_SOURCE_MANUAL;
-  }
-
-  get MARKER_SHOT_BOUNDARY() {
-    return StashappService.MARKER_SHOT_BOUNDARY;
-  }
-
-  get MARKER_AI_REVIEWED() {
-    return StashappService.MARKER_AI_REVIEWED;
-  }
-
   private apiKey: string | null = null;
+  private stashUrl: string = "";
+
+  // Config values that will be set by applyConfig
+  private MARKER_STATUS_CONFIRMED = "";
+  private MARKER_STATUS_REJECTED = "";
+  private MARKER_GROUP_PARENT_ID = "";
+  private MARKER_SOURCE_MANUAL = "";
+  private MARKER_SHOT_BOUNDARY = "";
+  private MARKER_AI_REVIEWED = "";
+
+  // Add these getter methods to make the properties accessible
+  get markerStatusConfirmed() {
+    return this.MARKER_STATUS_CONFIRMED;
+  }
+
+  get markerStatusRejected() {
+    return this.MARKER_STATUS_REJECTED;
+  }
+
+  get markerSourceManual() {
+    return this.MARKER_SOURCE_MANUAL;
+  }
+
+  get markerShotBoundary() {
+    return this.MARKER_SHOT_BOUNDARY;
+  }
+
+  get markerAiReviewed() {
+    return this.MARKER_AI_REVIEWED;
+  }
 
   constructor() {}
 
   applyConfig(config: AppConfig) {
-    StashappService.STASH_URL = config.STASH_URL;
-    StashappService.MARKER_STATUS_CONFIRMED = config.MARKER_STATUS_CONFIRMED;
-    StashappService.MARKER_STATUS_REJECTED = config.MARKER_STATUS_REJECTED;
-    StashappService.MARKER_GROUP_PARENT_ID = config.MARKER_GROUP_PARENT_ID;
-    StashappService.MARKER_SOURCE_MANUAL = config.MARKER_SOURCE_MANUAL;
-    StashappService.MARKER_SHOT_BOUNDARY = config.MARKER_SHOT_BOUNDARY;
-    StashappService.MARKER_AI_REVIEWED = config.MARKER_AI_REVIEWED;
-    this.apiKey = config.STASH_API_KEY;
+    this.stashUrl = config.serverConfig.url;
+    this.apiKey = config.serverConfig.apiKey;
+    this.MARKER_STATUS_CONFIRMED = config.markerConfig.statusConfirmed;
+    this.MARKER_STATUS_REJECTED = config.markerConfig.statusRejected;
+    this.MARKER_SOURCE_MANUAL = config.markerConfig.sourceManual;
+    this.MARKER_AI_REVIEWED = config.markerConfig.aiReviewed;
+    this.MARKER_GROUP_PARENT_ID = config.markerGroupingConfig.markerGroupParent;
+    this.MARKER_SHOT_BOUNDARY = config.shotBoundaryConfig.shotBoundary;
   }
 
   // Update the fetchGraphQL method to use only the API key
@@ -181,7 +181,7 @@ export class StashappService {
       throw new Error("Not authenticated");
     }
 
-    const response = await fetch(`${StashappService.STASH_URL}/graphql`, {
+    const response = await fetch(`${this.stashUrl}/graphql`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -202,9 +202,9 @@ export class StashappService {
       data.findSceneMarkers.scene_markers =
         data.findSceneMarkers.scene_markers.map((marker) => ({
           ...marker,
-          screenshot: marker.screenshot.replace(StashappService.STASH_URL, ""),
-          preview: marker.preview.replace(StashappService.STASH_URL, ""),
-          stream: marker.stream.replace(StashappService.STASH_URL, ""),
+          screenshot: marker.screenshot.replace(this.stashUrl, ""),
+          preview: marker.preview.replace(this.stashUrl, ""),
+          stream: marker.stream.replace(this.stashUrl, ""),
         }));
     }
     return data;
@@ -275,7 +275,7 @@ export class StashappService {
   async confirmMarker(markerId: string, sceneId: string): Promise<SceneMarker> {
     return this.updateMarkerStatus(
       markerId,
-      StashappService.MARKER_STATUS_CONFIRMED,
+      this.MARKER_STATUS_CONFIRMED,
       sceneId
     );
   }
@@ -283,7 +283,7 @@ export class StashappService {
   async rejectMarker(markerId: string, sceneId: string): Promise<SceneMarker> {
     return this.updateMarkerStatus(
       markerId,
-      StashappService.MARKER_STATUS_REJECTED,
+      this.MARKER_STATUS_REJECTED,
       sceneId
     );
   }
@@ -301,8 +301,8 @@ export class StashappService {
       .map((tag) => tag.id)
       .filter(
         (id) =>
-          id !== StashappService.MARKER_STATUS_CONFIRMED &&
-          id !== StashappService.MARKER_STATUS_REJECTED
+          id !== this.MARKER_STATUS_CONFIRMED &&
+          id !== this.MARKER_STATUS_REJECTED
       );
 
     // Update the marker
@@ -355,9 +355,9 @@ export class StashappService {
 
     // Remove the opposite status tag if it exists
     const oppositeStatusTagId =
-      statusTagId === StashappService.MARKER_STATUS_CONFIRMED
-        ? StashappService.MARKER_STATUS_REJECTED
-        : StashappService.MARKER_STATUS_CONFIRMED;
+      statusTagId === this.MARKER_STATUS_CONFIRMED
+        ? this.MARKER_STATUS_REJECTED
+        : this.MARKER_STATUS_CONFIRMED;
     newTagIds = newTagIds.filter((id) => id !== oppositeStatusTagId);
 
     // Check if the status tag is already present
@@ -1154,9 +1154,7 @@ export class StashappService {
     }
 
     // If URL is relative (starts with /), prepend STASH_URL
-    const fullUrl = url.startsWith("/")
-      ? `${StashappService.STASH_URL}${url}`
-      : url;
+    const fullUrl = url.startsWith("/") ? `${this.stashUrl}${url}` : url;
 
     return fullUrl.includes("?")
       ? `${fullUrl}&apikey=${this.apiKey}`
@@ -1178,8 +1176,8 @@ export class StashappService {
     for (const marker of markers) {
       const isConfirmed = marker.tags.some(
         (tag) =>
-          tag.id === StashappService.MARKER_STATUS_CONFIRMED ||
-          tag.id === StashappService.MARKER_SOURCE_MANUAL
+          tag.id === this.MARKER_STATUS_CONFIRMED ||
+          tag.id === this.MARKER_SOURCE_MANUAL
       );
 
       console.log("Checking marker:", marker.primary_tag.name);
