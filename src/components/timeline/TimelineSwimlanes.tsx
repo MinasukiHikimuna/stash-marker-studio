@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useMemo } from "react";
 import { type SceneMarker } from "../../services/StashappService";
 import { TagGroup } from "../../core/marker/types";
 import { useAppSelector } from "../../store/hooks";
@@ -20,6 +20,7 @@ type TimelineSwimlanesProps = {
   timelineWidth: { width: number; pixelsPerSecond: number };
   onMarkerClick: (marker: SceneMarker) => void;
   onSwimlaneFilter?: (swimlaneName: string | null) => void;
+  labelWidth: number;
 };
 
 const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
@@ -31,6 +32,7 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
   timelineWidth,
   onMarkerClick,
   onSwimlaneFilter,
+  labelWidth,
 }) => {
   const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
   const markerStatusConfirmed = useAppSelector(selectMarkerStatusConfirmed);
@@ -113,7 +115,10 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
         return (
           <div key={group.name} className="flex">
             {/* Left: Tag label - render multiple rows for multi-track swimlanes */}
-            <div className="flex-shrink-0 w-48 bg-gray-900 border-r border-gray-600 flex flex-col">
+            <div 
+              className="flex-shrink-0 bg-gray-900 border-r border-gray-600 flex flex-col"
+              style={{ width: `${labelWidth}px` }}
+            >
               {Array.from({ length: trackCount }).map((_, trackIndex) => (
                 <div
                   key={trackIndex}

@@ -10,6 +10,8 @@ import { selectMarkerGroupParentId } from "../store/slices/configSlice";
 import {
   groupMarkersByTags,
   createMarkersWithTracks,
+  getMarkerGroupName,
+  getTrackCountsByGroup,
 } from "../core/marker/markerGrouping";
 import { isPlatformModifierPressed } from "../utils/platform";
 
@@ -57,6 +59,42 @@ export default function Timeline({
   const markersWithTracks = useMemo(() => {
     return createMarkersWithTracks(markerGroups);
   }, [markerGroups]);
+
+  // Calculate uniform width for all tag labels based on the longest content
+  const uniformTagLabelWidth = useMemo(() => {
+    if (markerGroups.length === 0) return 192; // Default minimum width
+    
+    const trackCountsByGroup = getTrackCountsByGroup(markerGroups);
+    let maxWidth = 192; // Minimum width (original w-48)
+    
+    markerGroups.forEach(group => {
+      const markerGroup = getMarkerGroupName(group.markers[0], markerGroupParentId);
+      const trackCount = trackCountsByGroup[group.name] || 1;
+      
+      // Estimate text content length
+      let textContent = group.name;
+      if (markerGroup) {
+        textContent = `${markerGroup.displayName}: ${group.name}`;
+      }
+      if (group.isRejected) {
+        textContent += " (R)";
+      }
+      if (trackCount > 1) {
+        textContent += ` (${trackCount})`;
+      }
+      
+      // Rough character-to-pixel estimation (assuming ~7px per character for this font size)
+      const baseCharWidth = 7;
+      const padding = 24; // Account for padding and status indicators
+      const statusIndicators = 40; // Space for confirmation/rejection counts
+      
+      const estimatedWidth = textContent.length * baseCharWidth + padding + statusIndicators;
+      maxWidth = Math.max(maxWidth, estimatedWidth);
+    });
+    
+    // Cap at reasonable maximum (480px = w-120)
+    return Math.min(480, maxWidth);
+  }, [markerGroups, markerGroupParentId]);
   
   // Update parent component with swimlane data for keyboard navigation
   useEffect(() => {
@@ -159,6 +197,7 @@ export default function Timeline({
         showShotBoundaries={showShotBoundaries}
         timelineWidth={timelineWidth}
         scene={scene}
+        labelWidth={uniformTagLabelWidth}
       />
 
       {/* Swimlanes container */}
@@ -175,6 +214,7 @@ export default function Timeline({
           timelineWidth={timelineWidth}
           onMarkerClick={onMarkerClick}
           onSwimlaneFilter={onSwimlaneFilter}
+          labelWidth={uniformTagLabelWidth}
         />
       </div>
     </div>

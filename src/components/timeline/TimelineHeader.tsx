@@ -14,6 +14,7 @@ type TimelineHeaderProps = {
   showShotBoundaries: boolean;
   timelineWidth: { width: number; pixelsPerSecond: number };
   scene?: Scene;
+  labelWidth: number;
 };
 
 const TimelineHeader: React.FC<TimelineHeaderProps> = ({
@@ -23,6 +24,7 @@ const TimelineHeader: React.FC<TimelineHeaderProps> = ({
   showShotBoundaries,
   timelineWidth,
   scene,
+  labelWidth,
 }) => {
   const dispatch = useAppDispatch();
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -123,7 +125,10 @@ const TimelineHeader: React.FC<TimelineHeaderProps> = ({
   return (
     <div className="flex">
       {/* Left header */}
-      <div className="flex-shrink-0 w-48 bg-gray-700 border-r border-gray-600 border-b border-gray-600">
+      <div 
+        className="flex-shrink-0 bg-gray-700 border-r border-gray-600 border-b border-gray-600"
+        style={{ width: `${labelWidth}px` }}
+      >
         <div className="h-8 flex items-center px-3">
           <span className="text-xs text-gray-400">Tags</span>
         </div>
@@ -132,7 +137,7 @@ const TimelineHeader: React.FC<TimelineHeaderProps> = ({
       {/* Right header - timeline */}
       <div 
         ref={timelineRef}
-        className="flex-1 overflow-x-auto"
+        className="flex-1 overflow-x-hidden"
       >
         <div style={{ width: `${timelineWidth.width}px` }}>
           <div 
