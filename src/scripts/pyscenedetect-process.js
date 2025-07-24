@@ -1,37 +1,21 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { spawn } from "child_process";
-import { config } from "dotenv";
 import { randomUUID } from "crypto";
 import os from "os";
 
-// Configure dotenv to use .env.local
-config({ path: ".env.local" });
-
-const STASH_URL = process.env.STASH_URL;
-const STASH_API_KEY = process.env.STASH_API_KEY;
-const MARKER_AI_TAGGED = process.env.MARKER_AI_TAGGED;
-const MARKER_PYSCENE_PROCESSED = process.env.MARKER_PYSCENE_PROCESSED;
-const MARKER_SHOT_BOUNDARY = process.env.MARKER_SHOT_BOUNDARY;
-const MARKER_SOURCE_PYSCENEDETECT = process.env.MARKER_SOURCE_PYSCENEDETECT;
-
-// Verify environment variables are loaded
-if (
-  !STASH_URL ||
-  !STASH_API_KEY ||
-  !MARKER_AI_TAGGED ||
-  !MARKER_PYSCENE_PROCESSED ||
-  !MARKER_SHOT_BOUNDARY ||
-  !MARKER_SOURCE_PYSCENEDETECT
-) {
-  console.error(
-    "Missing required environment variables. Please check your .env.local file."
-  );
-  console.error(
-    "Required variables: STASH_URL, STASH_API_KEY, MARKER_AI_TAGGED, MARKER_PYSCENE_PROCESSED, MARKER_SHOT_BOUNDARY, MARKER_SOURCE_PYSCENEDETECT"
-  );
-  process.exit(1);
+// Load configuration from app-config.json
+async function loadConfig() {
+  try {
+    const configFile = await fs.readFile("app-config.json", "utf-8");
+    return JSON.parse(configFile);
+  } catch (error) {
+    console.error("Error loading app-config.json:", error.message);
+    console.error("Please ensure app-config.json exists and is valid JSON.");
+    process.exit(1);
+  }
 }
+
 
 async function getSidecarFile(videoPath) {
   const parsedPath = path.parse(videoPath);
@@ -211,7 +195,7 @@ async function renameSceneCSV(videoPath, tempDir, uuid, originalVideoPath) {
   }
 }
 
-async function getTagName(tagId) {
+async function getTagName(tagId, config) {
   const query = `
     query FindTag($id: ID!) {
       findTag(id: $id) {
@@ -221,11 +205,11 @@ async function getTagName(tagId) {
     }
   `;
 
-  const response = await fetch(`${STASH_URL}/graphql`, {
+  const response = await fetch(`${config.serverConfig.url}/graphql`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ApiKey: STASH_API_KEY,
+      ApiKey: config.serverConfig.apiKey,
     },
     body: JSON.stringify({
       query,
@@ -240,12 +224,12 @@ async function getTagName(tagId) {
   return result.data.findTag.name;
 }
 
-async function createSceneMarkers(sceneId, csvPath) {
+async function createSceneMarkers(sceneId, csvPath, config) {
   console.log(`Creating scene markers for scene ${sceneId} from ${csvPath}`);
 
   try {
     // Get the shot boundary tag name first
-    const tagName = await getTagName(MARKER_SHOT_BOUNDARY);
+    const tagName = await getTagName(config.shotBoundaryConfig.shotBoundary, config);
     console.log(`Using tag name: ${tagName}`);
 
     // Read CSV file with different encodings
@@ -296,17 +280,17 @@ async function createSceneMarkers(sceneId, csvPath) {
           title: tagName,
           seconds: startTime,
           end_seconds: endTime,
-          primary_tag_id: MARKER_SHOT_BOUNDARY,
-          tag_ids: [MARKER_SOURCE_PYSCENEDETECT],
+          primary_tag_id: config.shotBoundaryConfig.shotBoundary,
+          tag_ids: [config.shotBoundaryConfig.sourceShotBoundaryAnalysis],
         },
       };
 
       try {
-        const response = await fetch(`${STASH_URL}/graphql`, {
+        const response = await fetch(`${config.serverConfig.url}/graphql`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ApiKey: STASH_API_KEY,
+            ApiKey: config.serverConfig.apiKey,
           },
           body: JSON.stringify({
             query: mutation,
@@ -343,16 +327,16 @@ async function createSceneMarkers(sceneId, csvPath) {
         ids: [sceneId],
         tag_ids: {
           mode: "ADD",
-          ids: [MARKER_PYSCENE_PROCESSED],
+          ids: [config.shotBoundaryConfig.shotBoundaryProcessed],
         },
       },
     };
 
-    await fetch(`${STASH_URL}/graphql`, {
+    await fetch(`${config.serverConfig.url}/graphql`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ApiKey: STASH_API_KEY,
+        ApiKey: config.serverConfig.apiKey,
       },
       body: JSON.stringify({
         query: mutation,
@@ -366,7 +350,7 @@ async function createSceneMarkers(sceneId, csvPath) {
   }
 }
 
-async function processVideo(videoPath, sceneId) {
+async function processVideo(videoPath, sceneId, config) {
   // Check if sidecar file exists
   const sidecarFile = await getSidecarFile(videoPath);
   if (sidecarFile) {
@@ -403,7 +387,7 @@ async function processVideo(videoPath, sceneId) {
 
       // Create scene markers from the CSV file
       if (sceneId) {
-        await createSceneMarkers(sceneId, newCsvPath);
+        await createSceneMarkers(sceneId, newCsvPath, config);
       }
 
       console.log("Done.\n");
@@ -416,7 +400,7 @@ async function processVideo(videoPath, sceneId) {
   }
 }
 
-async function findScenes() {
+async function findScenes(config) {
   const query = `
     query FindScenes($filter: FindFilterType, $scene_filter: SceneFilterType) {
       findScenes(filter: $filter, scene_filter: $scene_filter) {
@@ -442,19 +426,19 @@ async function findScenes() {
     },
     scene_filter: {
       tags: {
-        value: [MARKER_AI_TAGGED],
-        excludes: [MARKER_PYSCENE_PROCESSED],
+        value: [config.shotBoundaryConfig.aiTagged],
+        excludes: [config.shotBoundaryConfig.shotBoundaryProcessed],
         modifier: "INCLUDES",
         depth: -1,
       },
     },
   };
 
-  const response = await fetch(`${STASH_URL}/graphql`, {
+  const response = await fetch(`${config.serverConfig.url}/graphql`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ApiKey: STASH_API_KEY,
+      ApiKey: config.serverConfig.apiKey,
     },
     body: JSON.stringify({
       query,
@@ -467,13 +451,34 @@ async function findScenes() {
 }
 
 async function main() {
+  // Load and initialize configuration
+  const config = await loadConfig();
+
+  // Verify configuration values are provided
+  if (
+    !config.serverConfig.url ||
+    !config.serverConfig.apiKey ||
+    !config.shotBoundaryConfig.aiTagged ||
+    !config.shotBoundaryConfig.shotBoundaryProcessed ||
+    !config.shotBoundaryConfig.shotBoundary ||
+    !config.shotBoundaryConfig.sourceShotBoundaryAnalysis
+  ) {
+    console.error(
+      "Missing required configuration values. Please check your app-config.json file."
+    );
+    console.error(
+      "Required values: serverConfig.url, serverConfig.apiKey, shotBoundaryConfig.aiTagged, shotBoundaryConfig.shotBoundaryProcessed, shotBoundaryConfig.shotBoundary, shotBoundaryConfig.sourceShotBoundaryAnalysis"
+    );
+    process.exit(1);
+  }
+
   if (process.argv.length === 3) {
     const videoFile = process.argv[2];
-    await processVideo(videoFile);
+    await processVideo(videoFile, null, config);
   } else {
-    const scenes = await findScenes();
+    const scenes = await findScenes(config);
     for (const scene of scenes) {
-      await processVideo(scene.files[0].path, scene.id);
+      await processVideo(scene.files[0].path, scene.id, config);
     }
   }
 }
