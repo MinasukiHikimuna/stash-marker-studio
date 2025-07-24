@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useMemo, useEffect, useRef, useCallback } from "react";
-import { type SceneMarker } from "../services/StashappService";
+import React, { useMemo, useEffect, useRef, useCallback, useState } from "react";
+import { type SceneMarker, type SpriteFrame, stashappService } from "../services/StashappService";
 import { TagGroup, MarkerWithTrack } from "../core/marker/types";
+import SpritePreview from "./SpritePreview";
 import {
   isMarkerConfirmed,
   isMarkerRejected,
+  isShotBoundaryMarker,
 } from "../core/marker/markerLogic";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
 import { selectMarkerGroupParentId } from "../store/slices/configSlice";
@@ -39,7 +41,7 @@ type TimelineProps = {
 
 // TODO: Remove unused parameters once refactoring is complete
 export default function Timeline({
-  markers: _markers,
+  markers,
   actionMarkers,
   selectedMarker: _selectedMarker,
   videoDuration,
@@ -50,10 +52,10 @@ export default function Timeline({
   newMarkerStartTime: _newMarkerStartTime = null,
   newMarkerEndTime: _newMarkerEndTime = null,
   isEditingMarker: _isEditingMarker = false,
-  showShotBoundaries: _showShotBoundaries = true,
+  showShotBoundaries = true,
   filteredSwimlane = null,
   onSwimlaneFilter,
-  scene: _scene = null,
+  scene = null,
   zoom = 1,
   onZoomChange: _onZoomChange,
   onSwimlaneDataUpdate,
@@ -61,6 +63,12 @@ export default function Timeline({
   const dispatch = useAppDispatch();
   const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const [spriteFrames, setSpriteFrames] = useState<SpriteFrame[]>([]);
+  const [previewSprite, setPreviewSprite] = useState<{
+    frame: SpriteFrame;
+    x: number;
+    y: number;
+  } | null>(null);
   
   // Group markers by tag name with proper marker group ordering using shared algorithm
   const markerGroups = useMemo(() => {
@@ -78,6 +86,41 @@ export default function Timeline({
       onSwimlaneDataUpdate(markerGroups, markersWithTracks);
     }
   }, [markerGroups, markersWithTracks, onSwimlaneDataUpdate]);
+  
+  // Fetch sprite frames for the scene using direct Stashapp URLs
+  useEffect(() => {
+    let isCancelled = false;
+
+    const fetchSpriteFrames = async () => {
+      if (scene?.paths?.vtt) {
+        try {
+          console.log("Fetching sprite frames for VTT:", scene.paths.vtt);
+          const frames = await stashappService.fetchSpriteFrames(
+            scene.paths.vtt
+          );
+          if (!isCancelled) {
+            setSpriteFrames(frames);
+            console.log("Loaded", frames.length, "sprite frames");
+          }
+        } catch (error) {
+          if (!isCancelled) {
+            console.error("Error loading sprite frames:", error);
+            setSpriteFrames([]);
+          }
+        }
+      } else {
+        if (!isCancelled) {
+          setSpriteFrames([]);
+        }
+      }
+    };
+
+    fetchSpriteFrames();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [scene?.paths?.vtt]);
   
   // Calculate timeline dimensions
   const timelineWidth = useMemo(() => {
@@ -109,6 +152,39 @@ export default function Timeline({
     },
     [timelineWidth.pixelsPerSecond, videoDuration, dispatch]
   );
+  
+  // Sprite preview handlers - only for timeline header
+  const handleHeaderMouseMoveForPreview = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!timelineRef.current || spriteFrames.length === 0) {
+        setPreviewSprite(null);
+        return;
+      }
+
+      const rect = timelineRef.current.getBoundingClientRect();
+      const mouseXInDiv = e.clientX - rect.left;
+      const time = (mouseXInDiv + timelineRef.current.scrollLeft) / timelineWidth.pixelsPerSecond;
+
+      const frame = spriteFrames.find(
+        (f) => time >= f.startTime && time < f.endTime
+      );
+
+      if (frame) {
+        setPreviewSprite({
+          frame: frame,
+          x: e.clientX,
+          y: rect.top - 10, // show it a bit above the timeline
+        });
+      } else {
+        setPreviewSprite(null);
+      }
+    },
+    [timelineWidth.pixelsPerSecond, spriteFrames]
+  );
+
+  const handleHeaderMouseLeaveForPreview = useCallback(() => {
+    setPreviewSprite(null);
+  }, []);
   
   // Don't render if video duration is not available yet
   if (videoDuration <= 0) {
@@ -201,6 +277,8 @@ export default function Timeline({
             <div 
               className="h-8 bg-gray-700 border-b border-gray-600 relative cursor-pointer"
               onClick={handleTimelineClick}
+              onMouseMove={handleHeaderMouseMoveForPreview}
+              onMouseLeave={handleHeaderMouseLeaveForPreview}
               title="Click to seek to time"
             >
               {/* Minute markers */}
@@ -215,6 +293,31 @@ export default function Timeline({
                   </span>
                 </div>
               ))}
+              
+              {/* Shot boundaries integrated into time header */}
+              {showShotBoundaries &&
+                markers &&
+                markers.filter(isShotBoundaryMarker).map((marker) => (
+                  <div
+                    key={`shot-${marker.id}`}
+                    className="absolute top-0 h-full cursor-pointer group"
+                    style={{
+                      left: `${marker.seconds * timelineWidth.pixelsPerSecond}px`,
+                      width: "2px",
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      dispatch(seekToTime(marker.seconds));
+                    }}
+                    title={`Shot boundary: ${formatTime(marker.seconds)}`}
+                  >
+                    {/* Shot boundary line */}
+                    <div className="w-full h-full bg-orange-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                    
+                    {/* Small indicator at bottom */}
+                    <div className="absolute bottom-0 left-0 w-1 h-1 bg-orange-400 transform translate-x-[-50%] rounded-full opacity-80" />
+                  </div>
+                ))}
               
               {/* Current time indicator */}
               <div
@@ -293,6 +396,19 @@ export default function Timeline({
             </div>
           </div>
         </div>
+        
+        {/* Sprite preview */}
+        {previewSprite && (
+          <SpritePreview
+            visible={true}
+            x={previewSprite.x}
+            y={previewSprite.y}
+            currentFrame={previewSprite.frame}
+            getSpriteUrlWithApiKey={stashappService.getSpriteUrlWithApiKey}
+            spriteFrames={[]}
+            currentTime={0}
+          />
+        )}
     </div>
   );
 }
