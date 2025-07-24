@@ -167,12 +167,22 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
   const TRACK_SPACING = 2; // Spacing between tracks
   const SWIMLANE_PADDING = 4; // Padding at top and bottom of swimlane
 
+  // Track which marker groups we've already shown to determine when to make text transparent
+  const shownMarkerGroups = new Set<string>();
+
   return (
     <div>
       {markerGroups.map((group, index) => {
         const markerGroup = getMarkerGroupName(group.markers[0], markerGroupParentId);
         const trackCount = trackCountsByGroup[group.name] || 1;
         const swimlaneHeight = (trackCount * TRACK_HEIGHT) + ((trackCount - 1) * TRACK_SPACING) + SWIMLANE_PADDING;
+        
+        // Determine if this is the first swimlane for this marker group
+        const markerGroupKey = markerGroup?.fullName || '';
+        const isFirstInMarkerGroup = !shownMarkerGroups.has(markerGroupKey);
+        if (markerGroupKey) {
+          shownMarkerGroups.add(markerGroupKey);
+        }
         
         // Get markers with track assignments for this group
         const groupMarkersWithTracks = markersWithTracks.filter(m => m.tagGroup === group.name);
@@ -219,7 +229,7 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                     <div className="flex items-center justify-between w-full group/swimlane">
                       <div className="flex items-center gap-2 truncate">
                         {markerGroup && (
-                          <span className="text-blue-300 text-xs">
+                          <span className={`text-xs ${isFirstInMarkerGroup ? 'text-blue-300' : 'text-transparent'}`}>
                             {markerGroup.displayName}:
                           </span>
                         )}
