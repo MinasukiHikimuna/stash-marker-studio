@@ -316,7 +316,7 @@ export default function Timeline({
             <div className="relative">
               {markerGroups.map((group, swimlaneIndex) => (
                 <div
-                  key={group.tagName}
+                  key={group.name}
                   className={`
                     h-8 border-b border-gray-600 relative
                     ${swimlaneIndex % 2 === 0 ? 'bg-gray-800' : 'bg-gray-750'}
