@@ -36,22 +36,23 @@ Actual tags such as Kissing and Kissing_AI relationship is configured by setting
 Stash Marker Studio requires Stash version 0.28 or later. 0.28 introduced support for start and end times for markers which is crucial for the tool.
 
 1. Clone the repository
-2. Copy the `.env.sample` file to `.env.local` and update the values according to your Stashapp instance configuration.
-3. Build the Docker image:
+2. Build the Docker image:
 
 ```bash
 docker build -t stash-marker-studio .
 ```
 
-4. Run the Docker image:
+3. Run the Docker image:
 
 ```bash
-docker run -p 3000:3000 --env-file .env.local stash-marker-studio
+docker run -p 3000:3000 stash-marker-studio
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000)
+4. Open [http://localhost:3000](http://localhost:3000)
+5. Use the configuration UI for basic setup. Configuration is saved to app-config.json.
+6. Start using Stash Marker Studio!
 
-For `pyscenedetect-process.js`, please run:
+For `pyscenedetect-process.js`, you need to [install PySceneDetect](https://www.scenedetect.com/download/) and run the custom script which will run shot boundary analysis on your scenes which have already been AI analyzed:
 
 ```bash
 npm install
