@@ -16,43 +16,30 @@ import { isPlatformModifierPressed } from "../utils/platform";
 type TimelineProps = {
   markers: SceneMarker[];
   actionMarkers: SceneMarker[];
-  selectedMarker: SceneMarker | null;
   videoDuration: number;
   currentTime: number;
   onMarkerClick: (marker: SceneMarker) => void;
   selectedMarkerId: string | null;
-  isCreatingMarker?: boolean;
-  newMarkerStartTime?: number | null;
-  newMarkerEndTime?: number | null;
-  isEditingMarker?: boolean;
   showShotBoundaries?: boolean;
   filteredSwimlane?: string | null;
   onSwimlaneFilter?: (swimlaneName: string | null) => void;
   scene?: Scene;
   zoom?: number;
-  onZoomChange?: (zoom: number) => void;
   onSwimlaneDataUpdate?: (tagGroups: TagGroup[], markersWithTracks: MarkerWithTrack[]) => void;
 };
 
-// TODO: Remove unused parameters once refactoring is complete
 export default function Timeline({
   markers,
   actionMarkers,
-  selectedMarker: _selectedMarker,
   videoDuration,
   currentTime,
   onMarkerClick,
   selectedMarkerId,
-  isCreatingMarker: _isCreatingMarker = false,
-  newMarkerStartTime: _newMarkerStartTime = null,
-  newMarkerEndTime: _newMarkerEndTime = null,
-  isEditingMarker: _isEditingMarker = false,
   showShotBoundaries = true,
   filteredSwimlane = null,
   onSwimlaneFilter,
   scene = undefined,
   zoom = 1,
-  onZoomChange: _onZoomChange,
   onSwimlaneDataUpdate,
 }: TimelineProps) {
   const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
