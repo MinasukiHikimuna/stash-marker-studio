@@ -10,7 +10,7 @@ import {
   isShotBoundaryMarker,
 } from "../core/marker/markerLogic";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
-import { selectMarkerGroupParentId } from "../store/slices/configSlice";
+import { selectMarkerGroupParentId, selectMarkerStatusConfirmed, selectMarkerStatusRejected } from "../store/slices/configSlice";
 import { seekToTime } from "../store/slices/markerSlice";
 import {
   groupMarkersByTags,
@@ -62,10 +62,17 @@ export default function Timeline({
 }: TimelineProps) {
   const dispatch = useAppDispatch();
   const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
+  const markerStatusConfirmed = useAppSelector(selectMarkerStatusConfirmed);
+  const markerStatusRejected = useAppSelector(selectMarkerStatusRejected);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [spriteFrames, setSpriteFrames] = useState<SpriteFrame[]>([]);
   const [previewSprite, setPreviewSprite] = useState<{
     frame: SpriteFrame;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [markerTooltip, setMarkerTooltip] = useState<{
+    marker: SceneMarker;
     x: number;
     y: number;
   } | null>(null);
@@ -185,6 +192,35 @@ export default function Timeline({
   const handleHeaderMouseLeaveForPreview = useCallback(() => {
     setPreviewSprite(null);
   }, []);
+
+  // Marker tooltip handlers
+  const handleMarkerMouseEnter = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>, marker: SceneMarker) => {
+      setMarkerTooltip({
+        marker: marker,
+        x: e.clientX,
+        y: e.clientY,
+      });
+    },
+    []
+  );
+
+  const handleMarkerMouseLeave = useCallback(() => {
+    setMarkerTooltip(null);
+  }, []);
+
+  const handleMarkerMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>, marker: SceneMarker) => {
+      if (markerTooltip && markerTooltip.marker.id === marker.id) {
+        setMarkerTooltip({
+          marker: marker,
+          x: e.clientX,
+          y: e.clientY,
+        });
+      }
+    },
+    [markerTooltip]
+  );
   
   // Don't render if video duration is not available yet
   if (videoDuration <= 0) {
@@ -376,6 +412,9 @@ export default function Timeline({
                           e.stopPropagation();
                           onMarkerClick(marker);
                         }}
+                        onMouseEnter={(e) => handleMarkerMouseEnter(e, marker)}
+                        onMouseLeave={handleMarkerMouseLeave}
+                        onMouseMove={(e) => handleMarkerMouseMove(e, marker)}
                         title={`${marker.primary_tag.name} - ${formatTime(marker.seconds)} - ${
                           isMarkerConfirmed(marker) ? 'Confirmed' : isMarkerRejected(marker) ? 'Rejected' : 'Pending'
                         }`}
@@ -408,6 +447,68 @@ export default function Timeline({
             spriteFrames={[]}
             currentTime={0}
           />
+        )}
+
+        {/* Marker tooltip */}
+        {markerTooltip && (
+          <div
+            className="fixed z-[9000] bg-gray-900 text-white p-3 rounded-lg shadow-lg border border-gray-600 max-w-md"
+            style={{
+              left: `${markerTooltip.x}px`,
+              top: `${markerTooltip.y}px`,
+              transform: "translate(-100%, -100%)",
+              pointerEvents: "none",
+            }}
+          >
+            <div className="space-y-2">
+              <div className="font-bold text-lg">
+                {markerTooltip.marker.primary_tag.name}
+              </div>
+              <div className="text-sm text-gray-400">
+                ID: {markerTooltip.marker.id}
+              </div>
+
+              {markerTooltip.marker.primary_tag.description && (
+                <div className="text-sm text-gray-300 border-t border-gray-600 pt-2">
+                  <div className="font-semibold mb-1">Description:</div>
+                  <div>{markerTooltip.marker.primary_tag.description}</div>
+                </div>
+              )}
+
+              <div className="text-sm text-gray-400">
+                <div className="font-semibold mb-1">Time:</div>
+                <div>
+                  {markerTooltip.marker.end_seconds
+                    ? `${formatTime(markerTooltip.marker.seconds)} - ${formatTime(
+                        markerTooltip.marker.end_seconds
+                      )}`
+                    : formatTime(markerTooltip.marker.seconds)}
+                </div>
+              </div>
+
+              {markerTooltip.marker.tags.length > 0 && (
+                <div className="text-sm text-gray-400">
+                  <div className="font-semibold mb-1">Other Tags:</div>
+                  <div className="flex flex-wrap gap-1">
+                    {markerTooltip.marker.tags
+                      .filter(
+                        (tag) =>
+                          tag.id !== markerStatusConfirmed &&
+                          tag.id !== markerStatusRejected
+                      )
+                      .map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="bg-gray-700 px-2 py-1 rounded text-xs"
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
     </div>
   );
