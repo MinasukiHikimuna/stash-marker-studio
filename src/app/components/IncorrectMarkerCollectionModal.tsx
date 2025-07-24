@@ -1,6 +1,7 @@
 import React from "react";
 import type { IncorrectMarker } from "@/utils/incorrectMarkerStorage";
-import { useConfig } from "@/contexts/ConfigContext";
+import { useAppSelector } from "@/store/hooks";
+import { selectStashUrl, selectStashApiKey } from "@/store/slices/configSlice";
 import JSZip from "jszip";
 
 interface IncorrectMarkerCollectionModalProps {
@@ -36,7 +37,8 @@ export const IncorrectMarkerCollectionModal: React.FC<
   refreshMarkersOnly,
 }) => {
   const [isCollecting, setIsCollecting] = React.useState(false);
-  const { STASH_URL, STASH_API_KEY } = useConfig();
+  const stashUrl = useAppSelector(selectStashUrl);
+  const stashApiKey = useAppSelector(selectStashApiKey);
 
   // Filter markers to only show those from the current scene
   const currentSceneMarkers = markers.filter(
@@ -100,7 +102,7 @@ export const IncorrectMarkerCollectionModal: React.FC<
 
         // Create a video element to extract frames
         const video = document.createElement("video");
-        video.src = `${STASH_URL}/scene/${currentSceneId}/stream?apikey=${STASH_API_KEY}`;
+        video.src = `${stashUrl}/scene/${currentSceneId}/stream?apikey=${stashApiKey}`;
         video.crossOrigin = "anonymous";
 
         for (const timestamp of timestamps) {

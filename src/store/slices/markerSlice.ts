@@ -227,8 +227,8 @@ export const createMarker = createAsyncThunk(
         params.startTime,
         params.endTime,
         [
-          stashappService.MARKER_SOURCE_MANUAL,
-          stashappService.MARKER_STATUS_CONFIRMED,
+          stashappService.markerSourceManual,
+          stashappService.markerStatusConfirmed,
         ]
       );
 
@@ -553,8 +553,8 @@ export const duplicateMarker = createAsyncThunk(
         params.newStartTime,
         params.newEndTime,
         [
-          stashappService.MARKER_SOURCE_MANUAL,
-          stashappService.MARKER_STATUS_CONFIRMED,
+          stashappService.markerSourceManual,
+          stashappService.markerStatusConfirmed,
         ]
       );
 
@@ -594,8 +594,8 @@ export const mergeMarkers = createAsyncThunk(
         params.newStartTime,
         params.newEndTime,
         [
-          stashappService.MARKER_SOURCE_MANUAL,
-          stashappService.MARKER_STATUS_CONFIRMED,
+          stashappService.markerSourceManual,
+          stashappService.markerStatusConfirmed,
         ]
       );
 
@@ -690,13 +690,8 @@ const markerSlice = createSlice({
 
     // UI actions - selection
     setSelectedMarkerId: (state, action: PayloadAction<string | null>) => {
-      // Prevent selection of shot boundary markers (matching original logic)
-      if (action.payload) {
-        const marker = state.markers.find((m) => m.id === action.payload);
-        if (marker?.primary_tag.id === stashappService.MARKER_SHOT_BOUNDARY) {
-          return; // Don't update state
-        }
-      }
+      // Note: Shot boundary marker filtering is now done in the component
+      // to avoid coupling reducer logic with service constants
       state.ui.selectedMarkerId = action.payload;
     },
 

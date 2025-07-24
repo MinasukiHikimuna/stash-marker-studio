@@ -11,9 +11,8 @@ import {
   type SceneMarker,
   type SpriteFrame,
   type Scene,
-  StashappService,
+  stashappService,
 } from "../services/StashappService";
-import { stashappService } from "../services/StashappService";
 import SpritePreview from "./SpritePreview";
 import { MarkerWithTrack, TagGroup } from "../core/marker/types";
 import {
@@ -22,8 +21,9 @@ import {
   isMarkerRejected,
 } from "../core/marker/markerLogic";
 import { MarkerStatus } from "../core/marker/types";
-import { useAppDispatch } from "../store/hooks";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { seekToTime } from "../store/slices/markerSlice";
+import { selectMarkerGroupParentId, selectMarkerStatusConfirmed, selectMarkerStatusRejected } from "../store/slices/configSlice";
 
 // Add new type for marker group info
 type MarkerGroupInfo = {
@@ -147,7 +147,7 @@ type TimelineProps = {
 };
 
 // Helper function to extract marker group name from tag parents
-function getMarkerGroupName(marker: SceneMarker): MarkerGroupInfo {
+function getMarkerGroupName(marker: SceneMarker, markerGroupParentId: string): MarkerGroupInfo {
   const parents = marker.primary_tag.parents;
   if (!parents || parents.length === 0) {
     return null;
@@ -159,7 +159,7 @@ function getMarkerGroupName(marker: SceneMarker): MarkerGroupInfo {
       parent.name.startsWith("Marker Group: ") &&
       parent.parents?.some(
         (grandparent) =>
-          grandparent.id === StashappService.MARKER_GROUP_PARENT_ID
+          grandparent.id === markerGroupParentId
       )
     ) {
       // Return an object containing both the full name and display name
@@ -176,7 +176,7 @@ function getMarkerGroupName(marker: SceneMarker): MarkerGroupInfo {
 }
 
 // Helper function to group markers by tags (simplified version)
-async function groupMarkersByTags(markers: SceneMarker[]): Promise<TagGroup[]> {
+async function groupMarkersByTags(markers: SceneMarker[], markerGroupParentId: string): Promise<TagGroup[]> {
   console.log("Grouping", markers.length, "markers");
 
   // Group all markers by tag name (with AI tag correspondence)
@@ -229,8 +229,8 @@ async function groupMarkersByTags(markers: SceneMarker[]): Promise<TagGroup[]> {
     })
     .sort((a, b) => {
       // Get marker group names for sorting
-      const aMarkerGroup = getMarkerGroupName(a.markers[0]);
-      const bMarkerGroup = getMarkerGroupName(b.markers[0]);
+      const aMarkerGroup = getMarkerGroupName(a.markers[0], markerGroupParentId);
+      const bMarkerGroup = getMarkerGroupName(b.markers[0], markerGroupParentId);
 
       // If both have marker groups, sort by the full name to preserve numbering
       if (aMarkerGroup && bMarkerGroup) {
@@ -343,6 +343,9 @@ export default function Timeline({
   onZoomChange: _onZoomChange,
 }: TimelineProps) {
   const dispatch = useAppDispatch();
+  const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
+  const markerStatusConfirmed = useAppSelector(selectMarkerStatusConfirmed);
+  const markerStatusRejected = useAppSelector(selectMarkerStatusRejected);
   const timelineRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [tagGroups, setTagGroups] = useState<TagGroup[]>([]);
@@ -415,7 +418,7 @@ export default function Timeline({
 
       try {
         // Group markers by tags
-        const allGroups = await groupMarkersByTags(markers);
+        const allGroups = await groupMarkersByTags(markers, markerGroupParentId);
 
         // Filter groups to only include action markers if needed
         const finalGroups = allGroups.map((group) => ({
@@ -445,7 +448,7 @@ export default function Timeline({
     };
 
     setupTagGroups();
-  }, [markers, actionMarkers, onSwimlaneDataUpdate]);
+  }, [markers, actionMarkers, onSwimlaneDataUpdate, markerGroupParentId]);
 
   // Base width is 300px per minute of video (at zoom 1)
   const basePixelsPerMinute = 300;
@@ -692,7 +695,7 @@ export default function Timeline({
             // Get the marker group name from the first marker
             const firstMarker = groupMarkers[0];
             const currentMarkerGroupName = firstMarker
-              ? getMarkerGroupName(firstMarker)
+              ? getMarkerGroupName(firstMarker, markerGroupParentId)
               : null;
 
             // Check if this is the first swimlane of the current marker group
@@ -703,7 +706,7 @@ export default function Timeline({
                   )
                 : null;
             const previousMarkerGroup = previousMarker
-              ? getMarkerGroupName(previousMarker)
+              ? getMarkerGroupName(previousMarker, markerGroupParentId)
               : null;
             const isFirstInGroup =
               currentMarkerGroupName?.fullName !==
@@ -717,7 +720,7 @@ export default function Timeline({
                   )
                 : null;
             const nextMarkerGroup = nextMarker
-              ? getMarkerGroupName(nextMarker)
+              ? getMarkerGroupName(nextMarker, markerGroupParentId)
               : null;
             const isLastInGroup =
               currentMarkerGroupName?.fullName !== nextMarkerGroup?.fullName;
@@ -948,7 +951,7 @@ export default function Timeline({
                         // Get the marker group name from the first marker in this group
                         const firstMarker = groupMarkers[0];
                         const currentMarkerGroupName = firstMarker
-                          ? getMarkerGroupName(firstMarker)
+                          ? getMarkerGroupName(firstMarker, markerGroupParentId)
                           : null;
 
                         return (
@@ -1126,8 +1129,8 @@ export default function Timeline({
                   {markerTooltip.marker.tags
                     .filter(
                       (tag) =>
-                        tag.id !== stashappService.MARKER_STATUS_CONFIRMED &&
-                        tag.id !== stashappService.MARKER_STATUS_REJECTED
+                        tag.id !== markerStatusConfirmed &&
+                        tag.id !== markerStatusRejected
                     )
                     .map((tag) => (
                       <span

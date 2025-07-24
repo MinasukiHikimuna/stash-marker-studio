@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { useAppDispatch } from '../store/hooks';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
   loadMarkers,
   setMarkers,
@@ -20,8 +20,9 @@ import {
   pauseVideo,
   playVideo,
 } from '../store/slices/markerSlice';
+import { selectMarkerStatusConfirmed, selectMarkerStatusRejected } from '../store/slices/configSlice';
 import { isShotBoundaryMarker } from '../core/marker/markerLogic';
-import { stashappService, type SceneMarker } from '../services/StashappService';
+import { type SceneMarker } from '../services/StashappService';
 import { incorrectMarkerStorage } from '../utils/incorrectMarkerStorage';
 
 interface UseMarkerKeyboardShortcutsParams {
@@ -75,6 +76,8 @@ interface UseMarkerKeyboardShortcutsParams {
 
 export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsParams) => {
   const dispatch = useAppDispatch();
+  const markerStatusConfirmed = useAppSelector(selectMarkerStatusConfirmed);
+  const markerStatusRejected = useAppSelector(selectMarkerStatusRejected);
   const {
     actionMarkers,
     markers,
@@ -410,7 +413,7 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
             );
             if (markerToConfirm) {
               const isAlreadyConfirmed = markerToConfirm.tags.some(
-                (tag) => tag.id === stashappService.MARKER_STATUS_CONFIRMED
+                (tag) => tag.id === markerStatusConfirmed
               );
 
               if (isAlreadyConfirmed) {
@@ -440,7 +443,7 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
             );
             if (markerToHandle) {
               const isAlreadyRejected = markerToHandle.tags.some(
-                (tag) => tag.id === stashappService.MARKER_STATUS_REJECTED
+                (tag) => tag.id === markerStatusRejected
               );
 
               if (isAlreadyRejected) {
@@ -800,6 +803,8 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
       markers,
       scene,
       selectedMarkerId,
+      markerStatusConfirmed,
+      markerStatusRejected,
       videoDuration,
       currentVideoTime,
       dispatch,

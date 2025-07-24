@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { useConfig } from "@/contexts/ConfigContext";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   selectPendingSeek,
@@ -11,6 +10,7 @@ import {
   clearPendingSeek,
   clearPendingPlayPause,
 } from "@/store/slices/markerSlice";
+import { selectStashUrl, selectStashApiKey } from "@/store/slices/configSlice";
 
 interface VideoPlayerProps {
   className?: string;
@@ -22,7 +22,8 @@ export function VideoPlayer({ className = "" }: VideoPlayerProps) {
   const pendingSeek = useAppSelector(selectPendingSeek);
   const pendingPlayPause = useAppSelector(selectPendingPlayPause);
   
-  const { STASH_URL, STASH_API_KEY } = useConfig();
+  const stashUrl = useAppSelector(selectStashUrl);
+  const stashApiKey = useAppSelector(selectStashApiKey);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Handle pending seek commands from Redux
@@ -102,7 +103,7 @@ export function VideoPlayer({ className = "" }: VideoPlayerProps) {
   return (
     <video
       ref={videoRef}
-      src={`${STASH_URL}/scene/${scene.id}/stream?apikey=${STASH_API_KEY}`}
+      src={`${stashUrl}/scene/${scene.id}/stream?apikey=${stashApiKey}`}
       controls
       className={`w-full h-full object-contain ${className}`}
       tabIndex={-1}

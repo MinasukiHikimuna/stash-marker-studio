@@ -29,6 +29,7 @@ import {
   seekToTime,
   setSelectedMarkerId,
 } from "../store/slices/markerSlice";
+import { selectMarkerAiReviewed } from "../store/slices/configSlice";
 import {
   formatSeconds,
   isMarkerConfirmed,
@@ -48,6 +49,7 @@ export const useMarkerOperations = (
   const dispatch = useAppDispatch();
   
   // Redux selectors
+  const markerAiReviewed = useAppSelector(selectMarkerAiReviewed);
   const markers = useAppSelector(selectMarkers);
   const scene = useAppSelector(selectScene);
   const availableTags = useAppSelector(selectAvailableTags);
@@ -501,7 +503,7 @@ export const useMarkerOperations = (
 
       // Create AI_Reviewed tag object
       const aiReviewedTag = {
-        id: stashappService.MARKER_AI_REVIEWED,
+        id: markerAiReviewed,
         name: "AI_Reviewed",
       };
 
@@ -532,6 +534,7 @@ export const useMarkerOperations = (
     scene,
     identifyAITagsToRemove,
     dispatch,
+    markerAiReviewed,
   ]);
 
   return {

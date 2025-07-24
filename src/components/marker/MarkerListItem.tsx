@@ -5,7 +5,7 @@ import { SceneMarker } from "../../services/StashappService";
 import { formatSeconds, isMarkerConfirmed, isMarkerRejected } from "../../core/marker/markerLogic";
 import { TagAutocomplete } from "./TagAutocomplete";
 import { TempMarkerForm } from "./TempMarkerForm";
-import { useAppDispatch } from "../../store/hooks";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import {
   setMarkers,
   setSelectedMarkerId,
@@ -14,7 +14,8 @@ import {
   setError,
   createMarker,
 } from "../../store/slices/markerSlice";
-import { stashappService, type Tag } from "../../services/StashappService";
+import { selectMarkerStatusConfirmed, selectMarkerStatusRejected } from "@/store/slices/configSlice";
+import { type Tag } from "../../services/StashappService";
 import { IncorrectMarker } from "../../utils/incorrectMarkerStorage";
 
 interface MarkerListItemProps {
@@ -51,6 +52,8 @@ export function MarkerListItem({
   setEditingTagId,
 }: MarkerListItemProps) {
   const dispatch = useAppDispatch();
+  const markerStatusConfirmed = useAppSelector(selectMarkerStatusConfirmed);
+  const markerStatusRejected = useAppSelector(selectMarkerStatusRejected);
 
   const isEditing = editingMarkerId === marker.id;
   const isSelected = marker.id === selectedMarkerId;
@@ -200,8 +203,8 @@ export function MarkerListItem({
                 {marker.tags
                   .filter(
                     (tag) =>
-                      tag.id !== stashappService.MARKER_STATUS_CONFIRMED &&
-                      tag.id !== stashappService.MARKER_STATUS_REJECTED
+                      tag.id !== markerStatusConfirmed &&
+                      tag.id !== markerStatusRejected
                   )
                   .map((tag) => tag.name)
                   .join(", ")}

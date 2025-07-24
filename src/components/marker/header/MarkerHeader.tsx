@@ -1,4 +1,3 @@
-import { useConfig } from "@/contexts/ConfigContext";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
@@ -12,6 +11,7 @@ import {
   setGeneratingMarkers,
   selectSceneId,
 } from "@/store/slices/markerSlice";
+import { selectStashUrl } from "@/store/slices/configSlice";
 import {
   isMarkerConfirmed,
   isMarkerRejected,
@@ -23,7 +23,7 @@ interface MarkerHeaderProps {
 
 export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
   const dispatch = useAppDispatch();
-  const { STASH_URL } = useConfig();
+  const stashUrl = useAppSelector(selectStashUrl);
   const router = useRouter();
   
   // Redux selectors
@@ -63,7 +63,7 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
             </h1>
             {scene && (
               <a
-                href={`${STASH_URL}/scenes/${scene.id}`}
+                href={`${stashUrl}/scenes/${scene.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-400 hover:text-blue-300 text-sm"

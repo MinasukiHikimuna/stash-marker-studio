@@ -62,6 +62,7 @@ import {
   seekToTime,
   setError
 } from "../../store/slices/markerSlice";
+import { selectMarkerShotBoundary, selectMarkerAiReviewed } from "../../store/slices/configSlice";
 import Toast from "../components/Toast";
 import { useRouter } from "next/navigation";
 import { incorrectMarkerStorage } from "@/utils/incorrectMarkerStorage";
@@ -86,6 +87,8 @@ export default function MarkerPage() {
   
   // Redux selectors
   const markers = useAppSelector(selectMarkers);
+  const markerShotBoundary = useAppSelector(selectMarkerShotBoundary);
+  const markerAiReviewed = useAppSelector(selectMarkerAiReviewed);
   const scene = useAppSelector(selectScene);
   const availableTags = useAppSelector(selectAvailableTags);
   const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
@@ -450,7 +453,7 @@ export default function MarkerPage() {
           .sort((a, b) => a.name.localeCompare(b.name));
 
         // Also check if AI_Reviewed tag is already present
-        const aiReviewedTagId = stashappService.MARKER_AI_REVIEWED;
+        const aiReviewedTagId = markerAiReviewed;
         hasAiReviewedTagAlready = currentSceneTagIds.has(aiReviewedTagId);
 
         console.log("Current scene tag IDs:", Array.from(currentSceneTagIds));
@@ -483,6 +486,7 @@ export default function MarkerPage() {
     getShotBoundaries,
     scene,
     identifyAITagsToRemove,
+    markerAiReviewed,
   ]);
 
   // executeCompletion now comes from useMarkerOperations hook
@@ -607,14 +611,14 @@ export default function MarkerPage() {
       });
 
       // Don't select shot boundary markers
-      if (marker.primary_tag.id === stashappService.MARKER_SHOT_BOUNDARY) {
+      if (marker.primary_tag.id === markerShotBoundary) {
         console.log("Prevented selection of shot boundary marker");
         return;
       }
 
       dispatch(setSelectedMarkerId(marker.id));
     },
-    [dispatch]
+    [dispatch, markerShotBoundary]
   );
 
   // Navigate to next/previous shot

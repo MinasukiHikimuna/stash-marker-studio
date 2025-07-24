@@ -7,7 +7,7 @@ import { MarkerSummary, MarkerWithTrack, MarkerStatus } from "./types";
 export const isMarkerRejected = (marker: SceneMarker): boolean => {
   return (
     marker.tags?.some(
-      (tag) => tag.id === stashappService.MARKER_STATUS_REJECTED
+      (tag) => tag.id === stashappService.markerStatusRejected
     ) ?? false
   );
 };
@@ -15,7 +15,7 @@ export const isMarkerRejected = (marker: SceneMarker): boolean => {
 export const isMarkerConfirmed = (marker: SceneMarker): boolean => {
   return (
     marker.tags?.some(
-      (tag) => tag.id === stashappService.MARKER_STATUS_CONFIRMED
+      (tag) => tag.id === stashappService.markerStatusConfirmed
     ) ?? false
   );
 };
@@ -51,7 +51,7 @@ export const filterUnprocessedMarkers = (
 };
 
 export const isShotBoundaryMarker = (marker: SceneMarker): boolean => {
-  return marker.primary_tag.id === stashappService.MARKER_SHOT_BOUNDARY;
+  return marker.primary_tag.id === stashappService.markerShotBoundary;
 };
 
 export const calculateMarkerSummary = (
@@ -61,7 +61,7 @@ export const calculateMarkerSummary = (
 
   // Filter out shot boundary markers first
   const actionMarkers = markers.filter(
-    (marker) => marker.primary_tag.id !== stashappService.MARKER_SHOT_BOUNDARY
+    (marker) => marker.primary_tag.id !== stashappService.markerShotBoundary
   );
 
   return actionMarkers.reduce(
