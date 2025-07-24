@@ -1,0 +1,21 @@
+{
+  "serverConfig": {
+    "url": "",
+    "apiKey": ""
+  },
+  "markerConfig": {
+    "statusConfirmed": "",
+    "statusRejected": "",
+    "sourceManual": "",
+    "aiReviewed": ""
+  },
+  "markerGroupingConfig": {
+    "markerGroupParent": ""
+  },
+  "shotBoundaryConfig": {
+    "aiTagged": "",
+    "shotBoundary": "",
+    "sourceShotBoundaryAnalysis": "",
+    "shotBoundaryProcessed": ""
+  }
+}
