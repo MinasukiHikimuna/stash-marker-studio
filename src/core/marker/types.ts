@@ -24,7 +24,6 @@ export type TagGroup = {
   isRejected: boolean;
 };
 
-
 export type MarkerFormProps = {
   marker: SceneMarker;
   availableTags: Tag[];
@@ -48,6 +47,5 @@ export type TagAutocompleteProps = {
 export enum MarkerStatus {
   CONFIRMED = "confirmed",
   REJECTED = "rejected",
-  MANUAL = "manual",
   UNPROCESSED = "unprocessed",
 }

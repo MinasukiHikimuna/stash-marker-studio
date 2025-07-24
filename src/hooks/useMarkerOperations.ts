@@ -387,7 +387,7 @@ export const useMarkerOperations = (
     }
   }, [confirmedAIMarkers, dispatch, scene?.id]);
 
-  // Check if all markers are approved (confirmed, rejected, or manual)
+  // Check if all markers are approved (confirmed or rejected)
   const checkAllMarkersApproved = useCallback(() => {
     const actionMarkers = getActionMarkers();
     if (!actionMarkers || actionMarkers.length === 0) return true;

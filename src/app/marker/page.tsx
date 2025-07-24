@@ -411,7 +411,7 @@ export default function MarkerPage() {
 
     // Calculate AI tags to remove and primary tags to add for preview
     const confirmedMarkers = actionMarkers.filter((marker) =>
-      [MarkerStatus.CONFIRMED, MarkerStatus.MANUAL].includes(
+      [MarkerStatus.CONFIRMED].includes(
         getMarkerStatus(marker)
       )
     );

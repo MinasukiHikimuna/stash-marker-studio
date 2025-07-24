@@ -1175,9 +1175,7 @@ export class StashappService {
 
     for (const marker of markers) {
       const isConfirmed = marker.tags.some(
-        (tag) =>
-          tag.id === this.MARKER_STATUS_CONFIRMED ||
-          tag.id === this.MARKER_SOURCE_MANUAL
+        (tag) => tag.id === this.MARKER_STATUS_CONFIRMED
       );
 
       console.log("Checking marker:", marker.primary_tag.name);

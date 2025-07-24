@@ -30,7 +30,6 @@ export function MarkerItem({ marker, isSelected }: MarkerItemProps) {
       case MarkerStatus.REJECTED:
         return "bg-red-900 text-red-100";
       case MarkerStatus.CONFIRMED:
-      case MarkerStatus.MANUAL:
         return "bg-green-900 text-green-100";
       default:
         return "bg-gray-700 text-gray-100";
@@ -43,7 +42,6 @@ export function MarkerItem({ marker, isSelected }: MarkerItemProps) {
       case MarkerStatus.REJECTED:
         return "✗";
       case MarkerStatus.CONFIRMED:
-      case MarkerStatus.MANUAL:
         return "✓";
       default:
         return "?";
