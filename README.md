@@ -65,12 +65,25 @@ npm run dev
 
 ### Shot boundary analysis with PySceneDetect
 
-For `pyscenedetect-process.js`, you need to [install PySceneDetect](https://www.scenedetect.com/download/) and run the custom script which will run shot boundary analysis on your scenes which have already been AI analyzed:
+For `pyscenedetect-process.js`, you need to [install PySceneDetect](https://www.scenedetect.com/download/) and ffmpeg, then run the custom script which will run shot boundary analysis on your scenes which have already been AI analyzed.
 
+**Requirements:**
+- **PySceneDetect**: Version 0.5.6 or higher recommended
+- **ffmpeg**: Version 7.1 or higher recommended
+
+You can check your installed versions:
+```bash
+scenedetect version
+ffmpeg -version
+```
+
+Run the script:
 ```bash
 npm install
 node src/scripts/pyscenedetect-process.js
 ```
+
+The script will automatically check for these dependencies and display warnings if older versions are detected.
 
 ### Detailed configuration
 

@@ -16,6 +16,112 @@ async function loadConfig() {
   }
 }
 
+// Check ffmpeg version
+async function checkFfmpegVersion() {
+  return new Promise((resolve) => {
+    const ffmpeg = spawn("ffmpeg", ["-version"], {
+      stdio: ["inherit", "pipe", "pipe"],
+    });
+
+    let output = "";
+    ffmpeg.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    ffmpeg.stderr.on("data", (data) => {
+      output += data.toString();
+    });
+
+    ffmpeg.on("error", () => {
+      console.warn("⚠️  ffmpeg not found in PATH. Please install ffmpeg.");
+      resolve(false);
+    });
+
+    ffmpeg.on("close", (code) => {
+      if (code !== 0) {
+        console.warn("⚠️  Could not check ffmpeg version.");
+        resolve(false);
+        return;
+      }
+
+      const versionMatch = output.match(/ffmpeg version (\d+)\.(\d+)/);
+      if (versionMatch) {
+        const major = parseInt(versionMatch[1]);
+        const minor = parseInt(versionMatch[2]);
+        const version = `${major}.${minor}`;
+
+        if (major < 7 || (major === 7 && minor < 1)) {
+          console.warn(
+            `⚠️  ffmpeg version ${version} detected. Version 7.1 or higher is recommended for optimal performance.`
+          );
+        } else {
+          console.log(`✅ ffmpeg version ${version} detected.`);
+        }
+        resolve(true);
+      } else {
+        console.warn("⚠️  Could not parse ffmpeg version.");
+        resolve(false);
+      }
+    });
+  });
+}
+
+// Check PySceneDetect version
+async function checkPySceneDetectVersion() {
+  return new Promise((resolve) => {
+    const scenedetect = spawn("scenedetect", ["version"], {
+      stdio: ["inherit", "pipe", "pipe"],
+    });
+
+    let output = "";
+    scenedetect.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    scenedetect.stderr.on("data", (data) => {
+      output += data.toString();
+    });
+
+    scenedetect.on("error", () => {
+      console.warn(
+        "⚠️  PySceneDetect not found in PATH. Please install PySceneDetect."
+      );
+      resolve(false);
+    });
+
+    scenedetect.on("close", (code) => {
+      if (code !== 0) {
+        console.warn("⚠️  Could not check PySceneDetect version.");
+        resolve(false);
+        return;
+      }
+
+      const versionMatch = output.match(/PySceneDetect v(\d+)\.(\d+)\.(\d+)/);
+      if (versionMatch) {
+        const major = parseInt(versionMatch[1]);
+        const minor = parseInt(versionMatch[2]);
+        const patch = parseInt(versionMatch[3]);
+        const version = `${major}.${minor}.${patch}`;
+
+        if (
+          major < 0 ||
+          (major === 0 && minor < 5) ||
+          (major === 0 && minor === 5 && patch < 6)
+        ) {
+          console.warn(
+            `⚠️  PySceneDetect version ${version} detected. Version 0.5.6 or higher is recommended for optimal performance.`
+          );
+        } else {
+          console.log(`✅ PySceneDetect version ${version} detected.`);
+        }
+        resolve(true);
+      } else {
+        console.warn("⚠️  Could not parse PySceneDetect version.");
+        resolve(false);
+      }
+    });
+  });
+}
 
 async function getSidecarFile(videoPath) {
   const parsedPath = path.parse(videoPath);
@@ -229,7 +335,10 @@ async function createSceneMarkers(sceneId, csvPath, config) {
 
   try {
     // Get the shot boundary tag name first
-    const tagName = await getTagName(config.shotBoundaryConfig.shotBoundary, config);
+    const tagName = await getTagName(
+      config.shotBoundaryConfig.shotBoundary,
+      config
+    );
     console.log(`Using tag name: ${tagName}`);
 
     // Read CSV file with different encodings
@@ -451,6 +560,19 @@ async function findScenes(config) {
 }
 
 async function main() {
+  // Check dependencies first
+  console.log("Checking dependencies...");
+  const ffmpegAvailable = await checkFfmpegVersion();
+  const scenedetectAvailable = await checkPySceneDetectVersion();
+
+  if (!ffmpegAvailable || !scenedetectAvailable) {
+    console.error(
+      "❌ Required dependencies are missing. Please install them before proceeding."
+    );
+    process.exit(1);
+  }
+  console.log("");
+
   // Load and initialize configuration
   const config = await loadConfig();
 
