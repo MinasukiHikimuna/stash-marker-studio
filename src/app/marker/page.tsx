@@ -572,10 +572,13 @@ export default function MarkerPage() {
         screenshot: isDuplicate ? sourceMarker.screenshot : "",
       };
 
-      // Insert the temporary marker at the correct chronological position
-      const updatedMarkers = [...(markers || []), tempMarker].sort(
-        (a, b) => a.seconds - b.seconds
-      );
+      const insertIndex = (markers || []).findIndex(m => m.seconds > tempMarker.seconds);
+      const updatedMarkers = [...(markers || [])];
+      if (insertIndex === -1) {
+        updatedMarkers.push(tempMarker);
+      } else {
+        updatedMarkers.splice(insertIndex, 0, tempMarker);
+      }
 
       dispatch(setMarkers(updatedMarkers));
       dispatch(setSelectedMarkerId(tempMarker.id));

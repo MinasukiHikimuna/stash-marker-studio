@@ -172,6 +172,8 @@ export const initializeMarkerPage = createAsyncThunk(
       // Load markers
       const markersResult = await stashappService.getSceneMarkers(sceneId);
       const markers = markersResult.findSceneMarkers.scene_markers || [];
+      // Sort markers by time for consistent ordering across all UI components
+      const sortedMarkers = [...markers].sort((a, b) => a.seconds - b.seconds);
 
       // Load available tags
       const tagsResult = await stashappService.getAllTags();
@@ -179,7 +181,7 @@ export const initializeMarkerPage = createAsyncThunk(
 
       return {
         scene,
-        markers,
+        markers: sortedMarkers,
         availableTags,
       };
     } catch (error) {
@@ -199,7 +201,9 @@ export const loadMarkers = createAsyncThunk(
     try {
       const result = await stashappService.getSceneMarkers(sceneId);
       const markers = result.findSceneMarkers.scene_markers || [];
-      return markers;
+      // Sort markers by time for consistent ordering across all UI components
+      const sortedMarkers = [...markers].sort((a, b) => a.seconds - b.seconds);
+      return sortedMarkers;
     } catch (error) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to load markers"

@@ -196,11 +196,8 @@ async function groupMarkersByTags(markers: SceneMarker[], markerGroupParentId: s
   // Convert to array of tag groups
   const tagGroups: TagGroup[] = Array.from(tagGroupMap.entries())
     .map(([name, markers]) => {
-      // Sort markers by time within each group
-      const sortedMarkers = markers.sort((a, b) => a.seconds - b.seconds);
-
       // A group is considered rejected only if ALL markers in it are rejected
-      const isRejected = sortedMarkers.every(
+      const isRejected = markers.every(
         (marker) => getMarkerStatus(marker) === MarkerStatus.REJECTED
       );
 
@@ -222,7 +219,7 @@ async function groupMarkersByTags(markers: SceneMarker[], markerGroupParentId: s
 
       return {
         name,
-        markers: sortedMarkers,
+        markers,
         tags: uniqueTags,
         isRejected,
       };

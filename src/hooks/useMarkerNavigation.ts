@@ -198,18 +198,15 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
         return;
       }
 
-      // Sort all markers by start time
-      const sortedMarkers = [...actionMarkers].sort(
-        (a, b) => a.seconds - b.seconds
-      );
-      const currentIndex = sortedMarkers.findIndex(
+      // Markers are now pre-sorted in Redux, no need to sort again
+      const currentIndex = actionMarkers.findIndex(
         (m) => m.id === currentMarker.id
       );
 
       let newIndex;
       if (direction === "next") {
         newIndex =
-          currentIndex < sortedMarkers.length - 1
+          currentIndex < actionMarkers.length - 1
             ? currentIndex + 1
             : currentIndex;
       } else {
@@ -217,7 +214,7 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
       }
 
       // Select the new marker by ID
-      const newMarker = sortedMarkers[newIndex];
+      const newMarker = actionMarkers[newIndex];
       dispatch(setSelectedMarkerId(newMarker.id));
     },
     [actionMarkers, selectedMarkerId, dispatch]
