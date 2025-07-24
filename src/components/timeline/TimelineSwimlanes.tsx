@@ -1,15 +1,18 @@
 "use client";
 
-import React, { useCallback, useState, useMemo } from "react";
-import { type SceneMarker } from "../../services/StashappService";
+import React, { useCallback, useState, useEffect } from "react";
+import { type SceneMarker, stashappService } from "../../services/StashappService";
 import { TagGroup } from "../../core/marker/types";
-import { useAppSelector } from "../../store/hooks";
+import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import { selectMarkerGroupParentId, selectMarkerStatusConfirmed, selectMarkerStatusRejected } from "../../store/slices/configSlice";
+import { loadAvailableTags, loadMarkers, selectSceneId } from "../../store/slices/markerSlice";
+import { selectAllTags, loadAllTags } from "../../store/slices/searchSlice";
 import {
   isMarkerConfirmed,
   isMarkerRejected,
 } from "../../core/marker/markerLogic";
 import { getMarkerGroupName, getTrackCountsByGroup, createMarkersWithTracks } from "../../core/marker/markerGrouping";
+import { MarkerGroupAutocomplete } from "../marker/MarkerGroupAutocomplete";
 
 type TimelineSwimlanesProps = {
   markerGroups: TagGroup[];
@@ -34,14 +37,30 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
   onSwimlaneFilter,
   labelWidth,
 }) => {
+  const dispatch = useAppDispatch();
   const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
   const markerStatusConfirmed = useAppSelector(selectMarkerStatusConfirmed);
   const markerStatusRejected = useAppSelector(selectMarkerStatusRejected);
+  const allTags = useAppSelector(selectAllTags);
+  const sceneId = useAppSelector(selectSceneId);
   const [markerTooltip, setMarkerTooltip] = useState<{
     marker: SceneMarker;
     x: number;
     y: number;
   } | null>(null);
+  const [reassignmentUI, setReassignmentUI] = useState<{
+    tagName: string;
+    currentTagId: string;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // Ensure tags are loaded for the autocomplete
+  useEffect(() => {
+    if (allTags.length === 0) {
+      dispatch(loadAllTags());
+    }
+  }, [allTags.length, dispatch]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -77,6 +96,61 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
     },
     [markerTooltip]
   );
+
+  // Handle tag reassignment to different marker group
+  const handleReassignMarkerGroup = useCallback(async (tagId: string, newMarkerGroupId: string) => {
+    try {
+      // Get the current tag to understand its current parents
+      const currentTag = allTags.find(tag => tag.id === tagId);
+      if (!currentTag) {
+        console.error('Tag not found:', tagId);
+        return;
+      }
+
+      // Filter out any existing marker group parents and add the new one
+      const newParentIds = [
+        // Keep all non-marker-group parents
+        ...(currentTag.parents || [])
+          .filter(parent => !parent.parents?.some(grandparent => grandparent.id === markerGroupParentId))
+          .map(parent => parent.id),
+        // Add the new marker group
+        newMarkerGroupId
+      ];
+
+      await stashappService.updateTagParents(tagId, newParentIds);
+      
+      // Refresh tags to reflect the change
+      dispatch(loadAvailableTags());
+      dispatch(loadAllTags());
+      
+      // Refresh markers to sync embedded tag data
+      if (sceneId) {
+        dispatch(loadMarkers(sceneId));
+      }
+      
+      // Close the reassignment UI
+      setReassignmentUI(null);
+    } catch (error) {
+      console.error('Failed to reassign marker group:', error);
+    }
+  }, [allTags, markerGroupParentId, dispatch, sceneId]);
+
+  // Handle clicking the reassignment icon
+  const handleReassignmentIconClick = useCallback((e: React.MouseEvent, tagName: string, groupMarkers: SceneMarker[]) => {
+    e.stopPropagation();
+    
+    // Find the primary tag from the first marker in the group
+    const primaryTag = groupMarkers[0]?.primary_tag;
+    if (!primaryTag) return;
+
+
+    setReassignmentUI({
+      tagName: tagName,
+      currentTagId: primaryTag.id,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  }, []);
 
   if (videoDuration <= 0) {
     return null;
@@ -142,18 +216,26 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                 >
                   {/* Only show label and counts on the first track */}
                   {trackIndex === 0 ? (
-                    <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center justify-between w-full group/swimlane">
                       <div className="flex items-center gap-2 truncate">
                         {markerGroup && (
                           <span className="text-blue-300 text-xs">
                             {markerGroup.displayName}:
                           </span>
                         )}
-                        <span className="text-gray-200">
+                        <span className="text-gray-200 flex items-center gap-1">
                           {group.name}
                           {group.isRejected && " (R)"}
                           {filteredSwimlane === group.name && " 🔍"}
                           {trackCount > 1 && ` (${trackCount})`}
+                          {/* Reassignment icon - only show on hover */}
+                          <button
+                            className="opacity-0 group-hover/swimlane:opacity-100 transition-opacity text-blue-400 hover:text-blue-300 text-xs"
+                            onClick={(e) => handleReassignmentIconClick(e, group.name, group.markers)}
+                            title="Reassign to different marker group"
+                          >
+                            ⚙️
+                          </button>
                         </span>
                       </div>
                       
@@ -318,6 +400,42 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Marker Group Reassignment UI */}
+      {reassignmentUI && (
+        <div
+          className="fixed z-[9001] bg-gray-900 text-white p-3 rounded-lg shadow-lg border border-gray-600 w-64"
+          style={{
+            left: `${Math.max(16, Math.min(reassignmentUI.x, window.innerWidth - 256 - 16))}px`,
+            top: `${Math.max(16, reassignmentUI.y - 120)}px`,
+          }}
+        >
+          <div className="space-y-2">
+            <div className="font-bold text-sm">
+              Reassign &ldquo;{reassignmentUI.tagName}&rdquo;
+            </div>
+            <div className="text-xs text-gray-400">
+              Select new marker group:
+            </div>
+            <MarkerGroupAutocomplete
+              value=""
+              onChange={(newMarkerGroupId) => {
+                handleReassignMarkerGroup(reassignmentUI.currentTagId, newMarkerGroupId);
+              }}
+              availableTags={allTags}
+              placeholder="Search marker groups..."
+              autoFocus={true}
+              onCancel={() => setReassignmentUI(null)}
+            />
+          </div>
+
+          {/* Click outside to close */}
+          <div
+            className="fixed inset-0 -z-10"
+            onClick={() => setReassignmentUI(null)}
+          />
         </div>
       )}
     </div>

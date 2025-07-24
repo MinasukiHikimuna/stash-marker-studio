@@ -1140,7 +1140,8 @@ const markerSlice = createSlice({
       .addCase(splitMarker.rejected, (state, action) => {
         state.loading = false;
         state.error = (action.payload as string) || "Failed to split marker";
-      });
+      })
+
   },
 });
 

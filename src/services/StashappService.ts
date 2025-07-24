@@ -71,6 +71,14 @@ export type Tag = {
   id: string;
   name: string;
   description?: string | null;
+  parents?: Array<{
+    id: string;
+    name: string;
+    parents?: Array<{
+      id: string;
+      name: string;
+    }>;
+  }>;
   children?: {
     id: string;
     name: string;
@@ -615,6 +623,14 @@ export class StashappService {
             id
             name
             description
+            parents {
+              id
+              name
+              parents {
+                id
+                name
+              }
+            }
             children {
               id
               name
@@ -1212,6 +1228,42 @@ export class StashappService {
       confirmedAIMarkers.length
     );
     return confirmedAIMarkers;
+  }
+
+  async updateTagParents(tagId: string, newParentIds: string[]): Promise<Tag> {
+    const mutation = `
+      mutation TagUpdate($input: TagUpdateInput!) {
+        tagUpdate(input: $input) {
+          id
+          name
+          description
+          parents {
+            id
+            name
+            parents {
+              id
+              name
+            }
+          }
+          children {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      input: {
+        id: tagId,
+        parent_ids: newParentIds,
+      },
+    };
+
+    const result = await this.fetchGraphQL<{
+      data: { tagUpdate: Tag };
+    }>(mutation, variables);
+    return result.data.tagUpdate;
   }
 }
 

@@ -98,7 +98,7 @@ export default function MarkerPage() {
   const currentVideoTime = useAppSelector(selectCurrentVideoTime);
   const isLoading = useAppSelector(selectMarkerLoading);
   const error = useAppSelector(selectMarkerError);
-  const isEditingMarker = useAppSelector(selectIsEditingMarker);
+  const _isEditingMarker = useAppSelector(selectIsEditingMarker);
   const isCreatingMarker = useAppSelector(selectIsCreatingMarker);
   const isDuplicatingMarker = useAppSelector(selectIsDuplicatingMarker);
   const isDeletingRejected = useAppSelector(selectIsDeletingRejected);
@@ -153,7 +153,7 @@ export default function MarkerPage() {
   // Timeline zoom functionality
   const {
     zoom,
-    setZoom,
+    setZoom: _setZoom,
     timelineContainerRef,
     zoomIn,
     zoomOut,
@@ -880,29 +880,15 @@ export default function MarkerPage() {
               <Timeline
                 markers={markers || []}
                 actionMarkers={actionMarkers}
-                selectedMarker={
-                  actionMarkers &&
-                  actionMarkers.length > 0 &&
-                  selectedMarkerId
-                    ? actionMarkers.find(
-                        (m) => m.id === selectedMarkerId
-                      ) || null
-                    : null
-                }
                 selectedMarkerId={selectedMarkerId}
                 videoDuration={videoDuration || 0}
                 currentTime={currentVideoTime}
                 onMarkerClick={handleMarkerClick}
-                isCreatingMarker={false}
-                newMarkerStartTime={null}
-                newMarkerEndTime={null}
-                isEditingMarker={isEditingMarker}
                 onSwimlaneDataUpdate={handleSwimlaneDataUpdate}
                 filteredSwimlane={filteredSwimlane}
                 onSwimlaneFilter={handleSwimlaneFilter}
                 scene={scene}
                 zoom={zoom}
-                onZoomChange={setZoom}
               />
             </div>
           </>

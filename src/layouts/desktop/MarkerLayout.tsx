@@ -29,10 +29,10 @@ export function MarkerLayout() {
   const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
   const videoDuration = useAppSelector(selectVideoDuration);
   const currentTime = useAppSelector(selectCurrentVideoTime);
-  const isCreatingMarker = useAppSelector(selectIsCreatingMarker);
-  const newMarkerStartTime = useAppSelector(selectNewMarkerStartTime);
-  const newMarkerEndTime = useAppSelector(selectNewMarkerEndTime);
-  const isEditingMarker = useAppSelector(selectIsEditingMarker);
+  const _isCreatingMarker = useAppSelector(selectIsCreatingMarker);
+  const _newMarkerStartTime = useAppSelector(selectNewMarkerStartTime);
+  const _newMarkerEndTime = useAppSelector(selectNewMarkerEndTime);
+  const _isEditingMarker = useAppSelector(selectIsEditingMarker);
   const filteredSwimlane = useAppSelector(selectFilteredSwimlane);
 
   if (!scene || videoDuration === null) {
@@ -65,21 +65,12 @@ export function MarkerLayout() {
         <Timeline
           markers={markers || []}
           actionMarkers={actionMarkers}
-          selectedMarker={
-            actionMarkers && actionMarkers.length > 0 && selectedMarkerId
-              ? actionMarkers.find((m) => m.id === selectedMarkerId) || null
-              : null
-          }
           videoDuration={videoDuration}
           currentTime={currentTime}
           onMarkerClick={(marker: SceneMarker) => {
             dispatch(setSelectedMarkerId(marker.id));
           }}
           selectedMarkerId={selectedMarkerId}
-          isCreatingMarker={isCreatingMarker}
-          newMarkerStartTime={newMarkerStartTime}
-          newMarkerEndTime={newMarkerEndTime}
-          isEditingMarker={isEditingMarker}
           filteredSwimlane={filteredSwimlane}
           onSwimlaneFilter={(swimlane: string | null) => {
             dispatch(setFilteredSwimlane(swimlane));
