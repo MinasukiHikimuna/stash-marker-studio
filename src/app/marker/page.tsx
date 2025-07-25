@@ -800,6 +800,8 @@ export default function MarkerPage() {
     findNextUnprocessedSwimlane,
     navigateBetweenSwimlanes,
     navigateWithinSwimlane,
+    findNextMarkerAtPlayhead,
+    findPreviousMarkerAtPlayhead,
   } = useMarkerNavigation({
     actionMarkers,
     markersWithTracks,
@@ -849,6 +851,8 @@ export default function MarkerPage() {
     findNextUnprocessedMarkerInSwimlane,
     findPreviousUnprocessedMarkerInSwimlane,
     findNextUnprocessedSwimlane,
+    findNextMarkerAtPlayhead,
+    findPreviousMarkerAtPlayhead,
     zoomIn,
     zoomOut,
     resetZoom,

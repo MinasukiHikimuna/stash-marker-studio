@@ -295,6 +295,24 @@ export const defaultShortcuts: KeyboardShortcut[] = [
     enabled: true,
     editable: true,
   },
+  {
+    id: "navigation.nextMarkerAtPlayhead",
+    bindings: [{ key: "Tab" }],
+    description: "Select next marker at playhead (top-to-bottom)",
+    category: "navigation",
+    action: { type: "function", functionName: "findNextMarkerAtPlayhead" },
+    enabled: true,
+    editable: true,
+  },
+  {
+    id: "navigation.previousMarkerAtPlayhead",
+    bindings: [{ key: "Tab", modifiers: { shift: true } }],
+    description: "Select previous marker at playhead (bottom-to-top)",
+    category: "navigation",
+    action: { type: "function", functionName: "findPreviousMarkerAtPlayhead" },
+    enabled: true,
+    editable: true,
+  },
 
   // Video Playback
   {

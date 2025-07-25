@@ -66,6 +66,8 @@ interface UseDynamicKeyboardShortcutsParams {
   findNextUnprocessedMarkerInSwimlane: () => string | null;
   findPreviousUnprocessedMarkerInSwimlane: () => string | null;
   findNextUnprocessedSwimlane: () => string | null;
+  findNextMarkerAtPlayhead: (currentTime: number) => string | null;
+  findPreviousMarkerAtPlayhead: (currentTime: number) => string | null;
   
   // Zoom functions
   zoomIn: () => void;
@@ -123,6 +125,8 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       findNextUnprocessedMarkerInSwimlane,
       findPreviousUnprocessedMarkerInSwimlane,
       findNextUnprocessedSwimlane,
+      findNextMarkerAtPlayhead,
+      findPreviousMarkerAtPlayhead,
       zoomIn,
       zoomOut,
       resetZoom,
@@ -265,6 +269,14 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       'navigation.zoomIn': () => zoomIn(),
       'navigation.zoomOut': () => zoomOut(),
       'navigation.resetZoom': () => resetZoom(),
+      'navigation.nextMarkerAtPlayhead': () => {
+        const markerId = findNextMarkerAtPlayhead(currentVideoTime);
+        if (markerId) dispatch(setSelectedMarkerId(markerId));
+      },
+      'navigation.previousMarkerAtPlayhead': () => {
+        const markerId = findPreviousMarkerAtPlayhead(currentVideoTime);
+        if (markerId) dispatch(setSelectedMarkerId(markerId));
+      },
 
       // Video Playback
       'video.playPause': () => {

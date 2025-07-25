@@ -369,6 +369,79 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
     ]
   );
 
+  // Helper function to find markers that touch the playhead
+  const findMarkersAtPlayhead = useCallback((currentTime: number): SceneMarker[] => {
+    return actionMarkers.filter(marker => {
+      const startTime = marker.seconds;
+      const endTime = marker.end_seconds || marker.seconds + 30; // Default duration if no end time
+      return currentTime >= startTime && currentTime <= endTime;
+    });
+  }, [actionMarkers]);
+
+  // Helper function to cycle through markers at playhead (top-to-bottom)
+  const findNextMarkerAtPlayhead = useCallback((currentTime: number): string | null => {
+    const markersAtPlayhead = findMarkersAtPlayhead(currentTime);
+    if (markersAtPlayhead.length === 0) return null;
+
+    // Sort by swimlane (if available) or by tag name for consistent ordering
+    const sortedMarkers = markersAtPlayhead.sort((a, b) => {
+      // Try to use swimlane data if available
+      const aTrack = markersWithTracks.find(m => m.id === a.id);
+      const bTrack = markersWithTracks.find(m => m.id === b.id);
+      
+      if (aTrack && bTrack) {
+        return aTrack.swimlane - bTrack.swimlane;
+      }
+      
+      // Fallback to tag name sorting
+      return a.primary_tag.name.localeCompare(b.primary_tag.name);
+    });
+
+    // Find current marker in sorted list
+    const currentIndex = sortedMarkers.findIndex(m => m.id === selectedMarkerId);
+    
+    if (currentIndex === -1) {
+      // No marker selected or selected marker not at playhead, return first
+      return sortedMarkers[0].id;
+    }
+    
+    // Return next marker, or wrap to first
+    const nextIndex = (currentIndex + 1) % sortedMarkers.length;
+    return sortedMarkers[nextIndex].id;
+  }, [findMarkersAtPlayhead, markersWithTracks, selectedMarkerId]);
+
+  // Helper function to cycle through markers at playhead (bottom-to-top)
+  const findPreviousMarkerAtPlayhead = useCallback((currentTime: number): string | null => {
+    const markersAtPlayhead = findMarkersAtPlayhead(currentTime);
+    if (markersAtPlayhead.length === 0) return null;
+
+    // Sort by swimlane (if available) or by tag name for consistent ordering
+    const sortedMarkers = markersAtPlayhead.sort((a, b) => {
+      // Try to use swimlane data if available
+      const aTrack = markersWithTracks.find(m => m.id === a.id);
+      const bTrack = markersWithTracks.find(m => m.id === b.id);
+      
+      if (aTrack && bTrack) {
+        return aTrack.swimlane - bTrack.swimlane;
+      }
+      
+      // Fallback to tag name sorting
+      return a.primary_tag.name.localeCompare(b.primary_tag.name);
+    });
+
+    // Find current marker in sorted list
+    const currentIndex = sortedMarkers.findIndex(m => m.id === selectedMarkerId);
+    
+    if (currentIndex === -1) {
+      // No marker selected or selected marker not at playhead, return last
+      return sortedMarkers[sortedMarkers.length - 1].id;
+    }
+    
+    // Return previous marker, or wrap to last
+    const prevIndex = currentIndex === 0 ? sortedMarkers.length - 1 : currentIndex - 1;
+    return sortedMarkers[prevIndex].id;
+  }, [findMarkersAtPlayhead, markersWithTracks, selectedMarkerId]);
+
   return {
     findNextUnprocessedMarker,
     findPreviousUnprocessedMarker,
@@ -377,5 +450,8 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
     findNextUnprocessedSwimlane,
     navigateBetweenSwimlanes,
     navigateWithinSwimlane,
+    findMarkersAtPlayhead,
+    findNextMarkerAtPlayhead,
+    findPreviousMarkerAtPlayhead,
   };
 };
