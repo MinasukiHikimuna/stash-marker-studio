@@ -72,6 +72,9 @@ interface UseMarkerKeyboardShortcutsParams {
   zoomIn: () => void;
   zoomOut: () => void;
   resetZoom: () => void;
+  
+  // Timeline functions
+  centerPlayhead: () => void;
 }
 
 export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsParams) => {
@@ -119,6 +122,7 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
     zoomIn,
     zoomOut,
     resetZoom,
+    centerPlayhead,
   } = params;
 
   // Modal keyboard handler (runs with capture=true)
@@ -645,32 +649,7 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
         case "H":
           event.preventDefault();
           // Center timeline on current playhead position
-          if (scene && videoDuration && videoDuration > 0) {
-            const timelineElement = document.querySelector(
-              "[data-timeline-container]"
-            ) as HTMLElement;
-            if (timelineElement) {
-              const currentTime = currentVideoTime;
-              // Calculate pixels per second based on timeline's actual width and video duration
-              const timelineContent =
-                timelineElement.firstElementChild as HTMLElement;
-              if (timelineContent) {
-                const timelineWidth = timelineContent.offsetWidth;
-                const pixelsPerSecond = timelineWidth / videoDuration;
-                const currentTimePosition = currentTime * pixelsPerSecond;
-                const containerWidth = timelineElement.clientWidth;
-                const desiredScrollPosition = Math.max(
-                  0,
-                  currentTimePosition - containerWidth / 2
-                );
-
-                timelineElement.scrollTo({
-                  left: desiredScrollPosition,
-                  behavior: "smooth",
-                });
-              }
-            }
-          }
+          centerPlayhead();
           break;
 
         // Playback Control
@@ -843,6 +822,7 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
       createOrDuplicateMarker,
       videoElementRef,
       showToast,
+      centerPlayhead,
     ]
   );
 

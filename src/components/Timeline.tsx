@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useEffect, useState, useCallback, useRef } from "react";
+import React, { useMemo, useEffect, useState, useCallback, useRef, useImperativeHandle, forwardRef } from "react";
 import { type SceneMarker, type Scene } from "../services/StashappService";
 import { TagGroup, MarkerWithTrack } from "../core/marker/types";
 import TimelineHeader from "./timeline/TimelineHeader";
@@ -31,7 +31,11 @@ type TimelineProps = {
   onSwimlaneDataUpdate?: (tagGroups: TagGroup[], markersWithTracks: MarkerWithTrack[]) => void;
 };
 
-export default function Timeline({
+export interface TimelineRef {
+  centerOnPlayhead: () => void;
+}
+
+const Timeline = forwardRef<TimelineRef, TimelineProps>(({
   markers,
   actionMarkers,
   videoDuration,
@@ -44,7 +48,7 @@ export default function Timeline({
   scene = undefined,
   zoom = 1,
   onSwimlaneDataUpdate,
-}: TimelineProps) {
+}, ref) => {
   const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
   
   // Swimlane resize state
@@ -161,7 +165,7 @@ export default function Timeline({
     }
     
     setSwimlaneMaxHeight(newHeight);
-  }, [swimlaneResizeEnabled, swimlaneMaxHeight, markerGroups.length, windowHeight]);
+  }, [swimlaneResizeEnabled, swimlaneMaxHeight, windowHeight]);
   
   // Keyboard event handler for timeline-specific shortcuts
   useEffect(() => {
@@ -271,6 +275,31 @@ export default function Timeline({
     return null;
   }, [swimlaneResizeEnabled, windowHeight]);
 
+  // Center timeline on playhead function
+  const centerOnPlayhead = useCallback(() => {
+    if (!swimlaneContainerRef.current || videoDuration <= 0) return;
+    
+    const container = swimlaneContainerRef.current;
+    const containerWidth = container.clientWidth;
+    
+    // Calculate playhead position in pixels using the same logic as marker positioning
+    const playheadPixelPosition = currentTime * timelineWidth.pixelsPerSecond;
+    const labelWidth = uniformTagLabelWidth;
+    const playheadAbsolutePosition = labelWidth + playheadPixelPosition;
+    
+    // Center the playhead in the viewport
+    const targetScrollLeft = playheadAbsolutePosition - containerWidth / 2;
+    container.scrollTo({
+      left: Math.max(0, targetScrollLeft),
+      behavior: 'smooth'
+    });
+  }, [currentTime, timelineWidth, uniformTagLabelWidth, videoDuration]);
+  
+  // Expose center playhead function to parent via ref
+  useImperativeHandle(ref, () => ({
+    centerOnPlayhead
+  }), [centerOnPlayhead]);
+
   // Scroll selected marker into view when selection changes or zoom changes
   useEffect(() => {
     if (!selectedMarkerId || !swimlaneContainerRef.current) return;
@@ -366,4 +395,8 @@ export default function Timeline({
       </div>
     </div>
   );
-}
+});
+
+Timeline.displayName = 'Timeline';
+
+export default Timeline;

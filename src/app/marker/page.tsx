@@ -7,7 +7,7 @@ import {
   type SceneMarker,
 } from "../../services/StashappService";
 import { KeyboardShortcutsModal } from "../components/KeyboardShortcutsModal";
-import Timeline from "../../components/Timeline";
+import Timeline, { TimelineRef } from "../../components/Timeline";
 import { VideoPlayer } from "../../components/marker/video/VideoPlayer";
 import { MarkerWithTrack, TagGroup } from "../../core/marker/types";
 import { AITagConversionModal } from "../components/AITagConversionModal";
@@ -111,6 +111,7 @@ export default function MarkerPage() {
   const markerListRef = useRef<HTMLDivElement>(null);
   // Temporary ref for video element compatibility - can be removed when VideoPlayer fully handles all video interactions
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
+  const timelineRef = useRef<TimelineRef>(null);
   const router = useRouter();
 
   const [toastState, setToastState] = useState<ToastState>(null);
@@ -647,6 +648,13 @@ export default function MarkerPage() {
     }
   }, [getShotBoundaries, currentVideoTime, dispatch]);
 
+  // Center timeline on playhead
+  const centerPlayhead = useCallback(() => {
+    if (timelineRef.current) {
+      timelineRef.current.centerOnPlayhead();
+    }
+  }, []);
+
   // Use navigation hook
   const {
     findNextUnprocessedMarker,
@@ -707,6 +715,7 @@ export default function MarkerPage() {
     zoomIn,
     zoomOut,
     resetZoom,
+    centerPlayhead,
   });
 
   // Scroll selected marker into view
@@ -878,6 +887,7 @@ export default function MarkerPage() {
               className="border-t border-gray-300 flex-shrink-0"
             >
               <Timeline
+                ref={timelineRef}
                 markers={markers || []}
                 actionMarkers={actionMarkers}
                 selectedMarkerId={selectedMarkerId}
