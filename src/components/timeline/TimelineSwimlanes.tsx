@@ -295,8 +295,9 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                     const markerWidth = markerDuration * timelineWidth.pixelsPerSecond;
                     const isSelected = marker.id === selectedMarkerId;
                     
-                    // Calculate vertical position based on track
-                    const markerTop = SWIMLANE_PADDING / 2 + (marker.track * (TRACK_HEIGHT + TRACK_SPACING));
+                    // Calculate track container position
+                    const trackTop = SWIMLANE_PADDING / 2 + (marker.track * (TRACK_HEIGHT + TRACK_SPACING));
+                    const markerHeight = TRACK_HEIGHT - 6;
                     
                     // Determine marker color based on status
                     let markerColorClass = 'bg-yellow-500'; // Default: pending
@@ -310,36 +311,45 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                       <div
                         key={marker.id}
                         className={`
-                          absolute rounded cursor-pointer transition-all
-                          ${isSelected 
-                            ? `${markerColorClass} ring-2 ring-white z-20 brightness-110` 
-                            : `${markerColorClass} hover:brightness-110 z-10 opacity-80`
-                          }
+                          absolute flex items-center justify-center
                         `}
                         style={{
                           left: `${markerStart}px`,
-                          top: `${markerTop}px`,
+                          top: `${trackTop}px`,
                           width: `${Math.max(markerWidth, 4)}px`,
-                          height: `${TRACK_HEIGHT - 4}px`, // Slightly smaller than track height for visual separation
+                          height: `${TRACK_HEIGHT}px`,
                         }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onMarkerClick(marker);
-                        }}
-                        onMouseEnter={(e) => handleMarkerMouseEnter(e, marker)}
-                        onMouseLeave={handleMarkerMouseLeave}
-                        onMouseMove={(e) => handleMarkerMouseMove(e, marker)}
-                        title={`${marker.primary_tag.name} - ${formatTime(marker.seconds)} - ${
-                          isMarkerConfirmed(marker) ? 'Confirmed' : isMarkerRejected(marker) ? 'Rejected' : 'Pending'
-                        } - Track ${marker.track + 1}`}
                       >
-                        {/* Marker content indicator */}
-                        <div className="w-full h-full flex items-center justify-center">
-                          {marker.primary_tag.name.endsWith("_AI") ? (
-                            <div className="w-2 h-2 bg-purple-300 rounded-full opacity-80" />
-                          ) : (
-                            <div className="w-1 h-1 bg-white rounded-full opacity-80" />
-                          )}
+                        <div
+                          className={`
+                            rounded cursor-pointer transition-all w-full
+                            ${isSelected 
+                              ? `${markerColorClass} ring-2 ring-white z-20 brightness-110` 
+                              : `${markerColorClass} hover:brightness-110 z-10 opacity-80`
+                            }
+                          `}
+                          style={{
+                            height: `${markerHeight}px`,
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onMarkerClick(marker);
+                          }}
+                          onMouseEnter={(e) => handleMarkerMouseEnter(e, marker)}
+                          onMouseLeave={handleMarkerMouseLeave}
+                          onMouseMove={(e) => handleMarkerMouseMove(e, marker)}
+                          title={`${marker.primary_tag.name} - ${formatTime(marker.seconds)} - ${
+                            isMarkerConfirmed(marker) ? 'Confirmed' : isMarkerRejected(marker) ? 'Rejected' : 'Pending'
+                          } - Track ${marker.track + 1}`}
+                        >
+                          {/* Marker content indicator */}
+                          <div className="w-full h-full flex items-center justify-center">
+                            {marker.primary_tag.name.endsWith("_AI") ? (
+                              <div className="w-2 h-2 bg-purple-300 rounded-full opacity-80" />
+                            ) : (
+                              <div className="w-1 h-1 bg-white rounded-full opacity-80" />
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
