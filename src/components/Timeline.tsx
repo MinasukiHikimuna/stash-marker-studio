@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useEffect, useState, useCallback } from "react";
+import React, { useMemo, useEffect, useState, useCallback, useRef } from "react";
 import { type SceneMarker, type Scene } from "../services/StashappService";
 import { TagGroup, MarkerWithTrack } from "../core/marker/types";
 import TimelineHeader from "./timeline/TimelineHeader";
@@ -14,6 +14,7 @@ import {
   getTrackCountsByGroup,
 } from "../core/marker/markerGrouping";
 import { isPlatformModifierPressed } from "../utils/platform";
+import { useThrottledResize } from "../hooks/useThrottledResize";
 
 type TimelineProps = {
   markers: SceneMarker[];
@@ -94,8 +95,6 @@ export default function Timeline({
     
     // Cap at reasonable maximum (480px = w-120) and add small buffer to prevent overflow
     const finalWidth = Math.min(470, maxWidth + 10); // Reduced max by 10px and add 10px buffer
-    console.log('=== LABEL WIDTH CALCULATION ===');
-    console.log('Calculated label width:', finalWidth);
     return finalWidth;
   }, [markerGroups, markerGroupParentId]);
   
@@ -172,6 +171,20 @@ export default function Timeline({
   
   // Calculate timeline dimensions with container width constraint
   const [containerWidth, setContainerWidth] = useState<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Update container width on throttled resize
+  const updateContainerWidth = useCallback(() => {
+    if (containerRef.current) {
+      const newWidth = containerRef.current.clientWidth;
+      if (newWidth !== containerWidth) {
+        setContainerWidth(newWidth);
+      }
+    }
+  }, [containerWidth]);
+  
+  // Use throttled resize hook to handle window resize events
+  useThrottledResize(updateContainerWidth, 250);
   
   const timelineWidth = useMemo(() => {
     const basePixelsPerMinute = 300;
@@ -187,13 +200,6 @@ export default function Timeline({
         actualWidth = availableWidth;
       }
     }
-    
-    console.log('=== TIMELINE WIDTH CALCULATION ===');
-    console.log('Video duration:', videoDuration, 'seconds');
-    console.log('Pixels per second:', pixelsPerSecond);
-    console.log('Ideal timeline width:', idealWidth);
-    console.log('Available width:', containerWidth - uniformTagLabelWidth);
-    console.log('Actual timeline width:', actualWidth);
     
     return { width: actualWidth, pixelsPerSecond: actualWidth / videoDuration };
   }, [videoDuration, zoom, containerWidth, uniformTagLabelWidth]);
@@ -213,14 +219,10 @@ export default function Timeline({
     <div 
       className="bg-gray-800 rounded-lg overflow-hidden flex flex-col"
       ref={(el) => {
-        if (el && el.clientWidth !== containerWidth) {
+        containerRef.current = el;
+        // Set initial container width on mount
+        if (el && containerWidth === 0) {
           setContainerWidth(el.clientWidth);
-          console.log('=== TIMELINE CONTAINER DIMENSIONS ===');
-          console.log('Container width:', el.clientWidth);
-          console.log('Label width:', uniformTagLabelWidth);
-          console.log('Timeline width:', timelineWidth.width);
-          console.log('Total needed width:', uniformTagLabelWidth + timelineWidth.width);
-          console.log('Available space for timeline:', el.clientWidth - uniformTagLabelWidth);
         }
       }}
     >
