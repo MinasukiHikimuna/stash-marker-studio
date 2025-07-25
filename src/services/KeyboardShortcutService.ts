@@ -262,8 +262,15 @@ class KeyboardShortcutService {
         const keyCombo = createKeyCombo(binding.key, binding.modifiers);
         
         // Warn about conflicts but allow the last one to win
+        // Skip conflict warnings for non-editable shortcuts (known system conflicts)
         if (this.lookupMap[keyCombo]) {
-          console.warn(`Key combination conflict: ${keyCombo} mapped to both ${this.lookupMap[keyCombo]} and ${shortcut.id}`);
+          const existingShortcut = this.shortcuts.find(s => s.id === this.lookupMap[keyCombo]);
+          const isExistingNonEditable = existingShortcut && !existingShortcut.editable;
+          const isCurrentNonEditable = !shortcut.editable;
+          
+          if (!isExistingNonEditable && !isCurrentNonEditable) {
+            console.warn(`Key combination conflict: ${keyCombo} mapped to both ${this.lookupMap[keyCombo]} and ${shortcut.id}`);
+          }
         }
         
         this.lookupMap[keyCombo] = shortcut.id;
