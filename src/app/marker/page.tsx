@@ -848,11 +848,13 @@ export default function MarkerPage() {
 
   // Effect to update selected marker when filtering changes to ensure it's valid
   useEffect(() => {
-    if (actionMarkers.length > 0) {
+    // Only proceed if we have both action markers AND swimlane data
+    if (actionMarkers.length > 0 && markersWithTracks.length > 0 && tagGroups.length > 0) {
       // Check if currently selected marker still exists after filtering
       const selectedMarker = actionMarkers.find(
         (m) => m.id === selectedMarkerId
       );
+      
       if (!selectedMarker) {
         // If selected marker is not in filtered list, find next unprocessed marker
         // using the same algorithm as Shift+M for consistency
@@ -864,11 +866,11 @@ export default function MarkerPage() {
           dispatch(setSelectedMarkerId(actionMarkers[0].id));
         }
       }
-    } else {
+    } else if (actionMarkers.length === 0) {
       // If no markers after filtering, clear selection
       dispatch(setSelectedMarkerId(null));
     }
-  }, [actionMarkers, selectedMarkerId, dispatch, findNextUnprocessedSwimlane]);
+  }, [actionMarkers, selectedMarkerId, dispatch, findNextUnprocessedSwimlane, markersWithTracks.length, tagGroups.length]);
 
 
   // Scroll selected marker into view

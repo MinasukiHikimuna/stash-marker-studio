@@ -182,38 +182,36 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
   }, [markersWithTracks, actionMarkers, selectedMarkerId, isUnprocessed]);
 
   // Helper function to find next unprocessed swimlane (top-to-bottom, left-to-right)
-  const findNextUnprocessedSwimlane = useCallback((): string | null => {
+  const findNextUnprocessedSwimlane = useCallback((forceFromBeginning: boolean = false): string | null => {
     if (markersWithTracks.length === 0 || tagGroups.length === 0) {
-      // Fallback to chronological search if no swimlane data
-      const actionMarkers = getActionMarkers();
-      const currentMarker = actionMarkers.find(m => m.id === selectedMarkerId);
-      const currentIndex = currentMarker ? actionMarkers.indexOf(currentMarker) : -1;
-
-      // Look for next unprocessed marker starting from current position
-      for (let i = currentIndex + 1; i < actionMarkers.length; i++) {
-        if (isUnprocessed(actionMarkers[i])) {
-          return actionMarkers[i].id;
-        }
-      }
-
-      // If no unprocessed found after current, search from beginning
-      for (let i = 0; i < currentIndex; i++) {
-        if (isUnprocessed(actionMarkers[i])) {
-          return actionMarkers[i].id;
-        }
-      }
-
-      return null;
+      throw new Error(`findNextUnprocessedSwimlane called without swimlane data! markersWithTracks: ${markersWithTracks.length}, tagGroups: ${tagGroups.length}. This indicates a timing issue where marker selection is happening before Timeline component provides swimlane data.`);
     }
 
     const currentMarker = actionMarkers.find(
       (m) => m.id === selectedMarkerId
     );
     
-    const currentSwimlaneIndex = currentMarker 
-      ? markersWithTracks.find(m => m.id === currentMarker.id)?.swimlane ?? 0
-      : 0;
-    const currentTime = currentMarker?.seconds ?? 0;
+    // If no marker is selected or forcing from beginning, start from the very beginning
+    if (selectedMarkerId === null || !currentMarker || forceFromBeginning) {
+      // Search from first swimlane, first marker
+      for (let swimlaneIndex = 0; swimlaneIndex < tagGroups.length; swimlaneIndex++) {
+        const swimlaneMarkers = markersWithTracks
+          .filter(m => m.swimlane === swimlaneIndex)
+          .sort((a, b) => a.seconds - b.seconds);
+
+        for (let i = 0; i < swimlaneMarkers.length; i++) {
+          const marker = swimlaneMarkers[i];
+          const actionMarker = actionMarkers.find(m => m.id === marker.id);
+          if (actionMarker && isUnprocessed(actionMarker)) {
+            return actionMarker.id;
+          }
+        }
+      }
+      return null;
+    }
+    
+    const currentSwimlaneIndex = markersWithTracks.find(m => m.id === currentMarker.id)?.swimlane ?? 0;
+    const currentTime = currentMarker.seconds;
 
     // Search from current swimlane to end, then from beginning
     for (let swimlanePass = 0; swimlanePass < 2; swimlanePass++) {
