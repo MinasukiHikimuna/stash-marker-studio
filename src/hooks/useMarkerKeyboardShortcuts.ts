@@ -53,6 +53,8 @@ interface UseMarkerKeyboardShortcutsParams {
   createShotBoundaryMarker: () => void;
   copyMarkerTimes: () => void;
   pasteMarkerTimes: () => void;
+  copyMarkerForMerge: () => void;
+  mergeMarkerProperties: () => void;
   jumpToNextShot: () => void;
   jumpToPreviousShot: () => void;
   executeCompletion: () => void;
@@ -113,6 +115,8 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
     createShotBoundaryMarker,
     copyMarkerTimes,
     pasteMarkerTimes,
+    copyMarkerForMerge,
+    mergeMarkerProperties,
     jumpToNextShot,
     jumpToPreviousShot,
     executeCompletion,
@@ -248,6 +252,7 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
             "M",
             "T",
             "A",
+            "R",
             ",",
             ".",
             "<",
@@ -291,15 +296,6 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
 
       // Handle keys that work even without markers
       switch (event.key) {
-        case "r":
-        case "R":
-          event.preventDefault();
-          if (actionMarkers.length > 0 && scene?.id) {
-            dispatch(loadMarkers(scene.id));
-          } else {
-            fetchData();
-          }
-          return;
         case "a":
         case "A":
           event.preventDefault();
@@ -602,6 +598,19 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
           }
           break;
 
+        // Merge Actions
+        case "r":
+        case "R":
+          event.preventDefault();
+          if (hasShift) {
+            // Shift+R: Merge copied marker properties into current marker
+            mergeMarkerProperties();
+          } else {
+            // R: Copy current marker properties for merging
+            copyMarkerForMerge();
+          }
+          break;
+
         // Editing Actions (top row)
         case "q":
         case "Q":
@@ -865,6 +874,8 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
       handleEditMarker,
       copyMarkerTimes,
       pasteMarkerTimes,
+      copyMarkerForMerge,
+      mergeMarkerProperties,
       zoomIn,
       zoomOut,
       resetZoom,

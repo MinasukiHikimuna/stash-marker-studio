@@ -59,6 +59,8 @@ import {
   initializeMarkerPage,
   loadMarkers,
   updateMarkerTag,
+  updateMarkerTimes,
+  deleteMarker,
   seekToTime,
   setError
 } from "../../store/slices/markerSlice";
@@ -150,6 +152,9 @@ export default function MarkerPage() {
   const [markersWithTracks, setMarkersWithTracks] = useState<MarkerWithTrack[]>(
     []
   );
+
+  // Add state for marker merging
+  const [copiedMarkerForMerge, setCopiedMarkerForMerge] = useState<SceneMarker | null>(null);
 
   // Timeline zoom functionality
   const {
@@ -651,6 +656,75 @@ export default function MarkerPage() {
     }
   }, []);
 
+  // Copy marker properties for merging
+  const copyMarkerForMerge = useCallback(() => {
+    const currentMarker = actionMarkers.find(m => m.id === selectedMarkerId);
+    if (!currentMarker) {
+      showToast("No marker selected to copy", "error");
+      return;
+    }
+    
+    setCopiedMarkerForMerge(currentMarker);
+    showToast(`Copied marker "${currentMarker.primary_tag.name}" for merging`, "success");
+  }, [actionMarkers, selectedMarkerId, showToast]);
+
+  // Merge copied marker properties into current marker
+  const mergeMarkerProperties = useCallback(async () => {
+    if (!copiedMarkerForMerge) {
+      showToast("No marker copied for merging", "error");
+      return;
+    }
+
+    const targetMarker = actionMarkers.find(m => m.id === selectedMarkerId);
+    if (!targetMarker) {
+      showToast("No target marker selected", "error");
+      return;
+    }
+
+    if (!scene) {
+      showToast("No scene data available", "error");
+      return;
+    }
+
+    // Determine which marker is chronologically first
+    const firstMarker = copiedMarkerForMerge.seconds <= targetMarker.seconds 
+      ? copiedMarkerForMerge 
+      : targetMarker;
+    const secondMarker = copiedMarkerForMerge.seconds <= targetMarker.seconds 
+      ? targetMarker 
+      : copiedMarkerForMerge;
+
+    // Calculate new end time (latest of both markers)
+    const firstEndTime = firstMarker.end_seconds ?? firstMarker.seconds;
+    const secondEndTime = secondMarker.end_seconds ?? secondMarker.seconds;
+    const newEndTime = Math.max(firstEndTime, secondEndTime);
+
+    try {
+      // Update the first marker to extend to the second marker's end time
+      await dispatch(updateMarkerTimes({
+        sceneId: scene.id,
+        markerId: firstMarker.id,
+        startTime: firstMarker.seconds,
+        endTime: newEndTime
+      })).unwrap();
+
+      // Delete the second marker
+      await dispatch(deleteMarker({
+        sceneId: scene.id,
+        markerId: secondMarker.id
+      })).unwrap();
+
+      showToast(`Merged markers: ${formatSeconds(firstMarker.seconds)} - ${formatSeconds(newEndTime)}`, "success");
+      setCopiedMarkerForMerge(null); // Clear copied marker after merge
+
+      // Select the remaining (first) marker
+      dispatch(setSelectedMarkerId(firstMarker.id));
+    } catch (error) {
+      console.error("Error merging markers:", error);
+      showToast("Failed to merge markers", "error");
+    }
+  }, [copiedMarkerForMerge, actionMarkers, selectedMarkerId, scene, dispatch, showToast]);
+
   // Create marker from previous shot boundary to next shot boundary
   const createShotBoundaryMarker = useCallback(() => {
     if (!scene || !availableTags?.length) {
@@ -763,6 +837,8 @@ export default function MarkerPage() {
     createShotBoundaryMarker,
     copyMarkerTimes,
     pasteMarkerTimes,
+    copyMarkerForMerge,
+    mergeMarkerProperties,
     jumpToNextShot,
     jumpToPreviousShot,
     executeCompletion: executeCompletionWrapper,
