@@ -215,7 +215,7 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                     ${trackIndex === trackCount - 1 ? 'border-b border-gray-600' : ''}
                   `}
                   style={{
-                    height: `${TRACK_HEIGHT + (trackIndex === trackCount - 1 ? TRACK_SPACING : 0)}px`,
+                    height: `${trackIndex === 0 ? swimlaneHeight : TRACK_HEIGHT + (trackIndex === trackCount - 1 ? TRACK_SPACING : 0)}px`,
                   }}
                   onClick={() => {
                     if (onSwimlaneFilter) {
