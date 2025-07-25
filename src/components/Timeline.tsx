@@ -50,6 +50,7 @@ export default function Timeline({
   // Swimlane resize state
   const [swimlaneMaxHeight, setSwimlaneMaxHeight] = useState<number | null>(null);
   const [swimlaneResizeEnabled, setSwimlaneResizeEnabled] = useState(false);
+  const swimlaneContainerRef = useRef<HTMLDivElement>(null);
   
   // Group markers by tag name with proper marker group ordering using shared algorithm
   const markerGroups = useMemo(() => {
@@ -109,13 +110,21 @@ export default function Timeline({
   const handleSwimlaneResize = useCallback((direction: 'increase' | 'decrease') => {
     const swimlaneHeight = 32; // 32px per swimlane (h-8)
     
+    // Get actual container dimensions
+    const container = swimlaneContainerRef.current;
+    if (!container) return;
+    
+    const actualContentHeight = container.scrollHeight;
+    
     if (!swimlaneResizeEnabled) {
-      // Enable resizing on first use - set initial height to current number of swimlanes
-      let initialHeight = markerGroups.length * swimlaneHeight;
+      // Enable resizing on first use and set initial height based on actual content
+      let initialHeight = actualContentHeight;
       
-      // If first action is decrease, start one swimlane smaller
+      // Apply the first action immediately for visible feedback
       if (direction === 'decrease') {
-        initialHeight = Math.max(swimlaneHeight, initialHeight - swimlaneHeight);
+        initialHeight = Math.max(swimlaneHeight, initialHeight - (swimlaneHeight * 2)); // Decrease by 2 to make it visually obvious
+      } else {
+        initialHeight = initialHeight + swimlaneHeight; // Increase by 1
       }
       
       setSwimlaneMaxHeight(initialHeight);
@@ -123,15 +132,18 @@ export default function Timeline({
       return;
     }
     
-    // Calculate current height
-    const currentHeight = swimlaneMaxHeight || (markerGroups.length * swimlaneHeight);
+    // Calculate current height - use actual content height if no max height is set
+    const currentHeight = swimlaneMaxHeight || actualContentHeight;
+    let newHeight;
     
     if (direction === 'increase') {
-      setSwimlaneMaxHeight(currentHeight + swimlaneHeight);
+      newHeight = currentHeight + swimlaneHeight;
     } else {
       // Don't go below one swimlane height
-      setSwimlaneMaxHeight(Math.max(swimlaneHeight, currentHeight - swimlaneHeight));
+      newHeight = Math.max(swimlaneHeight, currentHeight - swimlaneHeight);
     }
+    
+    setSwimlaneMaxHeight(newHeight);
   }, [swimlaneResizeEnabled, swimlaneMaxHeight, markerGroups.length]);
   
   // Keyboard event handler for timeline-specific shortcuts
@@ -241,6 +253,7 @@ export default function Timeline({
       <div 
         className={swimlaneResizeEnabled ? "overflow-y-auto" : "flex-1"}
         style={swimlaneResizeEnabled ? { maxHeight: `${swimlaneMaxHeight}px` } : undefined}
+        ref={swimlaneContainerRef}
       >
         <TimelineSwimlanes
           markerGroups={markerGroups}
