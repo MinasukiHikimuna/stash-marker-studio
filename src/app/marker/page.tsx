@@ -164,6 +164,7 @@ export default function MarkerPage() {
     zoomIn,
     zoomOut,
     resetZoom,
+    setAvailableTimelineWidth,
   } = useTimelineZoom(videoDuration);
 
 
@@ -174,6 +175,14 @@ export default function MarkerPage() {
       setMarkersWithTracks(newMarkersWithTracks);
     },
     []
+  );
+
+  // Callback to receive available timeline width for accurate zoom calculations
+  const handleAvailableWidthUpdate = useCallback(
+    (availableWidth: number) => {
+      setAvailableTimelineWidth(availableWidth);
+    },
+    [setAvailableTimelineWidth]
   );
 
   // Temporary handler - will be replaced after actionMarkers is defined
@@ -1050,6 +1059,7 @@ export default function MarkerPage() {
                 currentTime={currentVideoTime}
                 onMarkerClick={handleMarkerClick}
                 onSwimlaneDataUpdate={handleSwimlaneDataUpdate}
+                onAvailableWidthUpdate={handleAvailableWidthUpdate}
                 filteredSwimlane={filteredSwimlane}
                 onSwimlaneFilter={handleSwimlaneFilter}
                 scene={scene}

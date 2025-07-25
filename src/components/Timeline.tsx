@@ -29,6 +29,7 @@ type TimelineProps = {
   scene?: Scene;
   zoom?: number;
   onSwimlaneDataUpdate?: (tagGroups: TagGroup[], markersWithTracks: MarkerWithTrack[]) => void;
+  onAvailableWidthUpdate?: (availableWidth: number) => void;
 };
 
 export interface TimelineRef {
@@ -48,6 +49,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({
   scene = undefined,
   zoom = 1,
   onSwimlaneDataUpdate,
+  onAvailableWidthUpdate,
 }, ref) => {
   const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
   
@@ -117,6 +119,15 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({
       onSwimlaneDataUpdate(markerGroups, markersWithTracks);
     }
   }, [markerGroups, markersWithTracks, onSwimlaneDataUpdate]);
+  
+  // Update parent component with available timeline width
+  useEffect(() => {
+    if (onAvailableWidthUpdate && containerWidth > 0) {
+      const scrollbarMargin = 20;
+      const availableWidth = containerWidth - uniformTagLabelWidth - scrollbarMargin;
+      onAvailableWidthUpdate(availableWidth);
+    }
+  }, [containerWidth, uniformTagLabelWidth, onAvailableWidthUpdate]);
   
   // Handle swimlane resize keyboard shortcuts
   const handleSwimlaneResize = useCallback((direction: 'increase' | 'decrease') => {
