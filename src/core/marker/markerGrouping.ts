@@ -199,25 +199,6 @@ export function createMarkersWithTracks(tagGroups: TagGroup[]): MarkerWithTrack[
     });
   });
 
-  console.log("=== MARKERS WITH TRACKS ===");
-  console.log(`Created ${markersWithTracks.length} markers with track data`);
-  console.log("Swimlane assignments:", tagGroups.map((group, index) => `${index}: ${group.name} (${group.markers.length} markers)`));
-  
-  // Log track assignments for debugging
-  tagGroups.forEach((group, swimlaneIndex) => {
-    const trackCounts = markersWithTracks
-      .filter(m => m.swimlane === swimlaneIndex)
-      .reduce((counts, m) => {
-        counts[m.track] = (counts[m.track] || 0) + 1;
-        return counts;
-      }, {} as Record<number, number>);
-    
-    const maxTrack = Math.max(...markersWithTracks.filter(m => m.swimlane === swimlaneIndex).map(m => m.track));
-    console.log(`Swimlane ${swimlaneIndex} (${group.name}): ${maxTrack + 1} tracks, distribution:`, trackCounts);
-  });
-  
-  console.log("=== END MARKERS WITH TRACKS ===");
-
   return markersWithTracks;
 }
 
