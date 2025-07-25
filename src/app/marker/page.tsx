@@ -306,23 +306,6 @@ export default function MarkerPage() {
   const handleDeleteRejectedMarkers = handleDeleteRejectedMarkersFromHook;
   const confirmDeleteRejectedMarkers = confirmDeleteRejectedMarkersFromHook;
 
-  // Effect to update selected marker when filtering changes to ensure it's valid
-  useEffect(() => {
-    if (actionMarkers.length > 0) {
-      // Check if currently selected marker still exists after filtering
-      const selectedMarker = actionMarkers.find(
-        (m) => m.id === selectedMarkerId
-      );
-      if (!selectedMarker) {
-        // If selected marker is not in filtered list, select the first marker
-        dispatch(setSelectedMarkerId(actionMarkers[0].id));
-      }
-    } else {
-      // If no markers after filtering, clear selection
-      dispatch(setSelectedMarkerId(null));
-    }
-  }, [actionMarkers, selectedMarkerId, dispatch]);
-
   // useMarkerOperations replaced with Redux thunks
 
   const handleEditMarker = useCallback((marker: SceneMarker) => {
@@ -809,6 +792,29 @@ export default function MarkerPage() {
     getActionMarkers,
   });
 
+  // Effect to update selected marker when filtering changes to ensure it's valid
+  useEffect(() => {
+    if (actionMarkers.length > 0) {
+      // Check if currently selected marker still exists after filtering
+      const selectedMarker = actionMarkers.find(
+        (m) => m.id === selectedMarkerId
+      );
+      if (!selectedMarker) {
+        // If selected marker is not in filtered list, find next unprocessed marker
+        // using the same algorithm as Shift+M for consistency
+        const nextUnprocessedId = findNextUnprocessedSwimlane();
+        if (nextUnprocessedId) {
+          dispatch(setSelectedMarkerId(nextUnprocessedId));
+        } else {
+          // Fallback to first marker if no unprocessed markers found
+          dispatch(setSelectedMarkerId(actionMarkers[0].id));
+        }
+      }
+    } else {
+      // If no markers after filtering, clear selection
+      dispatch(setSelectedMarkerId(null));
+    }
+  }, [actionMarkers, selectedMarkerId, dispatch, findNextUnprocessedSwimlane]);
 
   // Use keyboard shortcuts hook
   useMarkerKeyboardShortcuts({
