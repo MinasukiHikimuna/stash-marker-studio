@@ -52,6 +52,11 @@ export default function Timeline({
   const [swimlaneResizeEnabled, setSwimlaneResizeEnabled] = useState(false);
   const swimlaneContainerRef = useRef<HTMLDivElement>(null);
   
+  // Window dimensions state
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  const [windowHeight, setWindowHeight] = useState<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
   // Group markers by tag name with proper marker group ordering using shared algorithm
   const markerGroups = useMemo(() => {
     return groupMarkersByTags(actionMarkers, markerGroupParentId);
@@ -116,6 +121,13 @@ export default function Timeline({
     
     const actualContentHeight = container.scrollHeight;
     
+    // Calculate maximum allowed height to ensure video player gets at least 1/3 of viewport
+    const viewportHeight = windowHeight || window.innerHeight;
+    const videoPlayerMinHeight = viewportHeight / 3;
+    const timelineHeaderHeight = 60; // Approximate height of timeline header
+    const pageHeaderHeight = 80; // Approximate height of page header
+    const maxAllowedSwimlaneHeight = viewportHeight - videoPlayerMinHeight - timelineHeaderHeight - pageHeaderHeight;
+    
     if (!swimlaneResizeEnabled) {
       // Enable resizing on first use and set initial height based on actual content
       let initialHeight = actualContentHeight;
@@ -126,6 +138,9 @@ export default function Timeline({
       } else {
         initialHeight = initialHeight + swimlaneHeight; // Increase by 1
       }
+      
+      // Constrain to maximum allowed height
+      initialHeight = Math.min(initialHeight, maxAllowedSwimlaneHeight);
       
       setSwimlaneMaxHeight(initialHeight);
       setSwimlaneResizeEnabled(true);
@@ -138,13 +153,15 @@ export default function Timeline({
     
     if (direction === 'increase') {
       newHeight = currentHeight + swimlaneHeight;
+      // Constrain to maximum allowed height
+      newHeight = Math.min(newHeight, maxAllowedSwimlaneHeight);
     } else {
       // Don't go below one swimlane height
       newHeight = Math.max(swimlaneHeight, currentHeight - swimlaneHeight);
     }
     
     setSwimlaneMaxHeight(newHeight);
-  }, [swimlaneResizeEnabled, swimlaneMaxHeight, markerGroups.length]);
+  }, [swimlaneResizeEnabled, swimlaneMaxHeight, markerGroups.length, windowHeight]);
   
   // Keyboard event handler for timeline-specific shortcuts
   useEffect(() => {
@@ -181,22 +198,28 @@ export default function Timeline({
   }, [handleSwimlaneResize]);
   
   
-  // Calculate timeline dimensions with container width constraint
-  const [containerWidth, setContainerWidth] = useState<number>(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  // Update container width on throttled resize
-  const updateContainerWidth = useCallback(() => {
+  // Update container width and window height on throttled resize
+  const updateDimensions = useCallback(() => {
     if (containerRef.current) {
       const newWidth = containerRef.current.clientWidth;
       if (newWidth !== containerWidth) {
         setContainerWidth(newWidth);
       }
     }
-  }, [containerWidth]);
+    
+    const newHeight = window.innerHeight;
+    if (newHeight !== windowHeight) {
+      setWindowHeight(newHeight);
+    }
+  }, [containerWidth, windowHeight]);
   
   // Use throttled resize hook to handle window resize events
-  useThrottledResize(updateContainerWidth, 250);
+  useThrottledResize(updateDimensions, 250);
+  
+  // Initialize window height on mount
+  useEffect(() => {
+    setWindowHeight(window.innerHeight);
+  }, []);
   
   const timelineWidth = useMemo(() => {
     const basePixelsPerMinute = 300;
@@ -216,6 +239,18 @@ export default function Timeline({
     return { width: actualWidth, pixelsPerSecond: actualWidth / videoDuration };
   }, [videoDuration, zoom, containerWidth, uniformTagLabelWidth]);
   
+  // Apply passive height constraint to prevent timeline from covering video player
+  const calculatedMaxHeight = useMemo(() => {
+    if (!swimlaneResizeEnabled && windowHeight > 0) {
+      // When not in resize mode, apply passive constraint
+      const videoPlayerMinHeight = windowHeight / 3;
+      const timelineHeaderHeight = 60;
+      const pageHeaderHeight = 80;
+      const maxAllowedHeight = windowHeight - videoPlayerMinHeight - timelineHeaderHeight - pageHeaderHeight;
+      return maxAllowedHeight;
+    }
+    return null;
+  }, [swimlaneResizeEnabled, windowHeight]);
 
   
   // Don't render if video duration is not available yet
@@ -226,15 +261,18 @@ export default function Timeline({
       </div>
     );
   }
-  
+
   return (
     <div 
       className="bg-gray-800 rounded-lg overflow-hidden flex flex-col"
       ref={(el) => {
         containerRef.current = el;
-        // Set initial container width on mount
+        // Set initial dimensions on mount
         if (el && containerWidth === 0) {
           setContainerWidth(el.clientWidth);
+        }
+        if (windowHeight === 0) {
+          setWindowHeight(window.innerHeight);
         }
       }}
     >
@@ -251,8 +289,14 @@ export default function Timeline({
 
       {/* Swimlanes container */}
       <div 
-        className={swimlaneResizeEnabled ? "overflow-y-auto" : "flex-1"}
-        style={swimlaneResizeEnabled ? { maxHeight: `${swimlaneMaxHeight}px` } : undefined}
+        className={swimlaneResizeEnabled ? "overflow-y-auto" : "flex-1 overflow-y-auto"}
+        style={
+          swimlaneResizeEnabled 
+            ? { maxHeight: `${swimlaneMaxHeight}px` }
+            : calculatedMaxHeight 
+              ? { maxHeight: `${calculatedMaxHeight}px` }
+              : undefined
+        }
         ref={swimlaneContainerRef}
       >
         <TimelineSwimlanes
