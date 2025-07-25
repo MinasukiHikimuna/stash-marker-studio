@@ -480,69 +480,12 @@ export class StashappService {
     );
   }
 
-  async getScenes(
-    sceneFilter: Record<string, unknown> = {},
-    page: number = 1,
-    perPage: number = 24
-  ): Promise<ScenesResponse> {
-    const query = `
-      query FindScenes($filter: FindFilterType, $scene_filter: SceneFilterType) {
-        findScenes(filter: $filter, scene_filter: $scene_filter) {
-          count
-          scenes {
-            id
-            title
-            paths {
-              preview
-              vtt
-              sprite
-            }
-            tags {
-              id
-              name
-              description
-            }
-            performers {
-              id
-              name
-              gender
-            }
-          }
-        }
-      }
-    `;
-
-    const variables = {
-      filter: {
-        q: "",
-        page: page,
-        per_page: perPage,
-        sort: "random_30226552",
-        direction: "DESC",
-      },
-      scene_filter: sceneFilter,
-    };
-
-    const result = await this.fetchGraphQL<{ data: ScenesResponse }>(
-      query,
-      variables
-    );
-    const updatedScenes = result.data.findScenes.scenes.map((scene: Scene) => ({
-      ...scene,
-      paths: {
-        ...scene.paths,
-        preview: scene.paths.preview + `?apikey=${this.apiKey}`,
-      },
-    }));
-    result.data.findScenes.scenes = updatedScenes;
-    return result.data;
-  }
-
   async searchScenes(
     searchQuery: string,
     tagIds: string[] = [],
     sortField: string = "title",
-    sortDirection: "ASC" | "DESC" = "ASC"
+    sortDirection: "ASC" | "DESC" = "ASC",
+    excludeTagIds: string[] = []
   ): Promise<ScenesResponse> {
     const query = `
       query FindScenes($filter: FindFilterType, $scene_filter: SceneFilterType) {
@@ -583,11 +526,11 @@ export class StashappService {
       },
     };
 
-    if (tagIds.length > 0) {
+    if (tagIds.length > 0 || excludeTagIds.length > 0) {
       variables.scene_filter = {
         tags: {
           value: tagIds,
-          excludes: [],
+          excludes: excludeTagIds,
           modifier: "INCLUDES_ALL",
           depth: -1,
         },

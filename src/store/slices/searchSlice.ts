@@ -7,6 +7,12 @@ export type SceneWithMarkers = Scene & {
   scene_markers?: SceneMarker[];
 };
 
+export type TagType = 'included' | 'excluded';
+
+export type SelectedTag = Tag & {
+  type: TagType;
+};
+
 export type SortField = 
   | 'bitrate' | 'created_at' | 'code' | 'date' | 'file_count' | 'filesize' 
   | 'duration' | 'file_mod_time' | 'framerate' | 'group_scene_number' | 'id' 
@@ -18,7 +24,7 @@ export type SortField =
 export interface SearchState {
   // Search parameters
   query: string;
-  selectedTags: Tag[];
+  selectedTags: SelectedTag[];
   sortField: SortField;
   sortDirection: 'ASC' | 'DESC';
   
@@ -108,15 +114,23 @@ export const searchScenes = createAsyncThunk(
   'search/searchScenes',
   async (params: {
     query: string;
-    tagIds: string[];
+    selectedTags: SelectedTag[];
     sortField: SortField;
     sortDirection: 'ASC' | 'DESC';
   }) => {
+    const includedTagIds = params.selectedTags
+      .filter(tag => tag.type === 'included')
+      .map(tag => tag.id);
+    const excludedTagIds = params.selectedTags
+      .filter(tag => tag.type === 'excluded')
+      .map(tag => tag.id);
+    
     const result = await stashappService.searchScenes(
       params.query,
-      params.tagIds,
+      includedTagIds,
       params.sortField,
-      params.sortDirection
+      params.sortDirection,
+      excludedTagIds
     );
     return result.findScenes.scenes;
   }
@@ -143,10 +157,18 @@ const searchSlice = createSlice({
       state.sortDirection = state.sortDirection === 'ASC' ? 'DESC' : 'ASC';
     },
     
-    addSelectedTag: (state, action: PayloadAction<Tag>) => {
-      const tag = action.payload;
+    addSelectedTag: (state, action: PayloadAction<Tag & { type?: TagType }>) => {
+      const { type = 'included', ...tag } = action.payload;
       if (!state.selectedTags.some(t => t.id === tag.id)) {
-        state.selectedTags.push(tag);
+        state.selectedTags.push({ ...tag, type });
+      }
+    },
+    
+    toggleTagType: (state, action: PayloadAction<string>) => {
+      const tagIndex = state.selectedTags.findIndex(tag => tag.id === action.payload);
+      if (tagIndex !== -1) {
+        state.selectedTags[tagIndex].type = 
+          state.selectedTags[tagIndex].type === 'included' ? 'excluded' : 'included';
       }
     },
     
@@ -154,7 +176,7 @@ const searchSlice = createSlice({
       state.selectedTags = state.selectedTags.filter(tag => tag.id !== action.payload);
     },
     
-    setSelectedTags: (state, action: PayloadAction<Tag[]>) => {
+    setSelectedTags: (state, action: PayloadAction<SelectedTag[]>) => {
       state.selectedTags = action.payload;
     },
     
@@ -182,7 +204,7 @@ const searchSlice = createSlice({
     // Load saved search parameters
     loadSavedParams: (state, action: PayloadAction<{
       query: string;
-      tags: Tag[];
+      tags: SelectedTag[];
       sortField: SortField;
       sortDirection: 'ASC' | 'DESC';
     }>) => {
@@ -269,6 +291,7 @@ export const {
   setSortDirection,
   toggleSortDirection,
   addSelectedTag,
+  toggleTagType,
   removeSelectedTag,
   setSelectedTags,
   setTagSearchQuery,

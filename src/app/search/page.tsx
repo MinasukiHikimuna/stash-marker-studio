@@ -23,6 +23,8 @@ import {
 } from "@/store/slices/searchSlice";
 import { stashappService, Tag } from "@/services/StashappService";
 import { calculateMarkerSummary } from "../../core/marker/markerLogic";
+import TagIcon from "@/components/TagIcon";
+import PlusMinusIcon from "@/components/PlusMinusIcon";
 
 const SORT_OPTIONS = {
   bitrate: "Bit Rate",
@@ -98,7 +100,7 @@ export default function SearchPage() {
       dispatch(
         searchScenes({
           query,
-          tagIds: selectedTags.map((tag) => tag.id),
+          selectedTags,
           sortField,
           sortDirection,
         })
@@ -134,6 +136,22 @@ export default function SearchPage() {
     [dispatch]
   );
 
+  const handleTagInclude = useCallback(
+    (tag: Tag) => {
+      dispatch(addSelectedTag({ ...tag, type: 'included' }));
+      dispatch(setTagSearchQuery(""));
+    },
+    [dispatch]
+  );
+
+  const handleTagExclude = useCallback(
+    (tag: Tag) => {
+      dispatch(addSelectedTag({ ...tag, type: 'excluded' }));
+      dispatch(setTagSearchQuery(""));
+    },
+    [dispatch]
+  );
+
   const handleTagRemove = useCallback(
     (tagId: string) => {
       dispatch(removeSelectedTag(tagId));
@@ -152,7 +170,7 @@ export default function SearchPage() {
     dispatch(
       searchScenes({
         query,
-        tagIds: selectedTags.map((tag) => tag.id),
+        selectedTags,
         sortField,
         sortDirection,
       })
@@ -252,10 +270,30 @@ export default function SearchPage() {
               {tagSuggestions.map((tag) => (
                 <div
                   key={tag.id}
-                  onClick={() => handleTagSelect(tag)}
-                  className="p-2 text-white hover:bg-gray-700 cursor-pointer"
+                  className="flex items-center justify-between p-2 text-white hover:bg-gray-700"
                 >
-                  {tag.name}
+                  <div className="flex items-center gap-2">
+                    <PlusMinusIcon
+                      type="plus"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTagInclude(tag);
+                      }}
+                    />
+                    <span
+                      onClick={() => handleTagSelect(tag)}
+                      className="cursor-pointer flex-1"
+                    >
+                      {tag.name}
+                    </span>
+                  </div>
+                  <PlusMinusIcon
+                    type="minus"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTagExclude(tag);
+                    }}
+                  />
                 </div>
               ))}
             </div>
@@ -269,13 +307,11 @@ export default function SearchPage() {
                 key={tag.id}
                 className="flex items-center gap-2 px-3 py-1 bg-gray-700 text-white rounded"
               >
-                {tag.name}
-                <button
+                <TagIcon
+                  type={tag.type}
                   onClick={() => handleTagRemove(tag.id)}
-                  className="text-gray-300 hover:text-white"
-                >
-                  ×
-                </button>
+                />
+                {tag.name}
               </div>
             ))}
           </div>

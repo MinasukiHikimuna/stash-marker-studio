@@ -14,6 +14,7 @@ const PERSISTENCE_ACTIONS = [
   'search/setSortDirection',
   'search/toggleSortDirection',
   'search/addSelectedTag',
+  'search/toggleTagType',
   'search/removeSelectedTag',
   'search/setSelectedTags',
   'search/initializeSearch/fulfilled', // Also save after initialization
