@@ -56,6 +56,9 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({
   const [swimlaneResizeEnabled, setSwimlaneResizeEnabled] = useState(false);
   const swimlaneContainerRef = useRef<HTMLDivElement>(null);
   
+  // Header scroll synchronization
+  const headerScrollRef = useRef<HTMLDivElement>(null);
+  
   // Window dimensions state
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const [windowHeight, setWindowHeight] = useState<number>(0);
@@ -225,6 +228,39 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({
     setWindowHeight(window.innerHeight);
   }, []);
   
+  // Synchronize horizontal scrolling between header and swimlanes
+  useEffect(() => {
+    const headerContainer = headerScrollRef.current;
+    const swimlanesContainer = swimlaneContainerRef.current;
+    
+    if (!headerContainer || !swimlanesContainer) return;
+    
+    let isHeaderScrolling = false;
+    let isSwimlaneScrolling = false;
+    
+    const handleHeaderScroll = () => {
+      if (isSwimlaneScrolling) return;
+      isHeaderScrolling = true;
+      swimlanesContainer.scrollLeft = headerContainer.scrollLeft;
+      setTimeout(() => { isHeaderScrolling = false; }, 0);
+    };
+    
+    const handleSwimlaneScroll = () => {
+      if (isHeaderScrolling) return;
+      isSwimlaneScrolling = true;
+      headerContainer.scrollLeft = swimlanesContainer.scrollLeft;
+      setTimeout(() => { isSwimlaneScrolling = false; }, 0);
+    };
+    
+    headerContainer.addEventListener('scroll', handleHeaderScroll);
+    swimlanesContainer.addEventListener('scroll', handleSwimlaneScroll);
+    
+    return () => {
+      headerContainer.removeEventListener('scroll', handleHeaderScroll);
+      swimlanesContainer.removeEventListener('scroll', handleSwimlaneScroll);
+    };
+  }, []);
+  
   const timelineWidth = useMemo(() => {
     const basePixelsPerMinute = 300;
     const pixelsPerSecond = (basePixelsPerMinute / 60) * zoom;
@@ -289,10 +325,20 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({
     
     // Center the playhead in the viewport
     const targetScrollLeft = playheadAbsolutePosition - containerWidth / 2;
+    const scrollLeft = Math.max(0, targetScrollLeft);
+    
+    // Scroll both containers in sync
     container.scrollTo({
-      left: Math.max(0, targetScrollLeft),
+      left: scrollLeft,
       behavior: 'smooth'
     });
+    
+    if (headerScrollRef.current) {
+      headerScrollRef.current.scrollTo({
+        left: scrollLeft,
+        behavior: 'smooth'
+      });
+    }
   }, [currentTime, timelineWidth, uniformTagLabelWidth, videoDuration]);
   
   // Expose center playhead function to parent via ref
@@ -328,10 +374,20 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({
     if (!isVisible) {
       // Scroll to center the marker in the viewport
       const targetScrollLeft = markerAbsolutePosition - containerWidth / 2;
+      const scrollLeft = Math.max(0, targetScrollLeft);
+      
+      // Scroll both containers in sync
       container.scrollTo({
-        left: Math.max(0, targetScrollLeft),
+        left: scrollLeft,
         behavior: 'smooth'
       });
+      
+      if (headerScrollRef.current) {
+        headerScrollRef.current.scrollTo({
+          left: scrollLeft,
+          behavior: 'smooth'
+        });
+      }
     }
   }, [selectedMarkerId, zoom, actionMarkers, timelineWidth, uniformTagLabelWidth]);
   
@@ -358,18 +414,24 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({
         }
       }}
     >
-      {/* Header row */}
-      <TimelineHeader
-        markers={markers}
-        videoDuration={videoDuration}
-        currentTime={currentTime}
-        showShotBoundaries={showShotBoundaries}
-        timelineWidth={timelineWidth}
-        scene={scene}
-        labelWidth={uniformTagLabelWidth}
-      />
+      {/* Header row - fixed position */}
+      <div 
+        className="overflow-x-auto [&::-webkit-scrollbar]:hidden" 
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        ref={headerScrollRef}
+      >
+        <TimelineHeader
+          markers={markers}
+          videoDuration={videoDuration}
+          currentTime={currentTime}
+          showShotBoundaries={showShotBoundaries}
+          timelineWidth={timelineWidth}
+          scene={scene}
+          labelWidth={uniformTagLabelWidth}
+        />
+      </div>
 
-      {/* Swimlanes container */}
+      {/* Swimlanes container - vertical scrolling */}
       <div 
         className={swimlaneResizeEnabled ? "overflow-x-auto overflow-y-auto" : "flex-1 overflow-x-auto overflow-y-auto"}
         style={

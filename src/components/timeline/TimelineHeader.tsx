@@ -135,12 +135,10 @@ const TimelineHeader: React.FC<TimelineHeaderProps> = ({
       </div>
       
       {/* Right header - timeline */}
-      <div 
-        ref={timelineRef}
-        className="flex-1 overflow-x-hidden"
-      >
+      <div className="flex-1">
         <div style={{ width: `${timelineWidth.width}px` }}>
           <div 
+            ref={timelineRef}
             className="h-8 bg-gray-700 border-b border-gray-600 relative cursor-pointer"
             onClick={handleTimelineClick}
             onMouseMove={handleHeaderMouseMoveForPreview}
