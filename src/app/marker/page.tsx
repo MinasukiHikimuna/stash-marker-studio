@@ -518,8 +518,14 @@ export default function MarkerPage() {
       if (isDuplicate) {
         selectedTag = sourceMarker.primary_tag;
       } else {
-        // For new markers, use the first available tag as placeholder
-        selectedTag = availableTags[0] || { id: "", name: "Select Tag" };
+        // For new markers, try to use the previously selected marker's tag
+        const previouslySelectedMarker = actionMarkers.find(m => m.id === selectedMarkerId);
+        if (previouslySelectedMarker?.primary_tag) {
+          selectedTag = previouslySelectedMarker.primary_tag;
+        } else {
+          // Fall back to first available tag if no previous selection
+          selectedTag = availableTags[0] || { id: "", name: "Select Tag" };
+        }
       }
 
       // When filtering is active, override tag to keep the marker visible
@@ -578,6 +584,8 @@ export default function MarkerPage() {
       availableTags,
       filteredSwimlane,
       markers,
+      actionMarkers,
+      selectedMarkerId,
       dispatch,
     ]
   );
