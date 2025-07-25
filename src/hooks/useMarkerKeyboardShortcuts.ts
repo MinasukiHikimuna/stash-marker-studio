@@ -45,12 +45,12 @@ interface UseMarkerKeyboardShortcutsParams {
   // Handler functions
   fetchData: () => void;
   handleCancelEdit: () => void;
-  handleCreateMarker: () => void;
   handleEditMarker: (marker: SceneMarker) => void;
   handleDeleteRejectedMarkers: () => void;
   splitCurrentMarker: () => void;
   splitVideoCutMarker: () => void;
-  createOrDuplicateMarker: (marker: SceneMarker) => void;
+  createOrDuplicateMarker: (startTime: number, endTime: number | null, sourceMarker?: SceneMarker) => void;
+  createShotBoundaryMarker: () => void;
   copyMarkerTimes: () => void;
   pasteMarkerTimes: () => void;
   jumpToNextShot: () => void;
@@ -99,12 +99,12 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
     videoElementRef,
     fetchData,
     handleCancelEdit,
-    handleCreateMarker,
     handleEditMarker,
     handleDeleteRejectedMarkers,
     splitCurrentMarker,
     splitVideoCutMarker,
     createOrDuplicateMarker,
+    createShotBoundaryMarker,
     copyMarkerTimes,
     pasteMarkerTimes,
     jumpToNextShot,
@@ -241,6 +241,7 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
             "N",
             "M",
             "T",
+            "A",
           ],
         },
         // Alt only for Timeline swimlane controls
@@ -290,14 +291,21 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
         case "a":
         case "A":
           event.preventDefault();
-          console.log("'A' key pressed - Attempting to create marker", {
-            hasVideoElement: !!videoElementRef.current,
-            hasScene: !!scene,
-            availableTagsCount: availableTags?.length || 0,
-            isCreatingMarker: isCreatingMarker,
-            isDuplicatingMarker: isDuplicatingMarker,
-          });
-          handleCreateMarker();
+          if (hasShift) {
+            // Shift+A: Create marker from previous shot to next shot
+            console.log("'Shift+A' key pressed - Creating shot boundary marker");
+            createShotBoundaryMarker();
+          } else {
+            // A: Create regular marker  
+            console.log("'A' key pressed - Attempting to create marker", {
+              hasVideoElement: !!videoElementRef.current,
+              hasScene: !!scene,
+              availableTagsCount: availableTags?.length || 0,
+              isCreatingMarker: isCreatingMarker,
+              isDuplicatingMarker: isDuplicatingMarker,
+            });
+            createOrDuplicateMarker(currentVideoTime, currentVideoTime + 20);
+          }
           return;
         case "f":
         case "F":
@@ -573,7 +581,11 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
               (m) => m.id === selectedMarkerId
             );
             if (markerToDuplicate) {
-              createOrDuplicateMarker(markerToDuplicate);
+              createOrDuplicateMarker(
+                markerToDuplicate.seconds, 
+                markerToDuplicate.end_seconds ?? null, 
+                markerToDuplicate
+              );
             }
           }
           break;
@@ -807,7 +819,6 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
       findPreviousUnprocessedMarker,
       findNextUnprocessedMarkerInSwimlane,
       findPreviousUnprocessedMarkerInSwimlane,
-      handleCreateMarker,
       splitCurrentMarker,
       handleEditMarker,
       copyMarkerTimes,
@@ -820,6 +831,7 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
       jumpToPreviousShot,
       splitVideoCutMarker,
       createOrDuplicateMarker,
+      createShotBoundaryMarker,
       videoElementRef,
       showToast,
       centerPlayhead,

@@ -22,7 +22,7 @@ interface MarkerSummaryProps {
   onSplitMarker: () => void;
   onShowShortcuts: () => void;
   getActionMarkers: () => SceneMarker[];
-  createOrDuplicateMarker: (sourceMarker?: SceneMarker) => void;
+  createOrDuplicateMarker: (startTime: number, endTime: number | null, sourceMarker?: SceneMarker) => void;
 }
 
 export function MarkerSummary({
@@ -51,7 +51,11 @@ export function MarkerSummary({
       );
       return;
     }
-    createOrDuplicateMarker(currentMarker);
+    createOrDuplicateMarker(
+      currentMarker.seconds, 
+      currentMarker.end_seconds ?? null, 
+      currentMarker
+    );
   }, [getActionMarkers, selectedMarkerId, createOrDuplicateMarker]);
 
   const isMarkerActionDisabled = isCreatingMarker ||

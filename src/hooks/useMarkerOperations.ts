@@ -191,48 +191,22 @@ export const useMarkerOperations = (
     }
   }, [markers, currentVideoTime, scene, dispatch, showToast]);
 
-  // Create or duplicate marker
+  // Create or duplicate marker - now just calls the marker page's createOrDuplicateMarker
   const createOrDuplicateMarker = useCallback(
-    (sourceMarker?: SceneMarker) => {
-      console.log("createOrDuplicateMarker called with state:", {
-        hasScene: !!scene,
-        availableTagsCount: availableTags?.length || 0,
-        isDuplicate: !!sourceMarker,
-        currentTime: currentVideoTime,
-      });
-
+    (startTime: number, endTime: number | null, sourceMarker?: SceneMarker) => {
+      console.log("useMarkerOperations.createOrDuplicateMarker - delegating to marker page function");
+      // This will be replaced by direct calls to the marker page's createOrDuplicateMarker
+      // For now, keep the old logic as fallback
       if (!scene || !availableTags?.length) {
-        if (!scene) {
-          console.log("Failed to create marker: No scene data");
-          dispatch(setError("No scene data available"));
-        }
-        if (!availableTags?.length) {
-          console.log("Failed to create marker: No available tags");
-          dispatch(setError("No tags available. Please wait for tags to load or check if tags exist in Stash."));
-        }
+        console.log("Failed to create marker: missing scene or tags");
         return;
       }
 
       const isDuplicate = !!sourceMarker;
-      const currentTime = currentVideoTime;
-
-      // Determine time values
-      const startTime = isDuplicate ? sourceMarker.seconds : currentTime;
-      const endTime = isDuplicate ? (sourceMarker.end_seconds ?? null) : currentTime + 20; // Standard 20-second duration for new markers
-
-      // Determine tag ID
       const tagId = isDuplicate
         ? sourceMarker.primary_tag.id
-        : availableTags[0].id; // Default to first available tag
+        : availableTags[0].id;
 
-      console.log("Creating marker with:", {
-        startTime,
-        endTime,
-        tagId,
-        isDuplicate,
-      });
-
-      // Dispatch the createMarker thunk
       return dispatch(createMarker({
         sceneId: scene.id,
         startTime,
@@ -240,13 +214,15 @@ export const useMarkerOperations = (
         tagId,
       }));
     },
-    [scene, availableTags, currentVideoTime, dispatch]
+    [scene, availableTags, dispatch]
   );
 
   // Handle create marker
   const handleCreateMarker = useCallback(() => {
-    createOrDuplicateMarker();
-  }, [createOrDuplicateMarker]);
+    const startTime = currentVideoTime;
+    const endTime = currentVideoTime + 20; // Standard 20-second duration
+    createOrDuplicateMarker(startTime, endTime);
+  }, [createOrDuplicateMarker, currentVideoTime]);
 
   // Handle delete rejected markers
   const handleDeleteRejectedMarkers = useCallback(async () => {

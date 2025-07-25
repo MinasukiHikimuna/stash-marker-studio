@@ -500,14 +500,15 @@ export default function MarkerPage() {
     await executeCompletion(videoCutMarkersToDelete);
   }, [executeCompletion, videoCutMarkersToDelete]);
 
-  // Temporary marker creation logic (original complex function)
+  // Universal marker creation function
   const createOrDuplicateMarker = useCallback(
-    (sourceMarker?: SceneMarker) => {
+    (startTime: number, endTime: number | null, sourceMarker?: SceneMarker) => {
       console.log("createOrDuplicateMarker called with state:", {
         hasScene: !!scene,
         availableTagsCount: availableTags?.length || 0,
         isDuplicate: !!sourceMarker,
-        currentTime: currentVideoTime,
+        startTime,
+        endTime,
       });
 
       if (!scene || !availableTags?.length) {
@@ -523,11 +524,6 @@ export default function MarkerPage() {
       }
 
       const isDuplicate = !!sourceMarker;
-      const currentTime = currentVideoTime;
-
-      // Determine time values
-      const startTime = isDuplicate ? sourceMarker.seconds : currentTime;
-      const endTime = isDuplicate ? (sourceMarker.end_seconds ?? null) : currentTime + 20; // Standard 20-second duration for new markers
 
       // Determine tag to use for the temporary marker
       let selectedTag: Tag;
@@ -593,7 +589,6 @@ export default function MarkerPage() {
       scene,
       availableTags,
       filteredSwimlane,
-      currentVideoTime,
       markers,
       dispatch,
     ]
@@ -601,8 +596,9 @@ export default function MarkerPage() {
 
   // Convenience wrapper for creating new markers
   const handleCreateMarker = useCallback(() => {
-    createOrDuplicateMarker();
-  }, [createOrDuplicateMarker]);
+    const currentTime = currentVideoTime;
+    createOrDuplicateMarker(currentTime, currentTime + 20);
+  }, [createOrDuplicateMarker, currentVideoTime]);
 
   // Update handleMarkerClick to use marker IDs
   const handleMarkerClick = useCallback(
@@ -655,6 +651,72 @@ export default function MarkerPage() {
     }
   }, []);
 
+  // Create marker from previous shot boundary to next shot boundary
+  const createShotBoundaryMarker = useCallback(() => {
+    if (!scene || !availableTags?.length) {
+      console.log("Cannot create shot boundary marker: missing scene or tags");
+      return;
+    }
+
+    const shotBoundaries = getShotBoundaries();
+    if (shotBoundaries.length === 0) {
+      showToast("No shot boundaries found", "error");
+      return;
+    }
+
+    // Find previous shot boundary (at or before current time)
+    const previousShot = [...shotBoundaries]
+      .reverse()
+      .find((shot) => shot.seconds <= currentVideoTime);
+
+    // Find next shot boundary (after current time)
+    const nextShot = shotBoundaries
+      .find((shot) => shot.seconds > currentVideoTime);
+
+    let startTime: number;
+    let endTime: number;
+
+    // Frame duration at 30fps (1/30 second)
+    const frameTime = 1 / 30;
+
+    if (previousShot && nextShot) {
+      // Between two shot boundaries - end one frame before next shot
+      startTime = previousShot.seconds;
+      endTime = nextShot.seconds - frameTime;
+    } else if (previousShot && !nextShot) {
+      // After last shot boundary - use previous shot to end of video
+      startTime = previousShot.seconds;
+      endTime = videoDuration || (currentVideoTime + 20);
+    } else if (!previousShot && nextShot) {
+      // Before first shot boundary - end one frame before next shot
+      startTime = 0;
+      endTime = nextShot.seconds - frameTime;
+    } else {
+      // No shot boundaries - fallback to current time + 20 seconds
+      startTime = currentVideoTime;
+      endTime = currentVideoTime + 20;
+    }
+
+    console.log("Creating shot boundary marker:", {
+      startTime,
+      endTime,
+      previousShot: previousShot?.seconds,
+      nextShot: nextShot?.seconds,
+      currentTime: currentVideoTime,
+    });
+
+    // Create the marker using the unified createOrDuplicateMarker function
+    createOrDuplicateMarker(startTime, endTime);
+  }, [
+    scene,
+    availableTags,
+    getShotBoundaries,
+    currentVideoTime,
+    videoDuration,
+    createOrDuplicateMarker,
+    showToast,
+  ]);
+
   // Use navigation hook
   const {
     findNextUnprocessedMarker,
@@ -692,12 +754,12 @@ export default function MarkerPage() {
     videoElementRef,
     fetchData,
     handleCancelEdit,
-    handleCreateMarker,
     handleEditMarker,
     handleDeleteRejectedMarkers,
     splitCurrentMarker,
     splitVideoCutMarker,
     createOrDuplicateMarker,
+    createShotBoundaryMarker,
     copyMarkerTimes,
     pasteMarkerTimes,
     jumpToNextShot,
