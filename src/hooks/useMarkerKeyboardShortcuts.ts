@@ -67,6 +67,7 @@ interface UseMarkerKeyboardShortcutsParams {
   findPreviousUnprocessedMarker: () => string | null;
   findNextUnprocessedMarkerInSwimlane: () => string | null;
   findPreviousUnprocessedMarkerInSwimlane: () => string | null;
+  findNextUnprocessedSwimlane: () => string | null;
   
   // Zoom functions
   zoomIn: () => void;
@@ -120,10 +121,10 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
     navigateBetweenSwimlanes,
     navigateChronologically,
     navigateWithinSwimlane,
-    findNextUnprocessedMarker,
     findPreviousUnprocessedMarker,
     findNextUnprocessedMarkerInSwimlane,
     findPreviousUnprocessedMarkerInSwimlane,
+    findNextUnprocessedSwimlane,
     zoomIn,
     zoomOut,
     resetZoom,
@@ -564,8 +565,8 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
         case "M":
           event.preventDefault();
           if (hasShift) {
-            // Shift+M: Global search
-            const nextMarkerId = findNextUnprocessedMarker();
+            // Shift+M: Find next unprocessed swimlane (top-to-bottom, left-to-right)
+            const nextMarkerId = findNextUnprocessedSwimlane();
             if (nextMarkerId) {
               dispatch(setSelectedMarkerId(nextMarkerId));
             }
@@ -856,10 +857,10 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
       navigateBetweenSwimlanes,
       navigateChronologically,
       navigateWithinSwimlane,
-      findNextUnprocessedMarker,
       findPreviousUnprocessedMarker,
       findNextUnprocessedMarkerInSwimlane,
       findPreviousUnprocessedMarkerInSwimlane,
+      findNextUnprocessedSwimlane,
       splitCurrentMarker,
       handleEditMarker,
       copyMarkerTimes,
