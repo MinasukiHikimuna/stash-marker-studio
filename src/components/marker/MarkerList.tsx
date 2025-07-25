@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { SceneMarker } from "../../services/StashappService";
 import { MarkerListItem } from "./MarkerListItem";
 import { type Tag } from "../../services/StashappService";
@@ -42,7 +42,14 @@ export function MarkerList({
 }: MarkerListProps) {
   const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
   
-  const actionMarkers = getActionMarkers();
+  // Memoize actionMarkers to prevent unnecessary recalculations
+  const actionMarkers = useMemo(() => getActionMarkers(), [getActionMarkers]);
+  
+  // Memoize markerGroups to prevent unnecessary re-sorting
+  const markerGroups = useMemo(() => {
+    if (actionMarkers.length === 0) return [];
+    return groupMarkersByTags(actionMarkers, markerGroupParentId);
+  }, [actionMarkers, markerGroupParentId]);
   
   if (actionMarkers.length === 0) {
     return (
@@ -51,9 +58,6 @@ export function MarkerList({
       </div>
     );
   }
-
-  // Group markers by tags using the same logic as swimlanes
-  const markerGroups = groupMarkersByTags(actionMarkers, markerGroupParentId);
 
   return (
     <>
