@@ -22,13 +22,13 @@ import {
 } from '../store/slices/markerSlice';
 import { selectMarkerStatusConfirmed, selectMarkerStatusRejected } from '../store/slices/configSlice';
 import { isShotBoundaryMarker } from '../core/marker/markerLogic';
-import { type SceneMarker } from '../services/StashappService';
+import { type SceneMarker, type Scene } from '../services/StashappService';
 import { incorrectMarkerStorage } from '../utils/incorrectMarkerStorage';
 
 interface UseMarkerKeyboardShortcutsParams {
   actionMarkers: SceneMarker[];
   markers: SceneMarker[] | null;
-  scene: { id: string; title?: string } | null;
+  scene: Scene | null;
   selectedMarkerId: string | null;
   editingMarkerId: string | null;
   isCreatingMarker: boolean;
@@ -81,6 +81,11 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
   const dispatch = useAppDispatch();
   const markerStatusConfirmed = useAppSelector(selectMarkerStatusConfirmed);
   const markerStatusRejected = useAppSelector(selectMarkerStatusRejected);
+
+  // Helper function to get frame rate from scene, with fallback to 30fps
+  const getFrameRate = useCallback((scene: Scene | null): number => {
+    return scene?.files?.[0]?.frame_rate ?? 30;
+  }, []);
   const {
     actionMarkers,
     markers,
@@ -242,6 +247,12 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
             "M",
             "T",
             "A",
+            ",",
+            ".",
+            "<",
+            ">",
+            ";",
+            ":",
           ],
         },
         // Alt only for Timeline swimlane controls
@@ -694,18 +705,48 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
           event.preventDefault();
           // Pause video first to ensure frame stepping works properly
           dispatch(pauseVideo());
-          // Use 1/30 second for frame stepping (30fps)
-          const frameTime = 1 / 30;
-          dispatch(seekToTime(Math.max(currentVideoTime - frameTime, 0)));
+          if (hasShift) {
+            // Shift+comma: Step backward 10 frames
+            const mediumStep = 10 / getFrameRate(scene);
+            dispatch(seekToTime(Math.max(currentVideoTime - mediumStep, 0)));
+          } else {
+            // comma: Step backward 1 frame
+            const frameTime = 1 / getFrameRate(scene);
+            dispatch(seekToTime(Math.max(currentVideoTime - frameTime, 0)));
+          }
+          break;
+        case ";":
+          // Scandinavian keyboard: Shift+comma produces semicolon
+          event.preventDefault();
+          dispatch(pauseVideo());
+          const mediumStepBackward = 10 / getFrameRate(scene);
+          dispatch(seekToTime(Math.max(currentVideoTime - mediumStepBackward, 0)));
           break;
         case ".":
           event.preventDefault();
           // Pause video first to ensure frame stepping works properly
           dispatch(pauseVideo());
-          // Use 1/30 second for frame stepping (30fps)
-          const frameTimeForward = 1 / 30;
+          if (hasShift) {
+            // Shift+period: Step forward 10 frames
+            const mediumStepForward = 10 / getFrameRate(scene);
+            if (videoDuration) {
+              dispatch(seekToTime(Math.min(currentVideoTime + mediumStepForward, videoDuration)));
+            }
+          } else {
+            // period: Step forward 1 frame
+            const frameTimeForward = 1 / getFrameRate(scene);
+            if (videoDuration) {
+              dispatch(seekToTime(Math.min(currentVideoTime + frameTimeForward, videoDuration)));
+            }
+          }
+          break;
+        case ":":
+          // Scandinavian keyboard: Shift+period produces colon
+          event.preventDefault();
+          dispatch(pauseVideo());
+          const mediumStepForwardScand = 10 / getFrameRate(scene);
           if (videoDuration) {
-            dispatch(seekToTime(Math.min(currentVideoTime + frameTimeForward, videoDuration)));
+            dispatch(seekToTime(Math.min(currentVideoTime + mediumStepForwardScand, videoDuration)));
           }
           break;
 
@@ -835,6 +876,7 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
       videoElementRef,
       showToast,
       centerPlayhead,
+      getFrameRate,
     ]
   );
 

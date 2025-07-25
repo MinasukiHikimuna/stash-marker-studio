@@ -47,6 +47,12 @@ export type Scene = {
     sprite?: string;
     screenshot?: string;
   };
+  files?: Array<{
+    id: string;
+    path: string;
+    basename: string;
+    frame_rate: number;
+  }>;
   tags?: Array<{
     id: string;
     name: string;
@@ -668,6 +674,12 @@ export class StashappService {
             preview
             vtt
             sprite
+          }
+          files {
+            id
+            path
+            basename
+            frame_rate
           }
           tags {
             id
