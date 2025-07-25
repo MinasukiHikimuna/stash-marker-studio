@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState, useEffect, useMemo } from "react";
+import React, { useCallback, useState, useEffect, useMemo, useRef } from "react";
 import { type SceneMarker, stashappService } from "../../services/StashappService";
 import { TagGroup } from "../../core/marker/types";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
@@ -55,6 +55,9 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
     y: number;
   } | null>(null);
 
+  // Ref to track swimlane elements for scrolling
+  const swimlaneRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
   // Ensure tags are loaded for the autocomplete
   useEffect(() => {
     if (allTags.length === 0) {
@@ -73,6 +76,19 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
     }
     return null;
   }, [selectedMarkerId, markerGroups]);
+
+  // Auto-scroll to the swimlane containing the selected marker
+  useEffect(() => {
+    if (selectedMarkerSwimlane) {
+      const swimlaneElement = swimlaneRefs.current.get(selectedMarkerSwimlane);
+      if (swimlaneElement) {
+        swimlaneElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }
+    }
+  }, [selectedMarkerSwimlane]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -212,7 +228,17 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
         };
         
         return (
-          <div key={group.name} className="flex">
+          <div 
+            key={group.name} 
+            className="flex"
+            ref={(el) => {
+              if (el) {
+                swimlaneRefs.current.set(group.name, el);
+              } else {
+                swimlaneRefs.current.delete(group.name);
+              }
+            }}
+          >
             {/* Left: Tag label - render multiple rows for multi-track swimlanes */}
             <div 
               className="flex-shrink-0 bg-gray-900 border-r border-gray-600 flex flex-col"
