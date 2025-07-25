@@ -60,7 +60,7 @@ export function MarkerSummary({
 
   return (
     <div
-      className="bg-gray-700 p-4 mb-4 rounded-none flex items-center justify-between sticky top-0 z-10"
+      className="bg-gray-700 p-4 rounded-none flex items-center justify-between sticky top-0 z-10"
       data-testid="marker-summary"
     >
       <div className="flex items-center space-x-4">

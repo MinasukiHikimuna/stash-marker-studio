@@ -226,14 +226,33 @@ export default function Timeline({
     const pixelsPerSecond = (basePixelsPerMinute / 60) * zoom;
     const idealWidth = videoDuration * pixelsPerSecond;
     
-    // If we have container width, constrain timeline to fit without overflow
+    
+    // Smart width constraint: allow timeline to exceed container when zoomed, 
+    // but constrain to fit when timeline would naturally fit
     let actualWidth = idealWidth;
     if (containerWidth > 0) {
       const scrollbarMargin = 20; // Account for potential vertical scrollbar
       const availableWidth = containerWidth - uniformTagLabelWidth - scrollbarMargin;
-      if (idealWidth > availableWidth) {
-        actualWidth = availableWidth;
+      
+      console.log("WIDTH DEBUG:", {
+        zoom,
+        idealWidth,
+        containerWidth,
+        uniformTagLabelWidth,
+        availableWidth,
+        fitsNaturally: idealWidth <= availableWidth
+      });
+      
+      // Only constrain if timeline would fit naturally (not intentionally zoomed beyond container)
+      // Add some tolerance for small calculation differences between fit-zoom and actual layout
+      const tolerance = 50; // Allow up to 50px difference
+      if (idealWidth <= availableWidth + tolerance) {
+        actualWidth = Math.min(idealWidth, availableWidth);
+        console.log("CONSTRAINING width from", idealWidth, "to", actualWidth);
+      } else {
+        console.log("ALLOWING scroll - idealWidth", idealWidth, "> availableWidth + tolerance", availableWidth + tolerance);
       }
+      // If idealWidth > availableWidth, user is intentionally zoomed in, so allow scrolling
     }
     
     return { width: actualWidth, pixelsPerSecond: actualWidth / videoDuration };
@@ -252,6 +271,40 @@ export default function Timeline({
     return null;
   }, [swimlaneResizeEnabled, windowHeight]);
 
+  // Scroll selected marker into view when selection changes or zoom changes
+  useEffect(() => {
+    if (!selectedMarkerId || !swimlaneContainerRef.current) return;
+
+    const selectedMarker = actionMarkers.find(m => m.id === selectedMarkerId);
+    if (!selectedMarker) return;
+
+    const container = swimlaneContainerRef.current;
+    const containerWidth = container.clientWidth;
+    const scrollLeft = container.scrollLeft;
+
+    // Calculate marker position in pixels
+    const markerStartTime = selectedMarker.seconds || 0;
+    const markerEndTime = selectedMarker.end_seconds || markerStartTime + 1;
+    const markerCenterTime = (markerStartTime + markerEndTime) / 2;
+    
+    const markerPixelPosition = markerCenterTime * timelineWidth.pixelsPerSecond;
+    const labelWidth = uniformTagLabelWidth;
+    const markerAbsolutePosition = labelWidth + markerPixelPosition;
+
+    // Check if marker is visible in current viewport
+    const viewportStart = scrollLeft + labelWidth;
+    const viewportEnd = scrollLeft + containerWidth;
+    const isVisible = markerAbsolutePosition >= viewportStart && markerAbsolutePosition <= viewportEnd;
+
+    if (!isVisible) {
+      // Scroll to center the marker in the viewport
+      const targetScrollLeft = markerAbsolutePosition - containerWidth / 2;
+      container.scrollTo({
+        left: Math.max(0, targetScrollLeft),
+        behavior: 'smooth'
+      });
+    }
+  }, [selectedMarkerId, zoom, actionMarkers, timelineWidth, uniformTagLabelWidth]);
   
   // Don't render if video duration is not available yet
   if (videoDuration <= 0) {
@@ -289,7 +342,7 @@ export default function Timeline({
 
       {/* Swimlanes container */}
       <div 
-        className={swimlaneResizeEnabled ? "overflow-y-auto" : "flex-1 overflow-y-auto"}
+        className={swimlaneResizeEnabled ? "overflow-x-auto overflow-y-auto" : "flex-1 overflow-x-auto overflow-y-auto"}
         style={
           swimlaneResizeEnabled 
             ? { maxHeight: `${swimlaneMaxHeight}px` }

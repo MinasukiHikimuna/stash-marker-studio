@@ -139,7 +139,10 @@ export function useTimelineZoom(videoDuration: number | null): UseTimelineZoomRe
 
   // Zoom control functions
   const zoomIn = useCallback(() => {
-    setZoom((prevZoom) => Math.min(10, prevZoom * zoomFactor));
+    setZoom((prevZoom) => {
+      const newZoom = Math.min(10, prevZoom * zoomFactor);
+      return newZoom;
+    });
   }, []);
 
   const zoomOut = useCallback(() => {

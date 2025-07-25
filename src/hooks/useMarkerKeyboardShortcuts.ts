@@ -779,20 +779,26 @@ export const useMarkerKeyboardShortcuts = (params: UseMarkerKeyboardShortcutsPar
           }
           break;
 
-        // Zoom Controls
+        // Zoom Controls (only without modifiers to avoid conflict with swimlane resize)
         case "+":
         case "=":
-          event.preventDefault();
-          zoomIn();
+          if (!hasCtrl && !hasAlt && !hasShift) {
+            event.preventDefault();
+            zoomIn();
+          }
           break;
         case "-":
         case "_":
-          event.preventDefault();
-          zoomOut();
+          if (!hasCtrl && !hasAlt && !hasShift) {
+            event.preventDefault();
+            zoomOut();
+          }
           break;
         case "0":
-          event.preventDefault();
-          resetZoom();
+          if (!hasCtrl && !hasAlt && !hasShift) {
+            event.preventDefault();
+            resetZoom();
+          }
           break;
       }
     },

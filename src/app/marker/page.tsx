@@ -847,7 +847,7 @@ export default function MarkerPage() {
                 {/* Scrollable marker list - now with grow to push edit section to bottom */}
                 <div
                   ref={markerListRef}
-                  className="overflow-y-auto flex-1 px-4 min-h-0"
+                  className="overflow-y-auto flex-1 min-h-0"
                   data-testid="marker-list"
                 >
                   <MarkerList
