@@ -185,8 +185,11 @@ const TimelineHeader: React.FC<TimelineHeaderProps> = ({
             
             {/* Current time indicator */}
             <div
-              className="absolute top-0 h-full w-0.5 bg-red-500 z-10"
-              style={{ left: `${currentTime * timelineWidth.pixelsPerSecond}px` }}
+              className="absolute top-0 w-0.5 bg-red-500 z-10"
+              style={{ 
+                left: `${currentTime * timelineWidth.pixelsPerSecond}px`,
+                height: 'calc(100% + 2px)'
+              }}
             />
           </div>
         </div>
