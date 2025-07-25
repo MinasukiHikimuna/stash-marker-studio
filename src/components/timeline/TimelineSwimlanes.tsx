@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect, useMemo } from "react";
 import { type SceneMarker, stashappService } from "../../services/StashappService";
 import { TagGroup } from "../../core/marker/types";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
@@ -61,6 +61,18 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
       dispatch(loadAllTags());
     }
   }, [allTags.length, dispatch]);
+
+  // Find which swimlane contains the selected marker
+  const selectedMarkerSwimlane = useMemo(() => {
+    if (!selectedMarkerId) return null;
+    
+    for (const group of markerGroups) {
+      if (group.markers.some(marker => marker.id === selectedMarkerId)) {
+        return group.name;
+      }
+    }
+    return null;
+  }, [selectedMarkerId, markerGroups]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -187,6 +199,9 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
         // Get markers with track assignments for this group
         const groupMarkersWithTracks = markersWithTracks.filter(m => m.tagGroup === group.name);
         
+        // Check if this swimlane contains the selected marker
+        const isSelectedMarkerInThisGroup = selectedMarkerSwimlane === group.name;
+        
         // Calculate status counts
         const counts = {
           confirmed: group.markers.filter(isMarkerConfirmed).length,
@@ -208,9 +223,10 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                   key={trackIndex}
                   className={`
                     flex items-center px-3 text-sm cursor-pointer transition-colors
-                    ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-900'}
-                    ${filteredSwimlane === group.name ? 'bg-blue-600' : ''}
-                    ${group.isRejected ? 'bg-red-900/40' : ''}
+                    ${filteredSwimlane === group.name ? 'bg-blue-600' : 
+                      group.isRejected ? 'bg-red-900/40' : 
+                      isSelectedMarkerInThisGroup ? 'bg-gray-700' : 
+                      index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-900'}
                     hover:bg-gray-700
                     ${trackIndex === trackCount - 1 ? 'border-b border-gray-600' : ''}
                   `}
@@ -233,7 +249,7 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                             {markerGroup.displayName}:
                           </span>
                         )}
-                        <span className="text-gray-200 flex items-center gap-1">
+                        <span className={`flex items-center gap-1 text-gray-200 ${isSelectedMarkerInThisGroup ? 'font-bold' : ''}`}>
                           {group.name}
                           {group.isRejected && " (R)"}
                           {filteredSwimlane === group.name && " 🔍"}
@@ -275,7 +291,7 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                 <div
                   className={`
                     border-b border-gray-600 relative
-                    ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-900'}
+                    ${isSelectedMarkerInThisGroup ? 'bg-gray-700' : index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-900'}
                   `}
                   style={{ height: `${swimlaneHeight}px` }}
                 >
