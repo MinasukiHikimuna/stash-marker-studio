@@ -1,22 +1,59 @@
-import React from "react";
-import { getModifierKeyName } from "../../utils/platform";
+import React, { useState, useEffect } from "react";
+import { keyboardShortcutService } from "../../services/KeyboardShortcutService";
+import { KeyboardShortcut, ShortcutCategory } from "../../types/keyboard";
 
 interface KeyboardShortcutsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+const CATEGORY_LABELS: Record<ShortcutCategory, string> = {
+  'marker.review': 'Marker Review',
+  'marker.create': 'Marker Creation',
+  'marker.edit': 'Marker Editing',
+  'navigation': 'Navigation',
+  'video.playback': 'Video Playback',
+  'video.jump': 'Video Jump',
+  'system': 'System Actions'
+};
+
+const CATEGORY_ORDER: ShortcutCategory[] = [
+  'marker.review',
+  'marker.create', 
+  'marker.edit',
+  'navigation',
+  'video.playback',
+  'video.jump',
+  'system'
+];
+
 export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const [shortcuts, setShortcuts] = useState<KeyboardShortcut[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const allShortcuts = keyboardShortcutService.getAllShortcuts().filter(s => s.enabled);
+      setShortcuts(allShortcuts);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
-  
-  const modifierKey = getModifierKeyName();
+
+  // Group shortcuts by category
+  const groupedShortcuts = CATEGORY_ORDER.reduce((acc, category) => {
+    const categoryShortcuts = shortcuts.filter(s => s.category === category);
+    if (categoryShortcuts.length > 0) {
+      acc[category] = categoryShortcuts;
+    }
+    return acc;
+  }, {} as Record<ShortcutCategory, KeyboardShortcut[]>);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9000] p-4">
-      <div className="bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
+      <div className="bg-gray-800 rounded-lg max-w-5xl w-full max-h-[90vh] flex flex-col">
         <div className="p-6 flex-none">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-white">Keyboard Shortcuts</h2>
@@ -39,118 +76,51 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
               </svg>
             </button>
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-4 text-xs">
-            <div>
-              <h4 className="font-semibold text-green-400 mt-3 mb-1">
-                LEFT HAND - Marker Actions
-              </h4>
-              <ul className="space-y-0.5 text-xs">
-                <li>
-                  <strong>Review:</strong>
-                </li>
-                <li>Z: Confirm. Press again to unconfirm.</li>
-                <li>X: Reject. Press again to unreject.</li>
-                <li>Shift+X: Delete rejected</li>
-                <li>
-                  C: Mark an incorrect marker for AI feedback. Press again to
-                  unmark.
-                </li>
-                <li>Shift+C: Collect incorrect markers for AI feedback.</li>
-                <li>
-                  <strong>Create:</strong>
-                </li>
-                <li>A: New marker</li>
-                <li>S: Split marker</li>
-                <li>D: Duplicate marker</li>
-                <li>V: Split Video Cut marker</li>
-                <li>
-                  <strong>Edit:</strong>
-                </li>
-                <li>Q: Edit tag</li>
-                <li>W: Set start time</li>
-                <li>E: Set end time</li>
-                <li>T: Copy marker times</li>
-                <li>Shift+T: Paste marker times</li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-semibold text-blue-400 mb-1">
-                RIGHT HAND - Navigation & Playback
-              </h4>
-
-              <ul className="space-y-0.5 text-xs mb-4">
-                <li>↑↓: Move between swimlanes (same time)</li>
-                <li>Shift+↑↓: Move between swimlanes (any time)</li>
-                <li>←→: Move within swimlane</li>
-                <li>Shift+←→: Chronological order</li>
-              </ul>
-
-              <ul className="space-y-0.5 text-xs mb-4">
-                <li>
-                  <strong>View:</strong>
-                </li>
-                <li>H: Center on playhead</li>
-                <li>
-                  <strong>Playback:</strong>
-                </li>
-                <li>Space: Play/pause</li>
-                <li>J: Seek backward</li>
-                <li>K: Pause</li>
-                <li>L: Seek forward</li>
-                <li>,: Frame backward</li>
-                <li>.: Frame forward</li>
-                <li>
-                  <strong>Jump:</strong>
-                </li>
-                <li>I: Jump to marker start</li>
-                <li>Shift+I: Jump to scene start</li>
-                <li>O: Jump to marker end</li>
-                <li>Shift+O: Jump to scene end</li>
-                <li>
-                  <strong>Navigation:</strong>
-                </li>
-                <li>N: Previous unprocessed (swimlane)</li>
-                <li>M: Next unprocessed (swimlane)</li>
-                <li>Shift+N: Previous unprocessed (global)</li>
-                <li>Shift+M: Next unprocessed (global)</li>
-                <li>
-                  <strong>Shots:</strong>
-                </li>
-                <li>Y: Previous shot</li>
-                <li>U: Next shot</li>
-              </ul>
-
-              <h4 className="font-semibold text-orange-400 mt-3 mb-1">
-                System
-              </h4>
-              <ul className="space-y-0.5 text-xs">
-                <li>Enter: Play from marker</li>
-                <li>Escape: Cancel operation</li>
-                <li>F: Filter by current swimlane</li>
-                <li>R: Refresh markers</li>
-                <li>
-                  <strong>Zoom:</strong>
-                </li>
-                <li>+/=: Zoom in</li>
-                <li>-/_: Zoom out (min: fit to window)</li>
-                <li>0: Reset to fit window</li>
-                <li>
-                  <strong>Swimlane View:</strong>
-                </li>
-                <li>{modifierKey}++: Increase swimlane height</li>
-                <li>{modifierKey}+-: Decrease swimlane height</li>
-                <li>{modifierKey}+0: Reset to normal view</li>
-              </ul>
-            </div>
+        <div className="px-6 pb-6 overflow-y-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {Object.entries(groupedShortcuts).map(([category, categoryShortcuts]) => (
+              <div key={category} className="space-y-2">
+                <h3 className="font-semibold text-blue-400 mb-3">
+                  {CATEGORY_LABELS[category as ShortcutCategory]}
+                </h3>
+                <div className="space-y-1">
+                  {categoryShortcuts.map((shortcut) => (
+                    <div key={shortcut.id} className="flex justify-between items-center text-sm">
+                      <span className="text-gray-300 flex-1">
+                        {shortcut.description}
+                      </span>
+                      <div className="flex gap-2 ml-4">
+                        {shortcut.bindings.map((binding, index) => (
+                          <span
+                            key={index}
+                            className="font-mono bg-gray-700 px-2 py-0.5 rounded text-xs text-white"
+                          >
+                            {keyboardShortcutService.getBindingDisplayString(binding)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
-          <div className="mt-3 pt-2 border-t border-gray-600">
-            <p className="text-xs text-gray-400">
-              <strong>Tip:</strong> Logical groupings - Left hand for marker
-              actions, right hand for time/video, arrows for spatial navigation.
-            </p>
+          <div className="mt-6 pt-4 border-t border-gray-600">
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-gray-400">
+                <strong>Tip:</strong> Logical groupings - Left hand for marker actions, right hand for time/video, arrows for spatial navigation.
+              </p>
+              <a
+                href="/config"
+                className="text-xs text-blue-400 hover:text-blue-300 underline"
+                onClick={onClose}
+              >
+                Customize shortcuts →
+              </a>
+            </div>
           </div>
         </div>
       </div>

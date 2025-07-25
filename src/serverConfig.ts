@@ -1,11 +1,14 @@
 // Configuration interfaces only - no environment variable handling
 // Configuration is now managed through JSON files and the UI
 
+import { KeyboardShortcutConfig } from './types/keyboard';
+
 export interface AppConfig {
   serverConfig: ServerConfig;
   markerConfig: MarkerConfig;
   markerGroupingConfig: MarkerGroupingConfig;
   shotBoundaryConfig: ShotBoundaryConfig;
+  keyboardShortcuts?: KeyboardShortcutConfig;
 }
 
 export interface ServerConfig {

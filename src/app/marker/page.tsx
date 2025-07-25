@@ -17,10 +17,10 @@ import { MarkerList } from "../../components/marker/MarkerList";
 import { CompletionModal } from "../../components/marker/CompletionModal";
 import { DeleteRejectedModal } from "../../components/marker/DeleteRejectedModal";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
-import { useMarkerKeyboardShortcuts } from "../../hooks/useMarkerKeyboardShortcuts";
 import { useMarkerNavigation } from "../../hooks/useMarkerNavigation";
 import { useTimelineZoom } from "../../hooks/useTimelineZoom";
 import { useMarkerOperations } from "../../hooks/useMarkerOperations";
+import { useDynamicKeyboardShortcuts } from "../../hooks/useDynamicKeyboardShortcuts";
 import {
   selectMarkers,
   selectScene,
@@ -789,7 +789,6 @@ export default function MarkerPage() {
     findNextUnprocessedMarkerInSwimlane,
     findPreviousUnprocessedMarkerInSwimlane,
     findNextUnprocessedSwimlane,
-    navigateChronologically,
     navigateBetweenSwimlanes,
     navigateWithinSwimlane,
   } = useMarkerNavigation({
@@ -800,32 +799,8 @@ export default function MarkerPage() {
     getActionMarkers,
   });
 
-  // Effect to update selected marker when filtering changes to ensure it's valid
-  useEffect(() => {
-    if (actionMarkers.length > 0) {
-      // Check if currently selected marker still exists after filtering
-      const selectedMarker = actionMarkers.find(
-        (m) => m.id === selectedMarkerId
-      );
-      if (!selectedMarker) {
-        // If selected marker is not in filtered list, find next unprocessed marker
-        // using the same algorithm as Shift+M for consistency
-        const nextUnprocessedId = findNextUnprocessedSwimlane();
-        if (nextUnprocessedId) {
-          dispatch(setSelectedMarkerId(nextUnprocessedId));
-        } else {
-          // Fallback to first marker if no unprocessed markers found
-          dispatch(setSelectedMarkerId(actionMarkers[0].id));
-        }
-      }
-    } else {
-      // If no markers after filtering, clear selection
-      dispatch(setSelectedMarkerId(null));
-    }
-  }, [actionMarkers, selectedMarkerId, dispatch, findNextUnprocessedSwimlane]);
-
-  // Use keyboard shortcuts hook
-  useMarkerKeyboardShortcuts({
+  // Use dynamic keyboard shortcuts hook
+  useDynamicKeyboardShortcuts({
     actionMarkers,
     markers,
     scene,
@@ -859,7 +834,6 @@ export default function MarkerPage() {
     confirmDeleteRejectedMarkers,
     showToast,
     navigateBetweenSwimlanes,
-    navigateChronologically,
     navigateWithinSwimlane,
     findNextUnprocessedMarker,
     findPreviousUnprocessedMarker,
@@ -871,6 +845,31 @@ export default function MarkerPage() {
     resetZoom,
     centerPlayhead,
   });
+
+  // Effect to update selected marker when filtering changes to ensure it's valid
+  useEffect(() => {
+    if (actionMarkers.length > 0) {
+      // Check if currently selected marker still exists after filtering
+      const selectedMarker = actionMarkers.find(
+        (m) => m.id === selectedMarkerId
+      );
+      if (!selectedMarker) {
+        // If selected marker is not in filtered list, find next unprocessed marker
+        // using the same algorithm as Shift+M for consistency
+        const nextUnprocessedId = findNextUnprocessedSwimlane();
+        if (nextUnprocessedId) {
+          dispatch(setSelectedMarkerId(nextUnprocessedId));
+        } else {
+          // Fallback to first marker if no unprocessed markers found
+          dispatch(setSelectedMarkerId(actionMarkers[0].id));
+        }
+      }
+    } else {
+      // If no markers after filtering, clear selection
+      dispatch(setSelectedMarkerId(null));
+    }
+  }, [actionMarkers, selectedMarkerId, dispatch, findNextUnprocessedSwimlane]);
+
 
   // Scroll selected marker into view
   useEffect(() => {

@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useRouter, usePathname } from "next/navigation";
 import type { AppConfig } from "@/serverConfig";
 import { stashappService } from "@/services/StashappService";
+import { keyboardShortcutService } from "@/services/KeyboardShortcutService";
 import { useAppDispatch } from "@/store/hooks";
 import { setFullConfig } from "@/store/slices/configSlice";
 
@@ -56,6 +57,10 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
       
       const json = (await res.json()) as AppConfig;
       stashappService.applyConfig(json);
+      
+      // Initialize keyboard shortcut service with user config
+      await keyboardShortcutService.initialize(json.keyboardShortcuts);
+      
       setConfig(json);
       setIsConfigured(true);
       

@@ -1,0 +1,531 @@
+import { useCallback, useEffect } from 'react';
+import { useAppDispatch } from '../store/hooks';
+import {
+  confirmMarker,
+  rejectMarker,
+  resetMarker,
+  setCollectingModalOpen,
+  setDeletingRejected,
+  togglePlayPause,
+  setCreatingMarker,
+  setDuplicatingMarker,
+  setMarkers,
+  setFilteredSwimlane,
+  setSelectedMarkerId,
+  seekToTime,
+  playVideo,
+  updateMarkerTimes,
+  // pauseVideo,
+} from '../store/slices/markerSlice';
+import { keyboardShortcutService } from '../services/KeyboardShortcutService';
+import { type SceneMarker, type Scene } from '../services/StashappService';
+import { incorrectMarkerStorage } from '../utils/incorrectMarkerStorage';
+import { isShotBoundaryMarker } from '../core/marker/markerLogic';
+
+interface UseDynamicKeyboardShortcutsParams {
+  actionMarkers: SceneMarker[];
+  markers: SceneMarker[] | null;
+  scene: Scene | null;
+  selectedMarkerId: string | null;
+  editingMarkerId: string | null;
+  isCreatingMarker: boolean;
+  isDuplicatingMarker: boolean;
+  filteredSwimlane: string | null;
+  incorrectMarkers: { markerId: string; [key: string]: unknown }[];
+  availableTags: { id: string; name: string; [key: string]: unknown }[] | null;
+  videoDuration: number | null;
+  currentVideoTime: number;
+  isCompletionModalOpen: boolean;
+  isDeletingRejected: boolean;
+  videoElementRef: React.RefObject<HTMLVideoElement | null>;
+  
+  // Handler functions
+  fetchData: () => void;
+  handleCancelEdit: () => void;
+  handleEditMarker: (marker: SceneMarker) => void;
+  handleDeleteRejectedMarkers: () => void;
+  splitCurrentMarker: () => void;
+  splitVideoCutMarker: () => void;
+  createOrDuplicateMarker: (startTime: number, endTime: number | null, sourceMarker?: SceneMarker) => void;
+  createShotBoundaryMarker: () => void;
+  copyMarkerTimes: () => void;
+  pasteMarkerTimes: () => void;
+  copyMarkerForMerge: () => void;
+  mergeMarkerProperties: () => void;
+  jumpToNextShot: () => void;
+  jumpToPreviousShot: () => void;
+  executeCompletion: () => void;
+  confirmDeleteRejectedMarkers: () => void;
+  showToast: (message: string, type: 'success' | 'error') => void;
+  
+  // Navigation functions
+  navigateBetweenSwimlanes: (direction: 'up' | 'down') => void;
+  navigateWithinSwimlane: (direction: 'left' | 'right') => void;
+  findNextUnprocessedMarker: () => string | null;
+  findPreviousUnprocessedMarker: () => string | null;
+  findNextUnprocessedMarkerInSwimlane: () => string | null;
+  findPreviousUnprocessedMarkerInSwimlane: () => string | null;
+  findNextUnprocessedSwimlane: () => string | null;
+  
+  // Zoom functions
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetZoom: () => void;
+  
+  // Timeline functions
+  centerPlayhead: () => void;
+}
+
+export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsParams) => {
+  const dispatch = useAppDispatch();
+
+  // Helper function to get frame rate from scene, with fallback to 30fps
+  const getFrameRate = useCallback((scene: Scene | null): number => {
+    return scene?.files?.[0]?.frame_rate ?? 30;
+  }, []);
+
+  // Action handlers mapped by shortcut ID
+  const actionHandlers = useCallback(() => {
+    const {
+      actionMarkers,
+      markers,
+      scene,
+      selectedMarkerId,
+      editingMarkerId,
+      isCreatingMarker,
+      isDuplicatingMarker,
+      filteredSwimlane,
+      incorrectMarkers,
+      currentVideoTime,
+      videoDuration,
+      // videoElementRef,
+      fetchData,
+      handleCancelEdit,
+      handleEditMarker,
+      handleDeleteRejectedMarkers,
+      splitCurrentMarker,
+      splitVideoCutMarker,
+      createOrDuplicateMarker,
+      createShotBoundaryMarker,
+      copyMarkerTimes,
+      pasteMarkerTimes,
+      copyMarkerForMerge,
+      mergeMarkerProperties,
+      jumpToNextShot,
+      jumpToPreviousShot,
+      executeCompletion,
+      confirmDeleteRejectedMarkers,
+      // showToast,
+      navigateBetweenSwimlanes,
+      navigateWithinSwimlane,
+      // findNextUnprocessedMarker,
+      findPreviousUnprocessedMarker,
+      findNextUnprocessedMarkerInSwimlane,
+      findPreviousUnprocessedMarkerInSwimlane,
+      findNextUnprocessedSwimlane,
+      zoomIn,
+      zoomOut,
+      resetZoom,
+      centerPlayhead,
+    } = params;
+
+    const currentMarker = actionMarkers.find(m => m.id === selectedMarkerId);
+
+    return {
+      // Marker Review
+      'marker.confirm': () => {
+        if (!currentMarker || !scene?.id) return;
+        const hasConfirmedStatus = incorrectMarkers.some(m => m.markerId === currentMarker.id);
+        if (hasConfirmedStatus) {
+          dispatch(resetMarker({ sceneId: scene.id, markerId: currentMarker.id }));
+        } else {
+          dispatch(confirmMarker({ sceneId: scene.id, markerId: currentMarker.id }));
+        }
+      },
+
+      'marker.reject': () => {
+        if (!currentMarker || !scene?.id) return;
+        const hasRejectedStatus = incorrectMarkers.some(m => m.markerId === currentMarker.id);
+        if (hasRejectedStatus) {
+          dispatch(resetMarker({ sceneId: scene.id, markerId: currentMarker.id }));
+        } else {
+          dispatch(rejectMarker({ sceneId: scene.id, markerId: currentMarker.id }));
+        }
+      },
+
+      'marker.markIncorrect': () => {
+        if (!currentMarker) return;
+        const existingIncorrect = incorrectMarkers.find(m => m.markerId === currentMarker.id);
+        if (existingIncorrect) {
+          incorrectMarkerStorage.removeIncorrectMarker(scene?.id || '', currentMarker.id);
+        } else {
+          incorrectMarkerStorage.addIncorrectMarker(scene?.id || '', {
+            markerId: currentMarker.id,
+            tagName: currentMarker.primary_tag.name,
+            startTime: currentMarker.seconds,
+            endTime: currentMarker.end_seconds || currentMarker.seconds + 30,
+            timestamp: new Date().toISOString(),
+            sceneId: scene?.id || '',
+            sceneTitle: scene?.title || '',
+          });
+        }
+        fetchData();
+      },
+
+      'marker.openCollectionModal': () => {
+        dispatch(setCollectingModalOpen(true));
+      },
+
+      // Marker Creation
+      'marker.create': () => {
+        createOrDuplicateMarker(currentVideoTime, currentVideoTime + 20);
+      },
+
+      'marker.createShotBoundary': () => {
+        createShotBoundaryMarker();
+      },
+
+      'marker.split': () => {
+        splitCurrentMarker();
+      },
+
+      'marker.duplicate': () => {
+        if (!currentMarker) return;
+        createOrDuplicateMarker(currentMarker.seconds, currentMarker.end_seconds ?? null, currentMarker);
+      },
+
+      'marker.splitVideoCut': () => {
+        splitVideoCutMarker();
+      },
+
+      // Marker Editing
+      'marker.edit': () => {
+        if (!currentMarker) return;
+        handleEditMarker(currentMarker);
+      },
+
+      'marker.setStartTime': () => {
+        if (!currentMarker || !scene) return;
+        dispatch(updateMarkerTimes({
+          sceneId: scene.id,
+          markerId: currentMarker.id,
+          startTime: currentVideoTime,
+          endTime: currentMarker.end_seconds ?? null
+        }));
+      },
+
+      'marker.setEndTime': () => {
+        if (!currentMarker || !scene) return;
+        dispatch(updateMarkerTimes({
+          sceneId: scene.id,
+          markerId: currentMarker.id,
+          startTime: currentMarker.seconds,
+          endTime: currentVideoTime
+        }));
+      },
+
+      'marker.copyTimes': () => {
+        copyMarkerTimes();
+      },
+
+      'marker.pasteTimes': () => {
+        pasteMarkerTimes();
+      },
+
+      'marker.copyForMerge': () => {
+        copyMarkerForMerge();
+      },
+
+      'marker.mergeProperties': () => {
+        mergeMarkerProperties();
+      },
+
+      // Navigation
+      'navigation.swimlaneUp': () => navigateBetweenSwimlanes('up'),
+      'navigation.swimlaneDown': () => navigateBetweenSwimlanes('down'),
+      'navigation.withinSwimlaneLeft': () => navigateWithinSwimlane('left'),
+      'navigation.withinSwimlaneRight': () => navigateWithinSwimlane('right'),
+      'navigation.previousUnprocessedInSwimlane': () => {
+        const markerId = findPreviousUnprocessedMarkerInSwimlane();
+        if (markerId) dispatch(setSelectedMarkerId(markerId));
+      },
+      'navigation.previousUnprocessedGlobal': () => {
+        const markerId = findPreviousUnprocessedMarker();
+        if (markerId) dispatch(setSelectedMarkerId(markerId));
+      },
+      'navigation.nextUnprocessedInSwimlane': () => {
+        const markerId = findNextUnprocessedMarkerInSwimlane();
+        if (markerId) dispatch(setSelectedMarkerId(markerId));
+      },
+      'navigation.nextUnprocessedGlobal': () => {
+        const swimlane = findNextUnprocessedSwimlane();
+        if (swimlane) dispatch(setFilteredSwimlane(swimlane));
+      },
+      'navigation.centerPlayhead': () => centerPlayhead(),
+      'navigation.zoomIn': () => zoomIn(),
+      'navigation.zoomOut': () => zoomOut(),
+      'navigation.resetZoom': () => resetZoom(),
+
+      // Video Playback
+      'video.playPause': () => {
+        dispatch(togglePlayPause());
+      },
+
+      'video.seekBackward5': () => {
+        dispatch(seekToTime(Math.max(0, currentVideoTime - 5)));
+      },
+
+      'video.seekForward5': () => {
+        dispatch(seekToTime(Math.min(videoDuration || Infinity, currentVideoTime + 5)));
+      },
+
+      'video.frameBackward': () => {
+        const frameRate = getFrameRate(scene);
+        const frameTime = 1 / frameRate;
+        dispatch(seekToTime(Math.max(0, currentVideoTime - frameTime)));
+      },
+
+      'video.frame10Backward': () => {
+        const frameRate = getFrameRate(scene);
+        const frameTime = 10 / frameRate;
+        dispatch(seekToTime(Math.max(0, currentVideoTime - frameTime)));
+      },
+
+      'video.frameForward': () => {
+        const frameRate = getFrameRate(scene);
+        const frameTime = 1 / frameRate;
+        dispatch(seekToTime(Math.min(videoDuration || Infinity, currentVideoTime + frameTime)));
+      },
+
+      'video.frame10Forward': () => {
+        const frameRate = getFrameRate(scene);
+        const frameTime = 10 / frameRate;
+        dispatch(seekToTime(Math.min(videoDuration || Infinity, currentVideoTime + frameTime)));
+      },
+
+      'video.playFromMarker': () => {
+        if (!currentMarker) return;
+        dispatch(seekToTime(currentMarker.seconds));
+        dispatch(playVideo());
+      },
+
+      // Video Jump Navigation
+      'video.jumpToMarkerStart': () => {
+        if (!currentMarker) return;
+        dispatch(seekToTime(currentMarker.seconds));
+      },
+
+      'video.jumpToSceneStart': () => {
+        dispatch(seekToTime(0));
+      },
+
+      'video.jumpToMarkerEnd': () => {
+        if (!currentMarker) return;
+        dispatch(seekToTime(currentMarker.end_seconds || currentMarker.seconds + 30));
+      },
+
+      'video.jumpToSceneEnd': () => {
+        if (videoDuration) dispatch(seekToTime(videoDuration));
+      },
+
+      'video.jumpToPreviousShot': () => jumpToPreviousShot(),
+      'video.jumpToNextShot': () => jumpToNextShot(),
+
+      // System Actions
+      'system.toggleFilter': () => {
+        if (actionMarkers.length > 0) {
+          if (!currentMarker) return;
+          
+          const tagGroupName = currentMarker.primary_tag.name.endsWith("_AI")
+            ? currentMarker.primary_tag.name.replace("_AI", "")
+            : currentMarker.primary_tag.name;
+
+          const newFilter = filteredSwimlane === tagGroupName ? null : tagGroupName;
+          dispatch(setFilteredSwimlane(newFilter));
+
+          // Preserve selection after filtering
+          setTimeout(() => {
+            if (!markers) return;
+
+            let newFilteredMarkers = markers.filter((marker) => {
+              if (marker.id.startsWith("temp-")) return true;
+              return !isShotBoundaryMarker(marker);
+            });
+
+            if (newFilter) {
+              newFilteredMarkers = newFilteredMarkers.filter((marker) => {
+                const tagGroupName = marker.primary_tag.name.endsWith("_AI")
+                  ? marker.primary_tag.name.replace("_AI", "")
+                  : marker.primary_tag.name;
+                return tagGroupName === newFilter;
+              });
+            }
+
+            if (currentMarker?.id) {
+              dispatch(setSelectedMarkerId(currentMarker.id));
+            } else if (newFilteredMarkers.length > 0) {
+              dispatch(setSelectedMarkerId(newFilteredMarkers[0].id));
+            } else {
+              dispatch(setSelectedMarkerId(null));
+            }
+          }, 0);
+        } else if (filteredSwimlane) {
+          dispatch(setFilteredSwimlane(null));
+        }
+      },
+
+      'system.escape': () => {
+        if (editingMarkerId) {
+          handleCancelEdit();
+        } else if (isCreatingMarker || isDuplicatingMarker) {
+          const realMarkers = markers?.filter(m => !m.id.startsWith("temp-"));
+          if (realMarkers) {
+            dispatch(setMarkers(realMarkers));
+          }
+          dispatch(setCreatingMarker(false));
+          dispatch(setDuplicatingMarker(false));
+        }
+      },
+
+      'system.deleteRejected': () => {
+        handleDeleteRejectedMarkers();
+      },
+
+      // Modal shortcuts
+      'modal.confirm': () => {
+        if (params.isCompletionModalOpen) {
+          executeCompletion();
+        } else if (params.isDeletingRejected) {
+          confirmDeleteRejectedMarkers();
+        }
+      },
+
+      'modal.cancel': () => {
+        if (params.isCompletionModalOpen) {
+          dispatch(setCollectingModalOpen(false));
+        } else if (params.isDeletingRejected) {
+          dispatch(setDeletingRejected(false));
+        }
+      },
+    };
+  }, [dispatch, getFrameRate, params]);
+
+  // Main keyboard handler
+  const handleKeyDown = useCallback(
+    async (event: KeyboardEvent) => {
+      // Only log key press if it's not a modifier key by itself
+      if (!["Control", "Alt", "Shift", "Meta"].includes(event.key)) {
+        console.log(
+          `Key pressed: ${event.key}${event.shiftKey ? " + Shift" : ""}${
+            event.ctrlKey || event.metaKey ? " + Ctrl" : ""
+          }${event.altKey ? " + Alt" : ""}`
+        );
+      }
+
+      // Ignore keyboard shortcuts if we're typing in an input field or capturing shortcuts
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        event.target instanceof HTMLSelectElement ||
+        (event.target instanceof HTMLElement && event.target.getAttribute('data-keyboard-capture') === 'true')
+      ) {
+        return;
+      }
+
+      // Get action ID from keyboard shortcut service
+      var actionId = keyboardShortcutService.getActionForKeyBinding(event.key, {
+        ctrl: event.ctrlKey || event.metaKey,
+        alt: event.altKey,
+        shift: event.shiftKey,
+        meta: event.metaKey,
+      });
+
+      console.log(`Looking for action for key combo: ${event.key} with modifiers:`, {
+        ctrl: event.ctrlKey || event.metaKey,
+        alt: event.altKey,
+        shift: event.shiftKey,
+        meta: event.metaKey,
+      }, `Found actionId: ${actionId}`);
+
+      if (!actionId) {
+        return; // No shortcut defined for this key combination
+      }
+
+      // Handle Enter key conflict: when no modal is open, Enter should play from marker
+      if (actionId === 'modal.confirm' && event.key === 'Enter' && !params.isCompletionModalOpen && !params.isDeletingRejected) {
+        actionId = 'video.playFromMarker';
+      }
+
+      // Handle Escape key conflict: when no modal is open, Escape should handle system escape
+      if (actionId === 'modal.cancel' && event.key === 'Escape' && !params.isCompletionModalOpen && !params.isDeletingRejected) {
+        actionId = 'system.escape';
+      }
+
+      // Get action handler
+      const handlers = actionHandlers();
+      const handler = handlers[actionId as keyof typeof handlers];
+
+      if (!handler) {
+        console.warn(`No handler found for action: ${actionId}`);
+        return;
+      }
+
+      // Prevent default browser behavior
+      event.preventDefault();
+
+      // Execute the action
+      try {
+        console.log(`Executing action: ${actionId}`);
+        handler();
+      } catch (error) {
+        console.error(`Error executing shortcut action ${actionId}:`, error);
+      }
+    },
+    [actionHandlers]
+  );
+
+  // Modal keyboard handler
+  const handleModalKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (!params.isCompletionModalOpen && !params.isDeletingRejected) {
+        return;
+      }
+
+      // Only handle specific modal shortcuts
+      const actionId = keyboardShortcutService.getActionForKeyBinding(event.key, {
+        ctrl: event.ctrlKey || event.metaKey,
+        alt: event.altKey,
+        shift: event.shiftKey,
+        meta: event.metaKey,
+      });
+
+      if (actionId === 'modal.confirm' || actionId === 'modal.cancel') {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const handlers = actionHandlers();
+        const handler = handlers[actionId];
+        if (handler) {
+          handler();
+        }
+      }
+    },
+    [actionHandlers, params.isCompletionModalOpen, params.isDeletingRejected]
+  );
+
+  // Set up event listeners
+  useEffect(() => {
+    // Add modal handler with capture=true to handle events before they reach the main handler
+    window.addEventListener("keydown", handleModalKeyDown, true);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleModalKeyDown, true);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleModalKeyDown, handleKeyDown]);
+
+  return {
+    handleKeyDown,
+    handleModalKeyDown,
+  };
+};

@@ -64,7 +64,7 @@ Stash Marker Studio is a companion app for Stashapp that makes working with vide
 ### Important Files
 
 - `src/core/marker/types.ts` - Core TypeScript types for markers and state
-- `src/hooks/useMarkerKeyboardShortcuts.ts` - Keyboard-centric UI logic
+- `src/hooks/useDynamicKeyboardShortcuts.ts` - Dynamic keyboard shortcut handling
 - `src/components/Timeline.tsx` - Main timeline visualization component
 - `src/serverConfig.ts` - Runtime configuration structure
 - `.plan.md` - Current refactoring/development plan (keep this in mind when making changes)

@@ -247,54 +247,9 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
     return null; // No unprocessed markers found
   }, [markersWithTracks, tagGroups, actionMarkers, selectedMarkerId, isUnprocessed, getActionMarkers]);
 
-  // Helper function for chronological navigation
-  const navigateChronologically = useCallback(
-    (direction: "next" | "prev") => {
-      if (!actionMarkers.length) return;
-
-      // Find current marker
-      const currentMarker = actionMarkers.find(
-        (m) => m.id === selectedMarkerId
-      );
-      if (!currentMarker) {
-        // If no marker is selected, select the first one
-        if (actionMarkers.length > 0) {
-          dispatch(setSelectedMarkerId(actionMarkers[0].id));
-        }
-        return;
-      }
-
-      // Markers are now pre-sorted in Redux, no need to sort again
-      const currentIndex = actionMarkers.findIndex(
-        (m) => m.id === currentMarker.id
-      );
-
-      let newIndex;
-      if (direction === "next") {
-        newIndex =
-          currentIndex < actionMarkers.length - 1
-            ? currentIndex + 1
-            : currentIndex;
-      } else {
-        newIndex = currentIndex > 0 ? currentIndex - 1 : currentIndex;
-      }
-
-      // Select the new marker by ID
-      const newMarker = actionMarkers[newIndex];
-      dispatch(setSelectedMarkerId(newMarker.id));
-    },
-    [actionMarkers, selectedMarkerId, dispatch]
-  );
-
   // Helper function for swimlane navigation
   const navigateBetweenSwimlanes = useCallback(
     (direction: "up" | "down", useTemporalLocality: boolean = true) => {
-      if (markersWithTracks.length === 0 || tagGroups.length === 0) {
-        // Fallback to chronological navigation if no swimlane data
-        navigateChronologically(direction === "up" ? "prev" : "next");
-        return;
-      }
-
       // Find current marker
       const currentMarker = actionMarkers.find(
         (m) => m.id === selectedMarkerId
@@ -358,20 +313,13 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
       tagGroups,
       actionMarkers,
       selectedMarkerId,
-      dispatch,
-      navigateChronologically,
+      dispatch
     ]
   );
 
   // Helper function for same-swimlane navigation
   const navigateWithinSwimlane = useCallback(
     (direction: "left" | "right") => {
-      if (markersWithTracks.length === 0) {
-        // Fallback to chronological navigation if no swimlane data
-        navigateChronologically(direction === "left" ? "prev" : "next");
-        return;
-      }
-
       // Find current marker
       const currentMarker = actionMarkers.find(
         (m) => m.id === selectedMarkerId
@@ -419,8 +367,7 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
       markersWithTracks,
       actionMarkers,
       selectedMarkerId,
-      dispatch,
-      navigateChronologically,
+      dispatch
     ]
   );
 
@@ -430,7 +377,6 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
     findNextUnprocessedMarkerInSwimlane,
     findPreviousUnprocessedMarkerInSwimlane,
     findNextUnprocessedSwimlane,
-    navigateChronologically,
     navigateBetweenSwimlanes,
     navigateWithinSwimlane,
   };
