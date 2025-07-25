@@ -433,7 +433,7 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       }
 
       // Get action ID from keyboard shortcut service
-      var actionId = keyboardShortcutService.getActionForKeyBinding(event.key, {
+      let actionId = keyboardShortcutService.getActionForKeyBinding(event.key, {
         ctrl: event.ctrlKey || event.metaKey,
         alt: event.altKey,
         shift: event.shiftKey,
