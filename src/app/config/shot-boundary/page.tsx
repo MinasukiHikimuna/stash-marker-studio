@@ -129,21 +129,6 @@ export default function ShotBoundaryConfigPage() {
     }
   };
 
-  const handleLoadTags = async () => {
-    if (!serverConfig.url || !serverConfig.apiKey) {
-      setMessage("Please configure server connection first in Basic tab");
-      return;
-    }
-
-    setMessage("Loading tags from Stash...");
-    try {
-      const result = await dispatch(loadAvailableTags()).unwrap();
-      setMessage(`Tags loaded successfully! Found ${result.length} tags.`);
-      setTagsLoaded(true);
-    } catch (error) {
-      setMessage("Failed to load tags: " + (error as Error).message);
-    }
-  };
 
   const VersionStatus = ({ info, loading }: { info: VersionInfo | undefined; loading: boolean }) => {
     if (loading) {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -53,7 +53,7 @@ async function checkSceneDetectVersion(): Promise<VersionInfo> {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const [ffmpegInfo, scenedetectInfo] = await Promise.all([
       checkFFmpegVersion(),
@@ -66,7 +66,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: 'Failed to check system versions' },
+      { 
+        error: 'Failed to check system versions',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

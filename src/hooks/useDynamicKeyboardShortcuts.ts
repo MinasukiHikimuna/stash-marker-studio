@@ -481,7 +481,7 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
         console.error(`Error executing shortcut action ${actionId}:`, error);
       }
     },
-    [actionHandlers]
+    [actionHandlers, params.isCompletionModalOpen, params.isDeletingRejected]
   );
 
   // Modal keyboard handler

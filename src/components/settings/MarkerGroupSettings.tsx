@@ -389,7 +389,7 @@ export default function MarkerGroupSettings() {
             </button>
           </div>
 
-          <p>Marker group tags will automatically be prefixed with "Marker Group: x." to support easy sorting in the timeline.</p>
+          <p>Marker group tags will automatically be prefixed with &ldquo;Marker Group: x.&rdquo; to support easy sorting in the timeline.</p>
           
           {isLoading ? (
             <div className="text-center py-4">Loading marker groups...</div>
