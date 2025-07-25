@@ -432,18 +432,22 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
         return;
       }
 
+      // Handle special characters that require Shift but should be treated as single keys
+      const specialCharsWithoutShift = [';', ':', '"', "'", '<', '>', '?', '{', '}', '|', '+', '_', '(', ')', '!', '@', '#', '$', '%', '^', '&', '*'];
+      const shouldIgnoreShift = specialCharsWithoutShift.includes(event.key) && event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey;
+
       // Get action ID from keyboard shortcut service
       let actionId = keyboardShortcutService.getActionForKeyBinding(event.key, {
         ctrl: event.ctrlKey || event.metaKey,
         alt: event.altKey,
-        shift: event.shiftKey,
+        shift: shouldIgnoreShift ? false : event.shiftKey,
         meta: event.metaKey,
       });
 
       console.log(`Looking for action for key combo: ${event.key} with modifiers:`, {
         ctrl: event.ctrlKey || event.metaKey,
         alt: event.altKey,
-        shift: event.shiftKey,
+        shift: shouldIgnoreShift ? false : event.shiftKey,
         meta: event.metaKey,
       }, `Found actionId: ${actionId}`);
 
