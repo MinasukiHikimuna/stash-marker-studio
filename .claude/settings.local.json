@@ -5,9 +5,18 @@
       "Bash(npm run build:*)",
       "Bash(npm run test:*)",
       "Bash(git add:*)",
+      "Bash(git checkout:*)",
       "Bash(rm:*)",
+      "Bash(mv:*)",
       "WebFetch(domain:react-redux.js.org)",
-      "Bash(mv:*)"
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_close"
     ],
     "deny": []
   }
