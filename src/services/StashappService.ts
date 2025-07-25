@@ -1097,6 +1097,10 @@ export class StashappService {
       console.log("Fetching VTT from Stashapp URL:", vttUrl);
       const response = await fetch(vttUrl);
       if (!response.ok) {
+        if (response.status === 404) {
+          console.log("VTT file not found, returning empty frames array");
+          return [];
+        }
         throw new Error(
           `Failed to fetch VTT: ${response.status} ${response.statusText}`
         );
