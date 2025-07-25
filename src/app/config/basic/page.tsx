@@ -35,15 +35,10 @@ export default function ServerConfigPage() {
       aiReviewed: "",
     },
     markerGroupingConfig: { markerGroupParent: "" },
-    shotBoundaryConfig: {
-      shotBoundary: "",
-      sourceShotBoundaryAnalysis: "",
-      aiTagged: "",
-      shotBoundaryProcessed: "",
-    },
   });
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [connectionStatus, setConnectionStatus] = useState("");
   const [isInitialSetup, setIsInitialSetup] = useState(false);
   const [tagsLoaded, setTagsLoaded] = useState(false);
 
@@ -61,11 +56,10 @@ export default function ServerConfigPage() {
       serverConfig,
       markerConfig,
       markerGroupingConfig,
-      shotBoundaryConfig,
     });
-  }, [serverConfig, markerConfig, markerGroupingConfig, shotBoundaryConfig]);
+  }, [serverConfig, markerConfig, markerGroupingConfig]);
 
-  // Load tags when server config is available
+  // Load tags and test connection when server config is available
   useEffect(() => {
     if (serverConfig.url && serverConfig.apiKey && !tagsLoaded) {
       const loadTags = async () => {
@@ -87,7 +81,43 @@ export default function ServerConfigPage() {
           console.error("Failed to automatically load tags:", error);
         }
       };
+      
+      // Also test connection automatically
+      const testConnectionOnLoad = async () => {
+        try {
+          const testQuery = `
+            query Version {
+              version {
+                version
+              }
+            }
+          `;
+
+          const response = await fetch(`${serverConfig.url}/graphql`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ApiKey: serverConfig.apiKey,
+            },
+            body: JSON.stringify({ query: testQuery }),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.data?.version?.version) {
+              setConnectionStatus(
+                `Connection successful! Stash version: ${result.data.version.version}`
+              );
+            }
+          }
+        } catch (error) {
+          // Silently fail on page load - user can manually test if needed
+          console.log("Auto connection test failed:", error);
+        }
+      };
+
       loadTags();
+      testConnectionOnLoad();
       setTagsLoaded(true);
     }
   }, [
@@ -179,11 +209,11 @@ export default function ServerConfigPage() {
 
   const handleTestConnection = async () => {
     if (!formData.serverConfig.url || !formData.serverConfig.apiKey) {
-      setMessage("Please enter both URL and API key to test connection");
+      setConnectionStatus("Please enter both URL and API key to test connection");
       return;
     }
 
-    setMessage("Testing connection...");
+    setConnectionStatus("Testing connection...");
     try {
       // Normalize the URL to handle common issues
       const normalizedUrl = normalizeUrl(formData.serverConfig.url);
@@ -215,7 +245,7 @@ export default function ServerConfigPage() {
       if (!response.ok) {
         const errorText = await response.text();
         console.log("Error response body:", errorText);
-        setMessage(
+        setConnectionStatus(
           `Connection failed: HTTP ${response.status} - ${errorText.substring(
             0,
             200
@@ -228,22 +258,22 @@ export default function ServerConfigPage() {
       console.log("GraphQL response:", result);
 
       if (result.errors) {
-        setMessage(
+        setConnectionStatus(
           `GraphQL error: ${result.errors[0]?.message || "Unknown error"}`
         );
         return;
       }
 
       if (result.data?.version?.version) {
-        setMessage(
+        setConnectionStatus(
           `Connection successful! Stash version: ${result.data.version.version}`
         );
       } else {
-        setMessage("Connection successful but unexpected response format");
+        setConnectionStatus("Connection successful but unexpected response format");
       }
     } catch (error) {
       console.error("Connection test error:", error);
-      setMessage("Connection test failed: " + (error as Error).message);
+      setConnectionStatus("Connection test failed: " + (error as Error).message);
     }
   };
 
@@ -322,68 +352,24 @@ export default function ServerConfigPage() {
             />
           </div>
         </div>
-        <div className="mt-4 flex gap-4">
+        <div className="mt-4 flex items-center gap-4">
           <button
             onClick={handleTestConnection}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
           >
             Test Connection
           </button>
-          <button
-            onClick={async () => {
-              if (
-                formData.serverConfig.url &&
-                formData.serverConfig.apiKey
-              ) {
-                setMessage("Loading tags from Stash...");
-                try {
-                  // Temporarily apply config to StashappService so it can make API calls
-                  const { stashappService } = await import(
-                    "@/services/StashappService"
-                  );
-                  const tempConfig = {
-                    serverConfig: {
-                      url: normalizeUrl(formData.serverConfig.url),
-                      apiKey: formData.serverConfig.apiKey,
-                    },
-                    markerConfig: {
-                      statusConfirmed: "",
-                      statusRejected: "",
-                      sourceManual: "",
-                      aiReviewed: "",
-                    },
-                    markerGroupingConfig: {
-                      markerGroupParent: "",
-                    },
-                    shotBoundaryConfig: {
-                      aiTagged: "",
-                      shotBoundary: "",
-                      sourceShotBoundaryAnalysis: "",
-                      shotBoundaryProcessed: "",
-                    },
-                  };
-                  stashappService.applyConfig(tempConfig);
-
-                  // Now load the tags
-                  const result = await dispatch(
-                    loadAvailableTags()
-                  ).unwrap();
-                  setMessage(
-                    `Tags loaded successfully! Found ${result.length} tags.`
-                  );
-                } catch (error) {
-                  setMessage(
-                    "Failed to load tags: " + (error as Error).message
-                  );
-                }
-              } else {
-                setMessage("Please enter URL and API key first");
-              }
-            }}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-md transition-colors"
+          <span
+            className={`text-sm min-h-[1.25rem] ${
+              connectionStatus
+                ? connectionStatus.includes("successful")
+                  ? "text-green-400"
+                  : "text-red-400"
+                : "text-transparent"
+            }`}
           >
-            Load Tags
-          </button>
+            {connectionStatus}
+          </span>
         </div>
       </div>
 
@@ -444,111 +430,13 @@ export default function ServerConfigPage() {
               }
               availableTags={availableTags}
               placeholder="Search for AI reviewed tag..."
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:outline-none"
             />
           </div>
         </div>
       </div>
 
-      {/* Marker Grouping Configuration */}
-      <div className="bg-gray-800 p-6 rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">Marker Grouping</h2>
-        <div>
-          <label className="block text-sm font-medium mb-2">
-            Marker Group Parent Tag ID
-          </label>
-          <TagAutocomplete
-            value={formData.markerGroupingConfig.markerGroupParent}
-            onChange={(tagId) =>
-              handleInputChange(
-                "markerGroupingConfig",
-                "markerGroupParent",
-                tagId
-              )
-            }
-            availableTags={availableTags}
-            placeholder="Search for marker group parent tag..."
-            className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-      </div>
 
-      {/* Shot Boundary Configuration */}
-      <div className="bg-gray-800 p-6 rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">
-          Shot Boundary Detection
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Shot Boundary Tag ID
-            </label>
-            <TagAutocomplete
-              value={formData.shotBoundaryConfig.shotBoundary}
-              onChange={(tagId) =>
-                handleInputChange(
-                  "shotBoundaryConfig",
-                  "shotBoundary",
-                  tagId
-                )
-              }
-              availableTags={availableTags}
-              placeholder="Search for shot boundary tag..."
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Source Detection Tag ID
-            </label>
-            <TagAutocomplete
-              value={formData.shotBoundaryConfig.sourceShotBoundaryAnalysis}
-              onChange={(tagId) =>
-                handleInputChange(
-                  "shotBoundaryConfig",
-                  "sourceShotBoundaryAnalysis",
-                  tagId
-                )
-              }
-              availableTags={availableTags}
-              placeholder="Search for source detection tag..."
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              AI Tagged ID
-            </label>
-            <TagAutocomplete
-              value={formData.shotBoundaryConfig.aiTagged}
-              onChange={(tagId) =>
-                handleInputChange("shotBoundaryConfig", "aiTagged", tagId)
-              }
-              availableTags={availableTags}
-              placeholder="Search for AI tagged tag..."
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Processed Tag ID
-            </label>
-            <TagAutocomplete
-              value={formData.shotBoundaryConfig.shotBoundaryProcessed}
-              onChange={(tagId) =>
-                handleInputChange(
-                  "shotBoundaryConfig",
-                  "shotBoundaryProcessed",
-                  tagId
-                )
-              }
-              availableTags={availableTags}
-              placeholder="Search for processed tag..."
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

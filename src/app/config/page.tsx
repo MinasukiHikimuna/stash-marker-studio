@@ -7,8 +7,8 @@ export default function ConfigPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to server configuration by default
-    router.replace("/config/server");
+    // Redirect to basic configuration by default
+    router.replace("/config/basic");
   }, [router]);
 
   return null;

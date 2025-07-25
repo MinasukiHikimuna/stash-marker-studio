@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const CONFIG_TABS = [
-  { id: "server", label: "Server & Tags", path: "/config/server" },
+  { id: "server", label: "Basic", path: "/config/basic" },
+  { id: "markers", label: "Marker Groups", path: "/config/markers" },
+  { id: "shot-boundary", label: "Shot Boundary", path: "/config/shot-boundary" },
   { id: "keyboard", label: "Keyboard Shortcuts", path: "/config/keyboard" },
 ];
 

@@ -183,7 +183,7 @@ export class StashappService {
     this.MARKER_SOURCE_MANUAL = config.markerConfig.sourceManual;
     this.MARKER_AI_REVIEWED = config.markerConfig.aiReviewed;
     this.MARKER_GROUP_PARENT_ID = config.markerGroupingConfig.markerGroupParent;
-    this.MARKER_SHOT_BOUNDARY = config.shotBoundaryConfig.shotBoundary;
+    this.MARKER_SHOT_BOUNDARY = config.shotBoundaryConfig?.shotBoundary || "";
   }
 
   // Update the fetchGraphQL method to use only the API key
@@ -1223,6 +1223,93 @@ export class StashappService {
       data: { tagUpdate: Tag };
     }>(mutation, variables);
     return result.data.tagUpdate;
+  }
+
+  async createTag(name: string, description?: string, parentIds: string[] = []): Promise<Tag> {
+    const mutation = `
+      mutation TagCreate($input: TagCreateInput!) {
+        tagCreate(input: $input) {
+          id
+          name
+          description
+          parents {
+            id
+            name
+            parents {
+              id
+              name
+            }
+          }
+          children {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      input: {
+        name,
+        description,
+        parent_ids: parentIds,
+      },
+    };
+
+    const result = await this.fetchGraphQL<{
+      data: { tagCreate: Tag };
+    }>(mutation, variables);
+    return result.data.tagCreate;
+  }
+
+  async updateTag(tagId: string, name?: string, description?: string, parentIds?: string[]): Promise<Tag> {
+    const mutation = `
+      mutation TagUpdate($input: TagUpdateInput!) {
+        tagUpdate(input: $input) {
+          id
+          name
+          description
+          parents {
+            id
+            name
+            parents {
+              id
+              name
+            }
+          }
+          children {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const input: { id: string; name?: string; description?: string; parent_ids?: string[] } = { id: tagId };
+    if (name !== undefined) input.name = name;
+    if (description !== undefined) input.description = description;
+    if (parentIds !== undefined) input.parent_ids = parentIds;
+
+    const variables = { input };
+
+    const result = await this.fetchGraphQL<{
+      data: { tagUpdate: Tag };
+    }>(mutation, variables);
+    return result.data.tagUpdate;
+  }
+
+  async deleteTag(tagId: string): Promise<void> {
+    const mutation = `
+      mutation TagDestroy($input: TagDestroyInput!) {
+        tagDestroy(input: $input)
+      }
+    `;
+
+    const variables = { input: { id: tagId } };
+
+    await this.fetchGraphQL<{
+      data: { tagDestroy: boolean };
+    }>(mutation, variables);
   }
 }
 

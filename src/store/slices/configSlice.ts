@@ -35,10 +35,21 @@ const configSlice = createSlice({
     setFullConfig: (state, action: PayloadAction<AppConfig>) => {
       return { ...action.payload, isLoaded: true };
     },
+    setMarkerGroupingConfig: (state, action: PayloadAction<{ markerGroupParent: string }>) => {
+      state.markerGroupingConfig = action.payload;
+    },
+    setShotBoundaryConfig: (state, action: PayloadAction<{ 
+      aiTagged: string; 
+      shotBoundary: string; 
+      sourceShotBoundaryAnalysis: string; 
+      shotBoundaryProcessed: string; 
+    }>) => {
+      state.shotBoundaryConfig = action.payload;
+    },
   },
 });
 
-export const { setFullConfig } = configSlice.actions;
+export const { setFullConfig, setMarkerGroupingConfig, setShotBoundaryConfig } = configSlice.actions;
 
 // Selectors for each group
 export const selectServerConfig = (state: { config: ConfigState }) => state.config.serverConfig;

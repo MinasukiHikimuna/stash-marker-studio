@@ -100,12 +100,18 @@ export function groupMarkersByTags(markers: SceneMarker[], markerGroupParentId: 
       const aMarkerGroup = getMarkerGroupName(a.markers[0], markerGroupParentId);
       const bMarkerGroup = getMarkerGroupName(b.markers[0], markerGroupParentId);
 
-      // If both have marker groups, sort by the full name to preserve numbering
+      // If both have marker groups, sort by the full name using natural sorting
       if (aMarkerGroup && bMarkerGroup) {
         if (aMarkerGroup.fullName !== bMarkerGroup.fullName) {
-          return aMarkerGroup.fullName.localeCompare(bMarkerGroup.fullName);
+          return aMarkerGroup.fullName.localeCompare(bMarkerGroup.fullName, undefined, { 
+            numeric: true, 
+            sensitivity: 'base' 
+          });
         }
-        return a.name.localeCompare(b.name);
+        return a.name.localeCompare(b.name, undefined, { 
+          numeric: true, 
+          sensitivity: 'base' 
+        });
       }
 
       // If only one has a marker group, put the one with marker group first
@@ -117,7 +123,10 @@ export function groupMarkersByTags(markers: SceneMarker[], markerGroupParentId: 
       }
 
       // If neither has a marker group, sort alphabetically by tag name
-      return a.name.localeCompare(b.name);
+      return a.name.localeCompare(b.name, undefined, { 
+        numeric: true, 
+        sensitivity: 'base' 
+      });
     });
 
   return tagGroups;
