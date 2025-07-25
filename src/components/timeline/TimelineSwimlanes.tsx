@@ -208,7 +208,7 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                   key={trackIndex}
                   className={`
                     flex items-center px-3 text-sm cursor-pointer transition-colors
-                    ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-850'}
+                    ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-900'}
                     ${filteredSwimlane === group.name ? 'bg-blue-600' : ''}
                     ${group.isRejected ? 'bg-red-900/40' : ''}
                     hover:bg-gray-700
@@ -275,7 +275,7 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                 <div
                   className={`
                     border-b border-gray-600 relative
-                    ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-750'}
+                    ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-900'}
                   `}
                   style={{ height: `${swimlaneHeight}px` }}
                 >
