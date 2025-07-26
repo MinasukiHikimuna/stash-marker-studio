@@ -14,6 +14,7 @@ import {
   isMarkerConfirmed,
   isMarkerRejected,
 } from "../../../core/marker/markerLogic";
+import { useMarkerOperations } from "@/hooks/useMarkerOperations";
 
 interface MarkerHeaderProps {
   className?: string;
@@ -29,6 +30,31 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
   const scene = useAppSelector(selectScene);
   const isLoading = useAppSelector(selectMarkerLoading);
   const incorrectMarkers = useAppSelector(selectIncorrectMarkers);
+  
+  // Get marker operations
+  const { handleAIConversion } = useMarkerOperations();
+  
+  // Calculate counts for button display
+  const rejectedMarkersCount = markers?.filter(isMarkerRejected).length || 0;
+  
+  // Count confirmed markers that have corresponding tag metadata (simplified check)
+  const correspondingTagsCount = markers?.filter(marker => {
+    const isConfirmed = isMarkerConfirmed(marker);
+    // Check if primary tag description contains "Corresponding Tag:" (case insensitive)
+    const description = marker.primary_tag.description || '';
+    const hasCorrespondingTag = description.toLowerCase().includes('corresponding tag:');
+    
+    // Debug logging
+    if (isConfirmed && hasCorrespondingTag) {
+      console.log('Found corresponding tag marker:', {
+        tag: marker.primary_tag.name,
+        description: description,
+        isConfirmed
+      });
+    }
+    
+    return isConfirmed && hasCorrespondingTag;
+  }).length || 0;
 
   const handleDeleteRejectedClick = () => {
     // Always open the modal - it will show empty state if no rejected markers
@@ -41,9 +67,6 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
     dispatch(openCollectingModal());
   };
 
-  const handleAIConversion = () => {
-    dispatch(setAIConversionModalOpen(true));
-  };
 
   const handleComplete = () => {
     dispatch(setGeneratingMarkers(true));
@@ -83,12 +106,13 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
             disabled={isLoading}
             title="Delete All Rejected Markers"
             className={`px-3 py-1.5 rounded-sm text-sm transition-colors ${
-              markers?.some(isMarkerRejected)
+              rejectedMarkersCount > 0
                 ? "bg-red-500 hover:bg-red-700 text-white"
                 : "bg-gray-600 hover:bg-gray-500 text-white"
             } disabled:bg-gray-600 disabled:cursor-not-allowed`}
           >
-            Delete Rejected
+            Delete Rejected{" "}
+            {rejectedMarkersCount > 0 && `(${rejectedMarkersCount})`}
           </button>
           <button
             onClick={handleCollectFeedbackClick}
@@ -105,9 +129,14 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
           </button>
           <button
             onClick={handleAIConversion}
-            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-sm text-sm transition-colors"
+            className={`px-3 py-1.5 rounded-sm text-sm transition-colors ${
+              correspondingTagsCount > 0
+                ? "bg-teal-600 hover:bg-teal-700 text-white"
+                : "bg-gray-600 hover:bg-gray-500 text-white"
+            }`}
           >
-            Convert Corresponding Tags
+            Convert Corresponding Tags{" "}
+            {correspondingTagsCount > 0 && `(${correspondingTagsCount})`}
           </button>
           <button
             onClick={handleComplete}

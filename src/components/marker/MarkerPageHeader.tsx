@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/store/hooks";
 import { selectStashUrl } from "@/store/slices/configSlice";
 import type { Scene, SceneMarker } from "../../services/StashappService";
-import { isMarkerRejected } from "../../core/marker/markerLogic";
+import { isMarkerRejected, isMarkerConfirmed } from "../../core/marker/markerLogic";
 import { IncorrectMarker } from "../../utils/incorrectMarkerStorage";
 import { navigationPersistence } from "@/utils/navigationPersistence";
 import Link from "next/link";
@@ -35,6 +35,19 @@ export function MarkerPageHeader({
 }: MarkerPageHeaderProps) {
   const router = useRouter();
   const stashUrl = useAppSelector(selectStashUrl);
+  
+  // Calculate counts for button display
+  const rejectedMarkersCount = markers?.filter(isMarkerRejected).length || 0;
+  
+  // Count confirmed markers that have corresponding tag metadata (simplified check)
+  const correspondingTagsCount = markers?.filter(marker => {
+    const isConfirmed = isMarkerConfirmed(marker);
+    // Check if primary tag description contains "Corresponding Tag:" (case insensitive)
+    const description = marker.primary_tag.description || '';
+    const hasCorrespondingTag = description.toLowerCase().includes('corresponding tag:');
+    
+    return isConfirmed && hasCorrespondingTag;
+  }).length || 0;
 
   const handleSwitchScene = useCallback(() => {
     router.push("/search");
@@ -89,12 +102,13 @@ export function MarkerPageHeader({
               disabled={isLoading}
               title="Delete All Rejected Markers"
               className={`px-3 py-1.5 rounded-sm text-sm transition-colors ${
-                markers?.some(isMarkerRejected)
+                rejectedMarkersCount > 0
                   ? "bg-red-500 hover:bg-red-700 text-white"
                   : "bg-gray-600 hover:bg-gray-500 text-white"
               } disabled:bg-gray-600 disabled:cursor-not-allowed`}
             >
-              Delete Rejected
+              Delete Rejected{" "}
+              {rejectedMarkersCount > 0 && `(${rejectedMarkersCount})`}
             </button>
             <button
               onClick={handleCollectFeedbackClick}
@@ -111,9 +125,14 @@ export function MarkerPageHeader({
             </button>
             <button
               onClick={onAIConversion}
-              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-sm text-sm transition-colors"
+              className={`px-3 py-1.5 rounded-sm text-sm transition-colors ${
+                correspondingTagsCount > 0
+                  ? "bg-teal-600 hover:bg-teal-700 text-white"
+                  : "bg-gray-600 hover:bg-gray-500 text-white"
+              }`}
             >
-              Convert Corresponding Tags
+              Convert Corresponding Tags{" "}
+              {correspondingTagsCount > 0 && `(${correspondingTagsCount})`}
             </button>
             <button
               onClick={onComplete}
