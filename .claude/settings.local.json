@@ -17,7 +17,11 @@
       "mcp__playwright__browser_snapshot",
       "mcp__playwright__browser_evaluate",
       "mcp__playwright__browser_close",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx next:*)",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_hover"
     ],
     "deny": []
   }
