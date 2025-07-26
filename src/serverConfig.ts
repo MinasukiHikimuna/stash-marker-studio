@@ -9,6 +9,15 @@ export interface AppConfig {
   markerGroupingConfig: MarkerGroupingConfig;
   shotBoundaryConfig: ShotBoundaryConfig;
   keyboardShortcuts?: KeyboardShortcutConfig;
+  completionDefaults?: CompletionDefaults;
+}
+
+export interface CompletionDefaults {
+  deleteVideoCutMarkers: boolean;
+  generateMarkers: boolean;
+  addAiReviewedTag: boolean;
+  addPrimaryTags: boolean;
+  removeCorrespondingTags: boolean;
 }
 
 export interface ServerConfig {

@@ -432,7 +432,7 @@ export default function MarkerPage() {
 
   // executeCompletion now comes from useMarkerOperations hook
   // Create wrapper function to handle state dependencies
-  const executeCompletionWrapper = useCallback(async () => {
+  const executeCompletionWrapper = useCallback(async (selectedActions: import("../../serverConfig").CompletionDefaults) => {
     // Get current modal data
     const modalData = completionModalData;
     if (!modalData) return;
@@ -440,8 +440,8 @@ export default function MarkerPage() {
     // Close modal when completion starts
     dispatch(closeModal());
     
-    // Call the hook's executeCompletion with the modal data
-    await executeCompletion(modalData.videoCutMarkersToDelete);
+    // Call the hook's executeCompletion with the modal data and selected actions
+    await executeCompletion(modalData.videoCutMarkersToDelete, selectedActions);
   }, [executeCompletion, completionModalData, dispatch]);
 
   // Universal marker creation function

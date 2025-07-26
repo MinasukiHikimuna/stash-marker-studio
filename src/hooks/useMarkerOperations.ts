@@ -434,7 +434,8 @@ export const useMarkerOperations = (
 
   // Execute the completion process
   const executeCompletion = useCallback(async (
-    videoCutMarkersToDelete: SceneMarker[]
+    videoCutMarkersToDelete: SceneMarker[],
+    selectedActions: import("../serverConfig").CompletionDefaults
   ) => {
     const actionMarkers = getActionMarkers();
     if (!actionMarkers || actionMarkers.length === 0) return;
@@ -442,8 +443,8 @@ export const useMarkerOperations = (
     try {
       // Loading state is managed by async thunks
 
-      // Step 1: Delete Video Cut markers
-      if (videoCutMarkersToDelete.length > 0) {
+      // Step 1: Delete Video Cut markers (if selected)
+      if (selectedActions.deleteVideoCutMarkers && videoCutMarkersToDelete.length > 0) {
         console.log("=== Deleting Video Cut Markers ===");
         console.log(
           `Deleting ${videoCutMarkersToDelete.length} Video Cut markers`
@@ -456,41 +457,53 @@ export const useMarkerOperations = (
         console.log("=== End Video Cut Marker Deletion ===");
       }
 
-      // Step 2: Generate markers for action markers
-      const actionMarkerIds = actionMarkers.map((marker) => marker.id);
-      await stashappService.generateMarkers(actionMarkerIds);
-
-      // Step 3: Mark scene as reviewed
-      if (!scene) {
-        throw new Error("Scene data not found");
+      // Step 2: Generate markers for action markers (if selected)
+      if (selectedActions.generateMarkers) {
+        const actionMarkerIds = actionMarkers.map((marker) => marker.id);
+        await stashappService.generateMarkers(actionMarkerIds);
       }
 
-      // Get all confirmed markers and their primary tags
-      const confirmedMarkers = actionMarkers.filter((marker) =>
-        isMarkerConfirmed(marker)
-      );
+      // Step 3: Update scene tags (if any tag operations are selected)
+      if (selectedActions.addAiReviewedTag || selectedActions.addPrimaryTags || selectedActions.removeCorrespondingTags) {
+        if (!scene) {
+          throw new Error("Scene data not found");
+        }
 
-      const primaryTags = confirmedMarkers.map((marker) => ({
-        id: marker.primary_tag.id,
-        name: marker.primary_tag.name,
-      }));
+        // Get all confirmed markers and their primary tags
+        const confirmedMarkers = actionMarkers.filter((marker) =>
+          isMarkerConfirmed(marker)
+        );
 
-      // Create AI_Reviewed tag object
-      const aiReviewedTag = {
-        id: markerAiReviewed,
-        name: "AI_Reviewed",
-      };
+        const tagsToAdd = [];
+        
+        // Add AI_Reviewed tag if selected
+        if (selectedActions.addAiReviewedTag) {
+          const aiReviewedTag = {
+            id: markerAiReviewed,
+            name: "AI_Reviewed",
+          };
+          tagsToAdd.push(aiReviewedTag);
+        }
 
-      // Combine all tags to add (AI_Reviewed + primary tags from confirmed markers)
-      const tagsToAdd = [aiReviewedTag, ...primaryTags];
+        // Add primary tags from confirmed markers if selected
+        if (selectedActions.addPrimaryTags) {
+          const primaryTags = confirmedMarkers.map((marker) => ({
+            id: marker.primary_tag.id,
+            name: marker.primary_tag.name,
+          }));
+          tagsToAdd.push(...primaryTags);
+        }
 
-      // Step 4: Remove AI tags from scene
-      const tagsToRemove: Tag[] = await identifyAITagsToRemove(
-        confirmedMarkers
-      );
+        // Remove AI tags from scene if selected
+        const tagsToRemove: Tag[] = selectedActions.removeCorrespondingTags 
+          ? await identifyAITagsToRemove(confirmedMarkers)
+          : [];
 
-      // Update the scene with new tags
-      await stashappService.updateScene(scene, tagsToAdd, tagsToRemove);
+        // Update the scene with new tags only if there are changes
+        if (tagsToAdd.length > 0 || tagsToRemove.length > 0) {
+          await stashappService.updateScene(scene, tagsToAdd, tagsToRemove);
+        }
+      }
 
       // Step 5: Refresh markers to show generated content
       setTimeout(() => {
