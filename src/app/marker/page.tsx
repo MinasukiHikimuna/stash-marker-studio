@@ -238,10 +238,6 @@ export default function MarkerPage() {
     return filteredMarkers;
   }, [markers]);
 
-  // Keep getActionMarkers for backwards compatibility
-  const getActionMarkers = useCallback(() => {
-    return actionMarkers;
-  }, [actionMarkers]);
 
   // Marker operations functionality
   const {
@@ -325,7 +321,6 @@ export default function MarkerPage() {
 
   // Handle completion button click
   const handleComplete = useCallback(async () => {
-    const actionMarkers = getActionMarkers();
     if (!actionMarkers || actionMarkers.length === 0) return;
 
     const warnings: string[] = [];
@@ -426,7 +421,7 @@ export default function MarkerPage() {
     setVideoCutMarkersToDelete(videoCutMarkers);
     setIsCompletionModalOpen(true);
   }, [
-    getActionMarkers,
+    actionMarkers,
     getShotBoundaries,
     scene,
     identifyAITagsToRemove,
@@ -732,7 +727,6 @@ export default function MarkerPage() {
     markersWithTracks,
     tagGroups,
     selectedMarkerId,
-    getActionMarkers,
   });
 
   // Use dynamic keyboard shortcuts hook
@@ -940,7 +934,7 @@ export default function MarkerPage() {
                   onCreateMarker={handleCreateMarker}
                   onSplitMarker={() => splitCurrentMarker()}
                   onShowShortcuts={() => dispatch(setKeyboardShortcutsModalOpen(true))}
-                  getActionMarkers={getActionMarkers}
+                  actionMarkers={actionMarkers}
                   createOrDuplicateMarker={createOrDuplicateMarker}
                 />
                 {/* Scrollable marker list - now with grow to push edit section to bottom */}
@@ -957,7 +951,7 @@ export default function MarkerPage() {
                     availableTags={availableTags}
                     incorrectMarkers={incorrectMarkers}
                     videoElementRef={videoElementRef}
-                    getActionMarkers={getActionMarkers}
+                    actionMarkers={actionMarkers}
                     onMarkerClick={handleMarkerClick}
                     onEditMarker={handleEditMarker}
                     onSaveEditWithTagId={handleSaveEditWithTagId}

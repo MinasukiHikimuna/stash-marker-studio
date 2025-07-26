@@ -10,7 +10,6 @@ interface UseMarkerNavigationParams {
   markersWithTracks: MarkerWithTrack[];
   tagGroups: { name: string; [key: string]: unknown }[];
   selectedMarkerId: string | null;
-  getActionMarkers: () => SceneMarker[];
 }
 
 export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
@@ -20,7 +19,6 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
     markersWithTracks,
     tagGroups,
     selectedMarkerId,
-    getActionMarkers,
   } = params;
 
   // Helper function to check if a marker is unprocessed
@@ -34,7 +32,6 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
 
   // Helper function to find next unprocessed marker globally
   const findNextUnprocessedMarker = useCallback((): string | null => {
-    const actionMarkers = getActionMarkers();
     const currentMarker = actionMarkers.find(
       (m) => m.id === selectedMarkerId
     );
@@ -57,11 +54,10 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
     }
 
     return null; // No unprocessed markers found
-  }, [getActionMarkers, selectedMarkerId, isUnprocessed]);
+  }, [actionMarkers, selectedMarkerId, isUnprocessed]);
 
   // Helper function to find previous unprocessed marker globally
   const findPreviousUnprocessedMarker = useCallback((): string | null => {
-    const actionMarkers = getActionMarkers();
     const currentMarker = actionMarkers.find(
       (m) => m.id === selectedMarkerId
     );
@@ -84,7 +80,7 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
     }
 
     return null; // No unprocessed markers found
-  }, [getActionMarkers, selectedMarkerId, isUnprocessed]);
+  }, [actionMarkers, selectedMarkerId, isUnprocessed]);
 
   // Helper function to find next unprocessed marker in current swimlane
   const findNextUnprocessedMarkerInSwimlane = useCallback((): string | null => {

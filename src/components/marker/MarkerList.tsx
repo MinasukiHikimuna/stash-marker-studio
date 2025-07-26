@@ -17,7 +17,7 @@ interface MarkerListProps {
   availableTags: Tag[];
   incorrectMarkers: IncorrectMarker[];
   videoElementRef: React.RefObject<HTMLVideoElement | null>;
-  getActionMarkers: () => SceneMarker[];
+  actionMarkers: SceneMarker[];
   onMarkerClick: (marker: SceneMarker) => void;
   onEditMarker: (marker: SceneMarker) => void;
   onSaveEditWithTagId: (marker: SceneMarker, tagId?: string) => Promise<void>;
@@ -33,7 +33,7 @@ export function MarkerList({
   availableTags,
   incorrectMarkers,
   videoElementRef,
-  getActionMarkers,
+  actionMarkers,
   onMarkerClick,
   onEditMarker,
   onSaveEditWithTagId,
@@ -41,9 +41,6 @@ export function MarkerList({
   setEditingTagId,
 }: MarkerListProps) {
   const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
-  
-  // Memoize actionMarkers to prevent unnecessary recalculations
-  const actionMarkers = useMemo(() => getActionMarkers(), [getActionMarkers]);
   
   // Memoize markerGroups to prevent unnecessary re-sorting
   const markerGroups = useMemo(() => {
@@ -94,7 +91,7 @@ export function MarkerList({
                 incorrectMarkers={incorrectMarkers}
                 videoElementRef={videoElementRef}
                 markers={markers}
-                getActionMarkers={getActionMarkers}
+                actionMarkers={actionMarkers}
                 onMarkerClick={onMarkerClick}
                 onEditMarker={onEditMarker}
                 onSaveEditWithTagId={onSaveEditWithTagId}
