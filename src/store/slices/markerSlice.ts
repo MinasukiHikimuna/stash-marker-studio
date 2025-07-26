@@ -13,7 +13,7 @@ export type CompletionModalData = {
   videoCutMarkersToDelete: SceneMarker[];
   hasAiReviewedTag: boolean;
   primaryTagsToAdd: Tag[];
-  aiTagsToRemove: Tag[];
+  tagsToRemove: Tag[];
 };
 
 export type AIConversionModalData = {
@@ -501,7 +501,7 @@ export const addTagToMarker = createAsyncThunk(
 // Note: removeTagFromMarker doesn't exist in the original codebase - markers have one primary tag
 // If this functionality is needed, it would require extending the StashappService
 
-// Convert AI tags to real tags
+// Convert corresponding tags to their target tags
 export const convertAITags = createAsyncThunk(
   "marker/convertAITags",
   async (
@@ -512,7 +512,7 @@ export const convertAITags = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      // Convert each AI marker to its corresponding tag
+      // Convert each marker to its corresponding target tag
       for (const { sourceMarker, correspondingTag } of params.aiMarkers) {
         await stashappService.updateMarkerTagAndTitle(
           sourceMarker.id,
@@ -526,13 +526,13 @@ export const convertAITags = createAsyncThunk(
       return params.aiMarkers;
     } catch (error) {
       return rejectWithValue(
-        error instanceof Error ? error.message : "Failed to convert AI tags"
+        error instanceof Error ? error.message : "Failed to convert corresponding tags"
       );
     }
   }
 );
 
-// Find confirmed AI markers (for AI tag conversion workflow)
+// Find confirmed markers with corresponding tags (for tag conversion workflow)
 export const findConfirmedAIMarkers = createAsyncThunk(
   "marker/findConfirmedAIMarkers",
   async (markers: SceneMarker[], { rejectWithValue }) => {
@@ -543,7 +543,7 @@ export const findConfirmedAIMarkers = createAsyncThunk(
       return rejectWithValue(
         error instanceof Error
           ? error.message
-          : "Failed to find confirmed AI markers"
+          : "Failed to find confirmed markers with corresponding tags"
       );
     }
   }
@@ -1094,22 +1094,22 @@ const markerSlice = createSlice({
           (action.payload as string) || "Failed to add tag to marker";
       })
 
-      // Handle convert AI tags
+      // Handle convert corresponding tags
       .addCase(convertAITags.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(convertAITags.fulfilled, (state) => {
         state.loading = false;
-        // Clear the confirmed AI markers after conversion
+        // Clear the confirmed markers after conversion
         state.operations.confirmedAIMarkers = [];
       })
       .addCase(convertAITags.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) || "Failed to convert AI tags";
+        state.error = (action.payload as string) || "Failed to convert corresponding tags";
       })
 
-      // Handle find confirmed AI markers
+      // Handle find confirmed markers with corresponding tags
       .addCase(findConfirmedAIMarkers.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -1121,7 +1121,7 @@ const markerSlice = createSlice({
       .addCase(findConfirmedAIMarkers.rejected, (state, action) => {
         state.loading = false;
         state.error =
-          (action.payload as string) || "Failed to find confirmed AI markers";
+          (action.payload as string) || "Failed to find confirmed markers with corresponding tags";
       })
 
       // Handle duplicate marker

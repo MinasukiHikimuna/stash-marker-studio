@@ -113,7 +113,7 @@ export function MarkerPageHeader({
               onClick={onAIConversion}
               className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-sm text-sm transition-colors"
             >
-              Convert AI Tags
+              Convert Corresponding Tags
             </button>
             <button
               onClick={onComplete}
@@ -126,7 +126,7 @@ export function MarkerPageHeader({
               title={
                 !checkAllMarkersApproved()
                   ? "Complete scene (some markers not approved - warnings will be shown)"
-                  : "Complete scene (generate markers, mark as reviewed, and clean up AI tags)"
+                  : "Complete scene (generate markers, mark as reviewed, and clean up tags)"
               }
             >
               {!checkAllMarkersApproved() ? "⚠️ Complete" : "Complete"}

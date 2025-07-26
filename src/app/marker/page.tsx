@@ -347,14 +347,14 @@ export default function MarkerPage() {
     });
     console.log("=== End Video Cut Markers ===");
 
-    // Calculate AI tags to remove and primary tags to add for preview
+    // Calculate tags to remove and primary tags to add for preview
     const confirmedMarkers = actionMarkers.filter((marker) =>
       [MarkerStatus.CONFIRMED].includes(
         getMarkerStatus(marker)
       )
     );
 
-    let aiTagsToRemove: Tag[] = [];
+    let tagsToRemove: Tag[] = [];
     let primaryTagsToAdd: Tag[] = [];
     let hasAiReviewedTagAlready = false;
 
@@ -371,7 +371,7 @@ export default function MarkerPage() {
           currentSceneTags.map((tag) => tag.id)
         );
 
-        aiTagsToRemove = await identifyAITagsToRemove(confirmedMarkers);
+        tagsToRemove = await identifyAITagsToRemove(confirmedMarkers);
 
         // Get unique primary tags from confirmed markers, but only those not already on the scene
         const uniquePrimaryTagsMap = new Map<
@@ -419,7 +419,7 @@ export default function MarkerPage() {
       videoCutMarkersToDelete: videoCutMarkers,
       hasAiReviewedTag: hasAiReviewedTagAlready,
       primaryTagsToAdd,
-      aiTagsToRemove
+      tagsToRemove
     }));
   }, [
     actionMarkers,
@@ -1077,7 +1077,7 @@ export default function MarkerPage() {
         videoCutMarkersToDelete={completionModalData?.videoCutMarkersToDelete || []}
         hasAiReviewedTag={completionModalData?.hasAiReviewedTag || false}
         primaryTagsToAdd={completionModalData?.primaryTagsToAdd || []}
-        aiTagsToRemove={completionModalData?.aiTagsToRemove || []}
+        tagsToRemove={completionModalData?.tagsToRemove || []}
         onCancel={() => dispatch(closeModal())}
         onConfirm={executeCompletionWrapper}
       />

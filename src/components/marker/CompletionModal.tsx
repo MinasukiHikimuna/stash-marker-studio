@@ -9,7 +9,7 @@ interface CompletionModalProps {
   videoCutMarkersToDelete: SceneMarker[];
   hasAiReviewedTag: boolean;
   primaryTagsToAdd: Tag[];
-  aiTagsToRemove: Tag[];
+  tagsToRemove: Tag[];
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -20,7 +20,7 @@ export function CompletionModal({
   videoCutMarkersToDelete,
   hasAiReviewedTag,
   primaryTagsToAdd,
-  aiTagsToRemove,
+  tagsToRemove,
   onCancel,
   onConfirm,
 }: CompletionModalProps) {
@@ -86,12 +86,12 @@ export function CompletionModal({
               )}
             </li>
             <li>
-              Remove corresponding AI tags from the scene
-              {aiTagsToRemove.length > 0 ? (
+              Remove tags with corresponding tag metadata from the scene
+              {tagsToRemove.length > 0 ? (
                 <span className="text-red-300">
                   {" "}
-                  ({aiTagsToRemove.length} tag
-                  {aiTagsToRemove.length !== 1 ? "s" : ""})
+                  ({tagsToRemove.length} tag
+                  {tagsToRemove.length !== 1 ? "s" : ""})
                 </span>
               ) : (
                 <span className="text-gray-500"> (none found)</span>
@@ -99,7 +99,7 @@ export function CompletionModal({
             </li>
             <li className="text-xs text-gray-400 ml-4">
               Note: Opens browser console for detailed logging of Video Cut
-              marker deletion and AI tag removal
+              marker deletion and tag removal
             </li>
           </ul>
 
@@ -134,13 +134,13 @@ export function CompletionModal({
             </div>
           )}
 
-          {aiTagsToRemove.length > 0 && (
+          {tagsToRemove.length > 0 && (
             <div className="mt-4 p-3 bg-red-900/30 border border-red-600/50 rounded">
               <h4 className="font-semibold text-red-200 mb-2">
-                🗑️ AI tags to be removed from the scene:
+                🗑️ Tags to be removed from the scene:
               </h4>
               <div className="flex flex-wrap gap-2">
-                {aiTagsToRemove.map((tag) => (
+                {tagsToRemove.map((tag) => (
                   <span
                     key={`remove-${tag.id}`}
                     className="px-2 py-1 bg-red-800/50 text-red-200 rounded-sm text-xs font-mono"

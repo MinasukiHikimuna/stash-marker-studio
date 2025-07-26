@@ -9,7 +9,7 @@ To reliably use tools like Skier's NSFW AI model or marker sources such as TPDB 
 - Markers always have a single, actual tag stored as primary tag.
 - Additional tags of markers are used only for metadata such as is the marker confirmed or rejected or what is the source for that marker.
 - When a scene is reviewed, user will confirm or reject the markers on the scene. Rejected markers can be easily deleted.
-- After review is completed, all AI tags of a scene and its markers will be removed and only the tags from the confirmed markers will be saved. Tags which were previously present on a scene and did not originate from any of the markers will not be touched.
+- After review is completed, all tags with corresponding tag metadata from a scene and its markers will be removed and only the tags from the confirmed markers will be saved. Tags which were previously present on a scene and did not originate from any of the markers will not be touched.
 
 Stash Marker Studio also optionally supports PySceneDetect which will analyze the video stream, detect shot boundaries and use those for easier navigating when reviewing and finetuning the markers.
 
@@ -24,10 +24,10 @@ Stash Marker Studio is heavily centered around keyboard use and many functionali
 - AI_TagMe tag is set to scene and Skier's AI model is applied to it
 - PySceneDetect script is run to analyze scene to get shot boundaries
 - I start manual marker review and confirm or reject the markers
-- I use Stash Marker Studio to change the AI tags of the markers to their corresponding real tags.
+- I use Stash Marker Studio to change the corresponding tags of the markers to their target real tags.
 - I mark scene as being reviewed and move to a next scene
 
-Actual tags such as Kissing and Kissing_AI relationship is configured by setting Kissing_AI tag's Description in Stashapp be "Corresponding Tag: Kissing". Stash Marker Studio has "Convert AI Tags" functionality which will convert show these conversions for user confirmation.
+Actual tags such as Kissing and Kissing_AI relationship is configured by setting Kissing_AI tag's Description in Stashapp be "Corresponding Tag: Kissing". Stash Marker Studio has "Convert Corresponding Tags" functionality which will show these conversions for user confirmation.
 
 ![Corresponding Tags](stash-marker-studio-corresponding-tags.png)
 

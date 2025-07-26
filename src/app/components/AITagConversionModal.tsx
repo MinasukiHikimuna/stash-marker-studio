@@ -37,13 +37,13 @@ export const AITagConversionModal: React.FC<AITagConversionModalProps> = ({
       await onConfirm();
       setToastMessage({
         type: "success",
-        message: "AI markers have been converted to their corresponding tags.",
+        message: "Markers have been converted to their corresponding tags.",
       });
       onClose();
     } catch {
       setToastMessage({
         type: "error",
-        message: "Failed to convert AI markers. Please try again.",
+        message: "Failed to convert markers. Please try again.",
       });
     } finally {
       setIsConverting(false);
@@ -55,7 +55,7 @@ export const AITagConversionModal: React.FC<AITagConversionModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-gray-800 p-6 rounded-lg max-w-2xl w-full">
-        <h3 className="text-xl font-bold mb-4">Convert AI Markers</h3>
+        <h3 className="text-xl font-bold mb-4">Convert Corresponding Tag Markers</h3>
         {markers.length > 0 ? (
           <>
             <p className="mb-4">The following markers will be converted:</p>
@@ -94,9 +94,9 @@ export const AITagConversionModal: React.FC<AITagConversionModalProps> = ({
                 />
               </svg>
             </div>
-            <p className="text-gray-400 text-lg mb-2">No AI markers to convert</p>
+            <p className="text-gray-400 text-lg mb-2">No markers to convert</p>
             <p className="text-gray-500 text-sm max-w-md mx-auto">
-              To convert AI markers, first confirm some AI-generated markers that have corresponding tag metadata.
+              To convert markers, first confirm some markers that have corresponding tag metadata.
             </p>
           </div>
         )}

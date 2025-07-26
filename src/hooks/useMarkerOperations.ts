@@ -340,7 +340,7 @@ export const useMarkerOperations = (
       dispatch(openAIConversionModal({ markers }));
     } catch (err) {
       console.error("Error preparing AI conversion:", err);
-      dispatch(setError("Failed to prepare AI markers for conversion"));
+      dispatch(setError("Failed to prepare markers for conversion"));
     }
   }, [getActionMarkers, dispatch]);
 
@@ -356,7 +356,7 @@ export const useMarkerOperations = (
       }
       if (scene?.id) await dispatch(loadMarkers(scene.id)).unwrap();
     } catch (err) {
-      console.error("Error converting AI markers:", err);
+      console.error("Error converting markers:", err);
       throw err; // Let the modal handle the error display
     }
   }, [aiConversionModalData, dispatch, scene?.id]);
