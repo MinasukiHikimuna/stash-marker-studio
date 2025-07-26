@@ -5,11 +5,9 @@ import {
   selectScene,
   selectMarkerLoading,
   selectIncorrectMarkers,
-  deleteRejectedMarkers,
-  setAIConversionModalOpen,
-  setCollectingModalOpen,
   setGeneratingMarkers,
-  selectSceneId,
+  openCollectingModal,
+  openDeleteRejectedModal,
 } from "@/store/slices/markerSlice";
 import { selectStashUrl } from "@/store/slices/configSlice";
 import {
@@ -29,18 +27,18 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
   // Redux selectors
   const markers = useAppSelector(selectMarkers);
   const scene = useAppSelector(selectScene);
-  const sceneId = useAppSelector(selectSceneId);
   const isLoading = useAppSelector(selectMarkerLoading);
   const incorrectMarkers = useAppSelector(selectIncorrectMarkers);
 
-  const handleDeleteRejectedMarkers = async () => {
-    const rejectedMarkerIds = markers
-      .filter(isMarkerRejected)
-      .map(m => m.id);
-      
-    if (rejectedMarkerIds.length > 0 && sceneId) {
-      await dispatch(deleteRejectedMarkers({ sceneId, rejectedMarkerIds }));
-    }
+  const handleDeleteRejectedClick = () => {
+    // Always open the modal - it will show empty state if no rejected markers
+    const rejectedMarkers = markers.filter(isMarkerRejected);
+    dispatch(openDeleteRejectedModal({ rejectedMarkers }));
+  };
+
+  const handleCollectFeedbackClick = () => {
+    // Always open the modal - it will show empty state if no incorrect markers
+    dispatch(openCollectingModal());
   };
 
   const handleAIConversion = () => {
@@ -81,22 +79,25 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
             Switch Scene
           </button>
           <button
-            onClick={handleDeleteRejectedMarkers}
-            disabled={isLoading || !markers?.some(isMarkerRejected)}
+            onClick={handleDeleteRejectedClick}
+            disabled={isLoading}
             title="Delete All Rejected Markers"
-            className="bg-red-500 hover:bg-red-700 text-white px-3 py-1.5 rounded-sm text-sm transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+            className={`px-3 py-1.5 rounded-sm text-sm transition-colors ${
+              markers?.some(isMarkerRejected)
+                ? "bg-red-500 hover:bg-red-700 text-white"
+                : "bg-gray-600 hover:bg-gray-500 text-white"
+            } disabled:bg-gray-600 disabled:cursor-not-allowed`}
           >
             Delete Rejected
           </button>
           <button
-            onClick={() => dispatch(setCollectingModalOpen(true))}
+            onClick={handleCollectFeedbackClick}
             className={`px-3 py-1.5 rounded-sm text-sm font-medium transition-colors
               ${
                 incorrectMarkers.length > 0
                   ? "bg-purple-600 hover:bg-purple-700"
-                  : "bg-gray-600"
+                  : "bg-gray-600 hover:bg-gray-500"
               } text-white`}
-            disabled={incorrectMarkers.length === 0}
           >
             Collect AI Feedback{" "}
             {incorrectMarkers.length > 0 &&

@@ -159,14 +159,10 @@ export function CompletionModal({
             <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">
               Enter
             </kbd>{" "}
-            or{" "}
-            <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">Y</kbd>{" "}
             to proceed,{" "}
             <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">
               Esc
             </kbd>{" "}
-            or{" "}
-            <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">N</kbd>{" "}
             to cancel
           </div>
           <div className="flex space-x-4">

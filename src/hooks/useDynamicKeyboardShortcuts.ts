@@ -4,8 +4,8 @@ import {
   confirmMarker,
   rejectMarker,
   resetMarker,
-  setCollectingModalOpen,
-  setDeletingRejected,
+  openCollectingModal,
+  closeModal,
   togglePlayPause,
   setCreatingMarker,
   setDuplicatingMarker,
@@ -14,6 +14,7 @@ import {
   seekToTime,
   playVideo,
   updateMarkerTimes,
+  setIncorrectMarkers,
   // pauseVideo,
 } from '../store/slices/markerSlice';
 import { keyboardShortcutService } from '../services/KeyboardShortcutService';
@@ -35,6 +36,8 @@ interface UseDynamicKeyboardShortcutsParams {
   currentVideoTime: number;
   isCompletionModalOpen: boolean;
   isDeletingRejected: boolean;
+  isAIConversionModalOpen: boolean;
+  isCollectingModalOpen: boolean;
   videoElementRef: React.RefObject<HTMLVideoElement | null>;
   
   // Handler functions
@@ -54,6 +57,7 @@ interface UseDynamicKeyboardShortcutsParams {
   jumpToPreviousShot: () => void;
   executeCompletion: () => void;
   confirmDeleteRejectedMarkers: () => void;
+  handleConfirmAIConversion: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
   
   // Navigation functions
@@ -98,7 +102,7 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       currentVideoTime,
       videoDuration,
       // videoElementRef,
-      fetchData,
+      // fetchData, // No longer needed for markIncorrect action
       handleCancelEdit,
       handleEditMarker,
       handleDeleteRejectedMarkers,
@@ -114,6 +118,7 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       jumpToPreviousShot,
       executeCompletion,
       confirmDeleteRejectedMarkers,
+      handleConfirmAIConversion,
       // showToast,
       navigateBetweenSwimlanes,
       navigateWithinSwimlane,
@@ -154,26 +159,39 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       },
 
       'marker.markIncorrect': () => {
-        if (!currentMarker) return;
+        if (!currentMarker || !scene?.id) return;
         const existingIncorrect = incorrectMarkers.find(m => m.markerId === currentMarker.id);
+        
         if (existingIncorrect) {
-          incorrectMarkerStorage.removeIncorrectMarker(scene?.id || '', currentMarker.id);
+          // Remove from AI feedback collection and unreject the marker
+          incorrectMarkerStorage.removeIncorrectMarker(scene.id, currentMarker.id);
+          const isAlreadyRejected = isMarkerRejected(currentMarker);
+          if (isAlreadyRejected) {
+            dispatch(resetMarker({ sceneId: scene.id, markerId: currentMarker.id }));
+          }
         } else {
-          incorrectMarkerStorage.addIncorrectMarker(scene?.id || '', {
+          // Add to AI feedback collection and reject the marker
+          incorrectMarkerStorage.addIncorrectMarker(scene.id, {
             markerId: currentMarker.id,
             tagName: currentMarker.primary_tag.name,
             startTime: currentMarker.seconds,
             endTime: currentMarker.end_seconds || currentMarker.seconds + 30,
             timestamp: new Date().toISOString(),
-            sceneId: scene?.id || '',
-            sceneTitle: scene?.title || '',
+            sceneId: scene.id,
+            sceneTitle: scene.title || '',
           });
+          const isAlreadyRejected = isMarkerRejected(currentMarker);
+          if (!isAlreadyRejected) {
+            dispatch(rejectMarker({ sceneId: scene.id, markerId: currentMarker.id }));
+          }
         }
-        fetchData();
+        
+        // Update Redux state to reflect AI feedback collection changes
+        dispatch(setIncorrectMarkers(incorrectMarkerStorage.getIncorrectMarkers(scene.id)));
       },
 
       'marker.openCollectionModal': () => {
-        dispatch(setCollectingModalOpen(true));
+        dispatch(openCollectingModal());
       },
 
       // Marker Creation
@@ -364,14 +382,16 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
           executeCompletion();
         } else if (params.isDeletingRejected) {
           confirmDeleteRejectedMarkers();
+        } else if (params.isAIConversionModalOpen) {
+          handleConfirmAIConversion();
         }
+        // Note: Collecting modal has no confirm action, only cancel/close
       },
 
       'modal.cancel': () => {
-        if (params.isCompletionModalOpen) {
-          dispatch(setCollectingModalOpen(false));
-        } else if (params.isDeletingRejected) {
-          dispatch(setDeletingRejected(false));
+        if (params.isCompletionModalOpen || params.isDeletingRejected || 
+            params.isAIConversionModalOpen || params.isCollectingModalOpen) {
+          dispatch(closeModal());
         }
       },
     };
@@ -423,12 +443,14 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       }
 
       // Handle Enter key conflict: when no modal is open, Enter should play from marker
-      if (actionId === 'modal.confirm' && event.key === 'Enter' && !params.isCompletionModalOpen && !params.isDeletingRejected) {
+      const isAnyModalOpen = params.isCompletionModalOpen || params.isDeletingRejected || 
+                              params.isAIConversionModalOpen || params.isCollectingModalOpen;
+      if (actionId === 'modal.confirm' && event.key === 'Enter' && !isAnyModalOpen) {
         actionId = 'video.playFromMarker';
       }
 
       // Handle Escape key conflict: when no modal is open, Escape should handle system escape
-      if (actionId === 'modal.cancel' && event.key === 'Escape' && !params.isCompletionModalOpen && !params.isDeletingRejected) {
+      if (actionId === 'modal.cancel' && event.key === 'Escape' && !isAnyModalOpen) {
         actionId = 'system.escape';
       }
 
@@ -452,13 +474,16 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
         console.error(`Error executing shortcut action ${actionId}:`, error);
       }
     },
-    [actionHandlers, params.isCompletionModalOpen, params.isDeletingRejected]
+    [actionHandlers, params.isCompletionModalOpen, params.isDeletingRejected, 
+     params.isAIConversionModalOpen, params.isCollectingModalOpen]
   );
 
   // Modal keyboard handler
   const handleModalKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      if (!params.isCompletionModalOpen && !params.isDeletingRejected) {
+      const isAnyModalOpen = params.isCompletionModalOpen || params.isDeletingRejected || 
+                              params.isAIConversionModalOpen || params.isCollectingModalOpen;
+      if (!isAnyModalOpen) {
         return;
       }
 
@@ -481,7 +506,8 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
         }
       }
     },
-    [actionHandlers, params.isCompletionModalOpen, params.isDeletingRejected]
+    [actionHandlers, params.isCompletionModalOpen, params.isDeletingRejected, 
+     params.isAIConversionModalOpen, params.isCollectingModalOpen]
   );
 
   // Set up event listeners

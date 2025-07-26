@@ -7,6 +7,31 @@ import {
 } from "@/services/StashappService";
 import type { IncorrectMarker } from "@/utils/incorrectMarkerStorage";
 
+// Modal state types
+export type CompletionModalData = {
+  warnings: string[];
+  videoCutMarkersToDelete: SceneMarker[];
+  hasAiReviewedTag: boolean;
+  primaryTagsToAdd: Tag[];
+  aiTagsToRemove: Tag[];
+};
+
+export type AIConversionModalData = {
+  markers: { sourceMarker: SceneMarker; correspondingTag: Tag }[];
+};
+
+export type DeleteRejectedModalData = {
+  rejectedMarkers: SceneMarker[];
+};
+
+export type ModalState = 
+  | { type: 'none' }
+  | { type: 'completion'; data: CompletionModalData }
+  | { type: 'aiConversion'; data: AIConversionModalData }
+  | { type: 'keyboardShortcuts' }
+  | { type: 'collecting' }
+  | { type: 'deleteRejected'; data: DeleteRejectedModalData };
+
 // Extended Scene type with markers
 export type SceneWithMarkers = Scene & {
   scene_markers?: SceneMarker[];
@@ -26,17 +51,14 @@ export interface MarkerState {
     // Selection state
     selectedMarkerId: string | null;
 
-    // Modal states
-    modals: {
-      isEditingMarker: boolean;
-      isCreatingMarker: boolean;
-      isDuplicatingMarker: boolean;
-      isDeletingRejected: boolean;
-      isGeneratingMarkers: boolean;
-      isAIConversionModalOpen: boolean;
-      isKeyboardShortcutsModalOpen: boolean;
-      isCollectingModalOpen: boolean;
-    };
+    // Modal state - single modal at a time
+    modal: ModalState;
+    
+    // Other UI states (not modals)
+    isEditingMarker: boolean;
+    isCreatingMarker: boolean;
+    isDuplicatingMarker: boolean;
+    isGeneratingMarkers: boolean;
 
     // Temporary editing state
     editing: {
@@ -69,7 +91,7 @@ export interface MarkerState {
   operations: {
     generationJobId: string | null;
     rejectedMarkers: SceneMarker[];
-    confirmedAIMarkers: { aiMarker: SceneMarker; correspondingTag: Tag }[];
+    confirmedAIMarkers: { sourceMarker: SceneMarker; correspondingTag: Tag }[];
     copiedMarkerTimes: { start: number; end: number | undefined } | null;
   };
 
@@ -98,16 +120,11 @@ const initialState: MarkerState = {
   // UI state
   ui: {
     selectedMarkerId: null,
-    modals: {
-      isEditingMarker: false,
-      isCreatingMarker: false,
-      isDuplicatingMarker: false,
-      isDeletingRejected: false,
-      isGeneratingMarkers: false,
-      isAIConversionModalOpen: false,
-      isKeyboardShortcutsModalOpen: false,
-      isCollectingModalOpen: false,
-    },
+    modal: { type: 'none' },
+    isEditingMarker: false,
+    isCreatingMarker: false,
+    isDuplicatingMarker: false,
+    isGeneratingMarkers: false,
     editing: {
       markerStartTime: null,
       markerEndTime: null,
@@ -490,15 +507,15 @@ export const convertAITags = createAsyncThunk(
   async (
     params: {
       sceneId: string;
-      aiMarkers: { aiMarker: SceneMarker; correspondingTag: Tag }[];
+      aiMarkers: { sourceMarker: SceneMarker; correspondingTag: Tag }[];
     },
     { dispatch, rejectWithValue }
   ) => {
     try {
       // Convert each AI marker to its corresponding tag
-      for (const { aiMarker, correspondingTag } of params.aiMarkers) {
+      for (const { sourceMarker, correspondingTag } of params.aiMarkers) {
         await stashappService.updateMarkerTagAndTitle(
-          aiMarker.id,
+          sourceMarker.id,
           correspondingTag.id
         );
       }
@@ -697,37 +714,50 @@ const markerSlice = createSlice({
       state.ui.selectedMarkerId = action.payload;
     },
 
-    // UI actions - modals
+    // Modal actions
+    setModalState: (state, action: PayloadAction<ModalState>) => {
+      state.ui.modal = action.payload;
+    },
+
+    closeModal: (state) => {
+      state.ui.modal = { type: 'none' };
+    },
+
+    openCompletionModal: (state, action: PayloadAction<CompletionModalData>) => {
+      state.ui.modal = { type: 'completion', data: action.payload };
+    },
+
+    openAIConversionModal: (state, action: PayloadAction<AIConversionModalData>) => {
+      state.ui.modal = { type: 'aiConversion', data: action.payload };
+    },
+
+    openKeyboardShortcutsModal: (state) => {
+      state.ui.modal = { type: 'keyboardShortcuts' };
+    },
+
+    openCollectingModal: (state) => {
+      state.ui.modal = { type: 'collecting' };
+    },
+
+    openDeleteRejectedModal: (state, action: PayloadAction<DeleteRejectedModalData>) => {
+      state.ui.modal = { type: 'deleteRejected', data: action.payload };
+    },
+
+    // UI actions - non-modal states
     setEditingMarker: (state, action: PayloadAction<boolean>) => {
-      state.ui.modals.isEditingMarker = action.payload;
+      state.ui.isEditingMarker = action.payload;
     },
 
     setCreatingMarker: (state, action: PayloadAction<boolean>) => {
-      state.ui.modals.isCreatingMarker = action.payload;
+      state.ui.isCreatingMarker = action.payload;
     },
 
     setDuplicatingMarker: (state, action: PayloadAction<boolean>) => {
-      state.ui.modals.isDuplicatingMarker = action.payload;
-    },
-
-    setAIConversionModalOpen: (state, action: PayloadAction<boolean>) => {
-      state.ui.modals.isAIConversionModalOpen = action.payload;
-    },
-
-    setKeyboardShortcutsModalOpen: (state, action: PayloadAction<boolean>) => {
-      state.ui.modals.isKeyboardShortcutsModalOpen = action.payload;
-    },
-
-    setCollectingModalOpen: (state, action: PayloadAction<boolean>) => {
-      state.ui.modals.isCollectingModalOpen = action.payload;
+      state.ui.isDuplicatingMarker = action.payload;
     },
 
     setGeneratingMarkers: (state, action: PayloadAction<boolean>) => {
-      state.ui.modals.isGeneratingMarkers = action.payload;
-    },
-
-    setDeletingRejected: (state, action: PayloadAction<boolean>) => {
-      state.ui.modals.isDeletingRejected = action.payload;
+      state.ui.isGeneratingMarkers = action.payload;
     },
 
     // Editing actions
@@ -778,7 +808,7 @@ const markerSlice = createSlice({
 
     setConfirmedAIMarkers: (
       state,
-      action: PayloadAction<{ aiMarker: SceneMarker; correspondingTag: Tag }[]>
+      action: PayloadAction<{ sourceMarker: SceneMarker; correspondingTag: Tag }[]>
     ) => {
       state.operations.confirmedAIMarkers = action.payload;
     },
@@ -1155,11 +1185,15 @@ export const {
   setEditingMarker,
   setCreatingMarker,
   setDuplicatingMarker,
-  setAIConversionModalOpen,
-  setKeyboardShortcutsModalOpen,
-  setCollectingModalOpen,
   setGeneratingMarkers,
-  setDeletingRejected,
+  // Modal actions
+  setModalState,
+  closeModal,
+  openCompletionModal,
+  openAIConversionModal,
+  openKeyboardShortcutsModal,
+  openCollectingModal,
+  openDeleteRejectedModal,
   setMarkerStartTime,
   setMarkerEndTime,
   setNewTagSearch,
@@ -1210,24 +1244,54 @@ export const selectAvailableTags = (state: { marker: MarkerState }) =>
 export const selectSelectedMarkerId = (state: { marker: MarkerState }) =>
   state.marker.ui.selectedMarkerId;
 
-// Modal selectors
+// UI state selectors (non-modal)
 export const selectIsEditingMarker = (state: { marker: MarkerState }) =>
-  state.marker.ui.modals.isEditingMarker;
+  state.marker.ui.isEditingMarker;
 export const selectIsCreatingMarker = (state: { marker: MarkerState }) =>
-  state.marker.ui.modals.isCreatingMarker;
+  state.marker.ui.isCreatingMarker;
 export const selectIsDuplicatingMarker = (state: { marker: MarkerState }) =>
-  state.marker.ui.modals.isDuplicatingMarker;
-export const selectIsDeletingRejected = (state: { marker: MarkerState }) =>
-  state.marker.ui.modals.isDeletingRejected;
+  state.marker.ui.isDuplicatingMarker;
 export const selectIsGeneratingMarkers = (state: { marker: MarkerState }) =>
-  state.marker.ui.modals.isGeneratingMarkers;
+  state.marker.ui.isGeneratingMarkers;
+
+// Modal selectors
+export const selectModalState = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal;
+
+export const selectIsModalOpen = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal.type !== 'none';
+
+export const selectIsCompletionModalOpen = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal.type === 'completion';
+
 export const selectIsAIConversionModalOpen = (state: { marker: MarkerState }) =>
-  state.marker.ui.modals.isAIConversionModalOpen;
-export const selectIsKeyboardShortcutsModalOpen = (state: {
-  marker: MarkerState;
-}) => state.marker.ui.modals.isKeyboardShortcutsModalOpen;
+  state.marker.ui.modal.type === 'aiConversion';
+
+export const selectIsKeyboardShortcutsModalOpen = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal.type === 'keyboardShortcuts';
+
 export const selectIsCollectingModalOpen = (state: { marker: MarkerState }) =>
-  state.marker.ui.modals.isCollectingModalOpen;
+  state.marker.ui.modal.type === 'collecting';
+
+export const selectIsDeletingRejected = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal.type === 'deleteRejected';
+
+// Modal data selectors
+export const selectCompletionModalData = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal.type === 'completion' ? state.marker.ui.modal.data : null;
+
+export const selectAIConversionModalData = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal.type === 'aiConversion' ? state.marker.ui.modal.data : null;
+
+export const selectDeleteRejectedModalData = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal.type === 'deleteRejected' ? state.marker.ui.modal.data : null;
+
+// Legacy selectors for backward compatibility (will be removed after refactor)
+export const selectRejectedMarkers = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal.type === 'deleteRejected' ? state.marker.ui.modal.data.rejectedMarkers : [];
+
+export const selectConfirmedAIMarkers = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal.type === 'aiConversion' ? state.marker.ui.modal.data.markers : [];
 
 // Editing selectors
 export const selectMarkerStartTime = (state: { marker: MarkerState }) =>
@@ -1270,10 +1334,6 @@ export const selectPendingPlayPause = (state: { marker: MarkerState }) =>
 // Operations selectors
 export const selectGenerationJobId = (state: { marker: MarkerState }) =>
   state.marker.operations.generationJobId;
-export const selectRejectedMarkers = (state: { marker: MarkerState }) =>
-  state.marker.operations.rejectedMarkers;
-export const selectConfirmedAIMarkers = (state: { marker: MarkerState }) =>
-  state.marker.operations.confirmedAIMarkers;
 export const selectCopiedMarkerTimes = (state: { marker: MarkerState }) =>
   state.marker.operations.copiedMarkerTimes;
 

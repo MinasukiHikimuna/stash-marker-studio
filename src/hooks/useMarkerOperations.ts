@@ -11,13 +11,12 @@ import {
   selectAvailableTags,
   selectSelectedMarkerId,
   selectCurrentVideoTime,
-  selectRejectedMarkers,
-  selectConfirmedAIMarkers,
   selectCopiedMarkerTimes,
-  setRejectedMarkers,
-  setDeletingRejected,
-  setConfirmedAIMarkers,
-  setAIConversionModalOpen,
+  selectDeleteRejectedModalData,
+  selectAIConversionModalData,
+  openDeleteRejectedModal,
+  openAIConversionModal,
+  closeModal,
   setCopiedMarkerTimes,
   setError,
   clearError,
@@ -55,8 +54,8 @@ export const useMarkerOperations = (
   const availableTags = useAppSelector(selectAvailableTags);
   const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
   const currentVideoTime = useAppSelector(selectCurrentVideoTime);
-  const rejectedMarkers = useAppSelector(selectRejectedMarkers);
-  const confirmedAIMarkers = useAppSelector(selectConfirmedAIMarkers);
+  const deleteRejectedModalData = useAppSelector(selectDeleteRejectedModalData);
+  const aiConversionModalData = useAppSelector(selectAIConversionModalData);
   const copiedMarkerTimes = useAppSelector(selectCopiedMarkerTimes);
 
   // Get action markers helper
@@ -230,8 +229,7 @@ export const useMarkerOperations = (
     if (!actionMarkers) return;
 
     const rejected = actionMarkers.filter(isMarkerRejected);
-    dispatch(setRejectedMarkers(rejected));
-    dispatch(setDeletingRejected(true));
+    dispatch(openDeleteRejectedModal({ rejectedMarkers: rejected }));
   }, [getActionMarkers, dispatch]);
 
   // Copy marker times function
@@ -318,17 +316,17 @@ export const useMarkerOperations = (
   // Confirm delete rejected markers
   const confirmDeleteRejectedMarkers = useCallback(async () => {
     try {
+      const rejectedMarkers = deleteRejectedModalData?.rejectedMarkers || [];
       await stashappService.deleteMarkers(
         rejectedMarkers.map((m) => m.id)
       );
       if (scene?.id) await dispatch(loadMarkers(scene.id)).unwrap();
-      dispatch(setDeletingRejected(false));
-      dispatch(setRejectedMarkers([]));
+      dispatch(closeModal());
     } catch (err) {
       console.error("Error deleting rejected markers:", err);
       dispatch(setError("Failed to delete rejected markers"));
     }
-  }, [rejectedMarkers, dispatch, scene?.id]);
+  }, [deleteRejectedModalData, dispatch, scene?.id]);
 
   // Handle AI conversion
   const handleAIConversion = useCallback(async () => {
@@ -339,8 +337,7 @@ export const useMarkerOperations = (
       const markers = await stashappService.convertConfirmedMarkersWithCorrespondingTags(
         actionMarkers
       );
-      dispatch(setConfirmedAIMarkers(markers));
-      dispatch(setAIConversionModalOpen(true));
+      dispatch(openAIConversionModal({ markers }));
     } catch (err) {
       console.error("Error preparing AI conversion:", err);
       dispatch(setError("Failed to prepare AI markers for conversion"));
@@ -350,9 +347,10 @@ export const useMarkerOperations = (
   // Handle confirm AI conversion
   const handleConfirmAIConversion = useCallback(async () => {
     try {
-      for (const { aiMarker, correspondingTag } of confirmedAIMarkers) {
+      const markers = aiConversionModalData?.markers || [];
+      for (const { sourceMarker, correspondingTag } of markers) {
         await stashappService.updateMarkerTagAndTitle(
-          aiMarker.id,
+          sourceMarker.id,
           correspondingTag.id
         );
       }
@@ -361,7 +359,7 @@ export const useMarkerOperations = (
       console.error("Error converting AI markers:", err);
       throw err; // Let the modal handle the error display
     }
-  }, [confirmedAIMarkers, dispatch, scene?.id]);
+  }, [aiConversionModalData, dispatch, scene?.id]);
 
   // Check if all markers are approved (confirmed or rejected)
   const checkAllMarkersApproved = useCallback(() => {

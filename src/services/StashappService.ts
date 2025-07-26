@@ -951,28 +951,15 @@ export class StashappService {
       { id: string; name: string; correspondingTag: Tag | null }
     >();
 
-    console.log("Building corresponding tag lookup table...");
-    console.log("Total tags found:", allTags.findTags.tags.length);
-
     for (const tag of allTags.findTags.tags) {
       if (tag.description?.includes("Corresponding Tag: ")) {
-        console.log("Found tag with corresponding tag:", tag.name);
-        console.log("Tag description:", tag.description);
-
         const correspondingTagName = tag.description
           .split("Corresponding Tag: ")[1]
           .trim();
-        console.log("Looking for corresponding tag:", correspondingTagName);
 
         const correspondingTag = allTags.findTags.tags.find(
           (t) => t.name === correspondingTagName
         );
-
-        if (correspondingTag) {
-          console.log("Found corresponding tag:", correspondingTag.name);
-        } else {
-          console.log("No corresponding tag found for:", tag.name);
-        }
 
         lookupTable.set(tag.id, {
           id: tag.id,
@@ -982,7 +969,6 @@ export class StashappService {
       }
     }
 
-    console.log("Corresponding tag lookup table size:", lookupTable.size);
     return lookupTable;
   }
 
@@ -1135,7 +1121,8 @@ export class StashappService {
     console.log("Converting confirmed markers with corresponding tags...");
     console.log("Total markers to check:", markers.length);
 
-    const correspondingTagLookup = await this.buildCorrespondingTagLookupTable();
+    const correspondingTagLookup =
+      await this.buildCorrespondingTagLookupTable();
     const confirmedMarkersToConvert: {
       sourceMarker: SceneMarker;
       correspondingTag: Tag;
@@ -1153,7 +1140,9 @@ export class StashappService {
         marker.tags.map((t) => t.name)
       );
 
-      const correspondingTagInfo = correspondingTagLookup.get(marker.primary_tag.id);
+      const correspondingTagInfo = correspondingTagLookup.get(
+        marker.primary_tag.id
+      );
       console.log("Corresponding tag info found:", !!correspondingTagInfo);
       if (correspondingTagInfo) {
         console.log("Corresponding tag details:", {
@@ -1218,7 +1207,11 @@ export class StashappService {
     return result.data.tagUpdate;
   }
 
-  async createTag(name: string, description?: string, parentIds: string[] = []): Promise<Tag> {
+  async createTag(
+    name: string,
+    description?: string,
+    parentIds: string[] = []
+  ): Promise<Tag> {
     const mutation = `
       mutation TagCreate($input: TagCreateInput!) {
         tagCreate(input: $input) {
@@ -1255,7 +1248,12 @@ export class StashappService {
     return result.data.tagCreate;
   }
 
-  async updateTag(tagId: string, name?: string, description?: string, parentIds?: string[]): Promise<Tag> {
+  async updateTag(
+    tagId: string,
+    name?: string,
+    description?: string,
+    parentIds?: string[]
+  ): Promise<Tag> {
     const mutation = `
       mutation TagUpdate($input: TagUpdateInput!) {
         tagUpdate(input: $input) {
@@ -1278,7 +1276,12 @@ export class StashappService {
       }
     `;
 
-    const input: { id: string; name?: string; description?: string; parent_ids?: string[] } = { id: tagId };
+    const input: {
+      id: string;
+      name?: string;
+      description?: string;
+      parent_ids?: string[];
+    } = { id: tagId };
     if (name !== undefined) input.name = name;
     if (description !== undefined) input.description = description;
     if (parentIds !== undefined) input.parent_ids = parentIds;

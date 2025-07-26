@@ -696,15 +696,21 @@ The AI feedback collection system provides tools for collecting feedback on AI-g
 
 #### AI Feedback Shortcuts
 
-##### Add to AI Feedback Collection
+##### Add/Remove AI Feedback Collection
 
 - **Default key**: `C`
-- **Function**: Add current marker to AI feedback collection and reject it
+- **Function**: Toggle marker between AI feedback collection and normal state
 - **Behavior**:
-  - Rejects the marker (adds MARKER_STATUS_REJECTED tag)
-  - Adds marker metadata to AI feedback collection storage
-  - Triggers screengrab capture of current video frame
-  - Persists feedback data independently of marker state
+  - **When marker is NOT in AI feedback collection**:
+    - Adds marker to AI feedback collection storage
+    - Automatically rejects the marker (adds MARKER_STATUS_REJECTED tag)
+    - Triggers screengrab capture of current video frame
+    - Persists feedback data independently of marker state
+  - **When marker IS in AI feedback collection**:
+    - Removes marker from AI feedback collection storage
+    - If marker is currently rejected, automatically unrejects it (removes MARKER_STATUS_REJECTED tag)
+    - Cleans up associated feedback data
+- **Toggle behavior**: Repeated presses cycle between AI feedback collection state and normal state
 - **Storage**: Uses local storage to persist AI feedback data across sessions
 
 ##### Open AI Feedback Modal

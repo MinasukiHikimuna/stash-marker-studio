@@ -26,6 +26,7 @@ import {
   selectScene,
   selectAvailableTags,
   selectSelectedMarkerId,
+  selectIsCompletionModalOpen,
   selectIncorrectMarkers,
   selectVideoDuration,
   selectCurrentVideoTime,
@@ -38,18 +39,19 @@ import {
   selectIsAIConversionModalOpen,
   selectIsKeyboardShortcutsModalOpen,
   selectIsCollectingModalOpen,
-  selectRejectedMarkers,
-  selectConfirmedAIMarkers,
+  selectAIConversionModalData,
+  selectDeleteRejectedModalData,
+  selectCompletionModalData,
   setSelectedMarkerId,
   clearError,
   setAvailableTags,
-  setRejectedMarkers,
-  setDeletingRejected,
-  setAIConversionModalOpen,
-  setCollectingModalOpen,
+  // New modal actions
+  openCompletionModal,
+  openKeyboardShortcutsModal,
+  openCollectingModal,
+  closeModal,
   setCreatingMarker,
   setDuplicatingMarker,
-  setKeyboardShortcutsModalOpen,
   setMarkers,
   setIncorrectMarkers,
   setCurrentVideoTime,
@@ -104,8 +106,10 @@ export default function MarkerPage() {
   const isAIConversionModalOpen = useAppSelector(selectIsAIConversionModalOpen);
   const isKeyboardShortcutsModalOpen = useAppSelector(selectIsKeyboardShortcutsModalOpen);
   const isCollectingModalOpen = useAppSelector(selectIsCollectingModalOpen);
-  const rejectedMarkers = useAppSelector(selectRejectedMarkers);
-  const confirmedAIMarkers = useAppSelector(selectConfirmedAIMarkers);
+  const aiConversionModalData = useAppSelector(selectAIConversionModalData);
+  const deleteRejectedModalData = useAppSelector(selectDeleteRejectedModalData);
+  const completionModalData = useAppSelector(selectCompletionModalData);
+  const isCompletionModalOpen = useAppSelector(selectIsCompletionModalOpen);
   
   const markerListRef = useRef<HTMLDivElement>(null);
   // Temporary ref for video element compatibility - can be removed when VideoPlayer fully handles all video interactions
@@ -134,16 +138,6 @@ export default function MarkerPage() {
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
   const [editingTagId, setEditingTagId] = useState<string>("");
 
-  // Add state for completion modal
-  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
-  const [completionWarnings, setCompletionWarnings] = useState<string[]>([]);
-  const [aiTagsToRemove, setAiTagsToRemove] = useState<Tag[]>([]);
-  const [primaryTagsToAdd, setPrimaryTagsToAdd] = useState<Tag[]>([]);
-  const [hasAiReviewedTag, setHasAiReviewedTag] = useState(false);
-  const [videoCutMarkersToDelete, setVideoCutMarkersToDelete] = useState<
-    SceneMarker[]
-  >([]);
-
   // Add state for swimlane data from Timeline
   const [tagGroups, setTagGroups] = useState<TagGroup[]>([]);
   const [markersWithTracks, setMarkersWithTracks] = useState<MarkerWithTrack[]>(
@@ -164,7 +158,6 @@ export default function MarkerPage() {
     setAvailableTimelineWidth,
   } = useTimelineZoom(videoDuration);
 
-
   // Callback to receive swimlane data from Timeline component
   const handleSwimlaneDataUpdate = useCallback(
     (newTagGroups: TagGroup[], newMarkersWithTracks: MarkerWithTrack[]) => {
@@ -181,9 +174,6 @@ export default function MarkerPage() {
     },
     [setAvailableTimelineWidth]
   );
-
-
-  // videoRef removed - now handled in VideoPlayer component
 
   const fetchData = useCallback(async () => {
     const sceneId = new URL(window.location.href).searchParams.get("sceneId");
@@ -423,29 +413,36 @@ export default function MarkerPage() {
       }
     }
 
-    setCompletionWarnings(warnings);
-    setAiTagsToRemove(aiTagsToRemove);
-    setPrimaryTagsToAdd(primaryTagsToAdd);
-    setHasAiReviewedTag(hasAiReviewedTagAlready);
-    setVideoCutMarkersToDelete(videoCutMarkers);
-    setIsCompletionModalOpen(true);
+    // Open completion modal with all the data
+    dispatch(openCompletionModal({
+      warnings,
+      videoCutMarkersToDelete: videoCutMarkers,
+      hasAiReviewedTag: hasAiReviewedTagAlready,
+      primaryTagsToAdd,
+      aiTagsToRemove
+    }));
   }, [
     actionMarkers,
     getShotBoundaries,
     scene,
     identifyAITagsToRemove,
     markerAiReviewed,
+    dispatch,
   ]);
 
   // executeCompletion now comes from useMarkerOperations hook
   // Create wrapper function to handle state dependencies
   const executeCompletionWrapper = useCallback(async () => {
-    // Close modal when completion starts
-    setIsCompletionModalOpen(false);
+    // Get current modal data
+    const modalData = completionModalData;
+    if (!modalData) return;
     
-    // Call the hook's executeCompletion with the videoCutMarkersToDelete state
-    await executeCompletion(videoCutMarkersToDelete);
-  }, [executeCompletion, videoCutMarkersToDelete]);
+    // Close modal when completion starts
+    dispatch(closeModal());
+    
+    // Call the hook's executeCompletion with the modal data
+    await executeCompletion(modalData.videoCutMarkersToDelete);
+  }, [executeCompletion, completionModalData, dispatch]);
 
   // Universal marker creation function
   const createOrDuplicateMarker = useCallback(
@@ -753,6 +750,8 @@ export default function MarkerPage() {
     currentVideoTime,
     isCompletionModalOpen,
     isDeletingRejected,
+    isAIConversionModalOpen,
+    isCollectingModalOpen,
     videoElementRef,
     fetchData,
     handleCancelEdit,
@@ -770,6 +769,7 @@ export default function MarkerPage() {
     jumpToPreviousShot,
     executeCompletion: executeCompletionWrapper,
     confirmDeleteRejectedMarkers,
+    handleConfirmAIConversion,
     showToast,
     navigateBetweenSwimlanes,
     navigateWithinSwimlane,
@@ -955,7 +955,7 @@ export default function MarkerPage() {
         isLoading={isLoading}
         checkAllMarkersApproved={checkAllMarkersApproved}
         onDeleteRejected={handleDeleteRejectedMarkers}
-        onOpenCollectModal={() => dispatch(setCollectingModalOpen(true))}
+        onOpenCollectModal={() => dispatch(openCollectingModal())}
         onAIConversion={handleAIConversion}
         onComplete={handleComplete}
       />
@@ -982,7 +982,7 @@ export default function MarkerPage() {
                   selectedMarkerId={selectedMarkerId}
                   onCreateMarker={handleCreateMarker}
                   onSplitMarker={() => splitCurrentMarker()}
-                  onShowShortcuts={() => dispatch(setKeyboardShortcutsModalOpen(true))}
+                  onShowShortcuts={() => dispatch(openKeyboardShortcutsModal())}
                   actionMarkers={actionMarkers}
                   createOrDuplicateMarker={createOrDuplicateMarker}
                 />
@@ -1039,20 +1039,17 @@ export default function MarkerPage() {
 
       <DeleteRejectedModal
         isOpen={isDeletingRejected}
-        rejectedMarkers={rejectedMarkers}
-        onCancel={() => {
-          dispatch(setDeletingRejected(false));
-          dispatch(setRejectedMarkers([]));
-        }}
+        rejectedMarkers={deleteRejectedModalData?.rejectedMarkers || []}
+        onCancel={() => dispatch(closeModal())}
         onConfirm={confirmDeleteRejectedMarkers}
       />
 
       <AITagConversionModal
         isOpen={isAIConversionModalOpen}
         onClose={() =>
-          dispatch(setAIConversionModalOpen(false))
+          dispatch(closeModal())
         }
-        markers={confirmedAIMarkers}
+        markers={aiConversionModalData?.markers || []}
         onConfirm={handleConfirmAIConversion}
       />
 
@@ -1069,26 +1066,26 @@ export default function MarkerPage() {
       <KeyboardShortcutsModal
         isOpen={isKeyboardShortcutsModalOpen}
         onClose={() =>
-          dispatch(setKeyboardShortcutsModalOpen(false))
+          dispatch(closeModal())
         }
       />
 
       {/* Completion Modal */}
       <CompletionModal
         isOpen={isCompletionModalOpen}
-        completionWarnings={completionWarnings}
-        videoCutMarkersToDelete={videoCutMarkersToDelete}
-        hasAiReviewedTag={hasAiReviewedTag}
-        primaryTagsToAdd={primaryTagsToAdd}
-        aiTagsToRemove={aiTagsToRemove}
-        onCancel={() => setIsCompletionModalOpen(false)}
+        completionWarnings={completionModalData?.warnings || []}
+        videoCutMarkersToDelete={completionModalData?.videoCutMarkersToDelete || []}
+        hasAiReviewedTag={completionModalData?.hasAiReviewedTag || false}
+        primaryTagsToAdd={completionModalData?.primaryTagsToAdd || []}
+        aiTagsToRemove={completionModalData?.aiTagsToRemove || []}
+        onCancel={() => dispatch(closeModal())}
         onConfirm={executeCompletionWrapper}
       />
       {isCollectingModalOpen && scene?.id && (
         <IncorrectMarkerCollectionModal
           isOpen={isCollectingModalOpen}
           onClose={() =>
-            dispatch(setCollectingModalOpen(false))
+            dispatch(closeModal())
           }
           markers={incorrectMarkers}
           currentSceneId={scene.id}

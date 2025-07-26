@@ -179,20 +179,54 @@ export const IncorrectMarkerCollectionModal: React.FC<
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9000] p-4">
-      <div className="bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
-        <div className="p-6 flex-none">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-white">
-              Collect AI Feedback
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white"
-              disabled={isCollecting}
-            >
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 p-6 rounded-lg max-w-2xl w-full">
+        <h3 className="text-xl font-bold mb-4">Collect AI Feedback</h3>
+        {currentSceneMarkers.length > 0 ? (
+          <>
+            <p className="mb-4">The following markers will be collected for feedback:</p>
+            <div className="max-h-96 overflow-y-auto mb-4">
+              {currentSceneMarkers.map((marker) => (
+                <div
+                  key={marker.markerId}
+                  className="flex items-center justify-between p-2 bg-gray-700 rounded-sm mb-2"
+                >
+                  <div>
+                    <span className="font-bold">{marker.tagName}</span>
+                    <span className="text-sm text-gray-400 ml-2">
+                      {formatTime(marker.startTime)}
+                      {marker.endTime && ` - ${formatTime(marker.endTime)}`}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => onRemoveMarker(marker.markerId)}
+                    className="text-red-400 hover:text-red-300"
+                    title="Remove from collection"
+                    disabled={isCollecting}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-12 mb-4">
+            <div className="text-gray-400 mb-4">
               <svg
-                className="w-6 h-6"
+                className="w-16 h-16 mx-auto mb-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -200,126 +234,75 @@ export const IncorrectMarkerCollectionModal: React.FC<
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
+                  strokeWidth={1}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-            </button>
+            </div>
+            <p className="text-gray-400 text-lg mb-2">No incorrect markers to collect</p>
+            <p className="text-gray-500 text-sm max-w-md mx-auto">
+              To collect AI feedback, first mark some markers as incorrect using keyboard shortcuts.
+            </p>
           </div>
-          <p className="text-gray-300 mb-4">
-            The following markers in this scene have been marked as incorrect
-            and will be collected for feedback.
-          </p>
-        </div>
-
-        <div className="flex-1 overflow-auto px-6">
-          <table className="w-full">
-            <thead className="text-left text-gray-400">
-              <tr>
-                <th className="py-2">Time</th>
-                <th className="py-2">Tag</th>
-                <th className="py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentSceneMarkers.map((marker) => (
-                <tr key={marker.markerId} className="border-t border-gray-700">
-                  <td className="py-3 font-mono">
-                    {formatTime(marker.startTime)}
-                    {marker.endTime && ` - ${formatTime(marker.endTime)}`}
-                  </td>
-                  <td className="py-3">{marker.tagName}</td>
-                  <td className="py-3 text-right">
-                    <button
-                      onClick={() => onRemoveMarker(marker.markerId)}
-                      className="text-red-400 hover:text-red-300"
-                      title="Remove from collection"
-                      disabled={isCollecting}
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {currentSceneMarkers.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="py-8 text-center text-gray-400">
-                    No incorrect markers to collect in this scene
-                  </td>
-                </tr>
+        )}
+        <div className="flex justify-between items-center">
+          <div className="text-sm text-gray-400">
+            Press{" "}
+            <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">
+              Enter
+            </kbd>{" "}
+            to confirm,{" "}
+            <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">
+              Esc
+            </kbd>{" "}
+            to cancel
+          </div>
+          <div className="flex space-x-4">
+            <button
+              onClick={onClose}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-sm"
+              disabled={isCollecting}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirm}
+              className={`px-4 py-2 rounded-sm text-white transition-colors flex items-center ${
+                currentSceneMarkers.length > 0 && !isCollecting
+                  ? "bg-blue-500 hover:bg-blue-600"
+                  : "bg-gray-600 cursor-not-allowed opacity-50"
+              }`}
+              disabled={isCollecting || currentSceneMarkers.length === 0}
+            >
+              {isCollecting ? (
+                <>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  Collecting...
+                </>
+              ) : currentSceneMarkers.length > 0 ? (
+                `Collect ${currentSceneMarkers.length} Marker${currentSceneMarkers.length !== 1 ? "s" : ""}`
+              ) : (
+                "No Markers to Collect"
               )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="p-6 border-t border-gray-700">
-          <div className="flex justify-between items-center">
-            <div className="text-sm text-gray-400">
-              Press{" "}
-              <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">
-                Enter
-              </kbd>{" "}
-              or{" "}
-              <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">Y</kbd>{" "}
-              to confirm,{" "}
-              <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">Esc</kbd>{" "}
-              or{" "}
-              <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">N</kbd>{" "}
-              to cancel
-            </div>
-            <div className="flex space-x-3">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-sm"
-                disabled={isCollecting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirm}
-                disabled={isCollecting || currentSceneMarkers.length === 0}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-              >
-                {isCollecting ? (
-                  <>
-                    <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    Collecting...
-                  </>
-                ) : (
-                  "Collect and Export"
-                )}
-              </button>
-            </div>
+            </button>
           </div>
         </div>
       </div>

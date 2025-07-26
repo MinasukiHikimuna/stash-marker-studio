@@ -47,6 +47,16 @@ export function MarkerPageHeader({
     navigationPersistence.storePreviousPage(currentPath, title);
   }, [scene]);
 
+  const handleDeleteRejectedClick = useCallback(() => {
+    // Always open the modal - it will show empty state if no rejected markers
+    onDeleteRejected();
+  }, [onDeleteRejected]);
+
+  const handleCollectFeedbackClick = useCallback(() => {
+    // Always open the modal - it will show empty state if no incorrect markers
+    onOpenCollectModal();
+  }, [onOpenCollectModal]);
+
   return (
     <div className="bg-gray-900 text-white px-6 py-4 border-b border-gray-700 flex-shrink-0">
       <div className="flex items-center justify-between">
@@ -75,24 +85,25 @@ export function MarkerPageHeader({
               Switch Scene
             </button>
             <button
-              onClick={onDeleteRejected}
-              disabled={
-                isLoading || !markers?.some(isMarkerRejected)
-              }
+              onClick={handleDeleteRejectedClick}
+              disabled={isLoading}
               title="Delete All Rejected Markers"
-              className="bg-red-500 hover:bg-red-700 text-white px-3 py-1.5 rounded-sm text-sm transition-colors"
+              className={`px-3 py-1.5 rounded-sm text-sm transition-colors ${
+                markers?.some(isMarkerRejected)
+                  ? "bg-red-500 hover:bg-red-700 text-white"
+                  : "bg-gray-600 hover:bg-gray-500 text-white"
+              } disabled:bg-gray-600 disabled:cursor-not-allowed`}
             >
               Delete Rejected
             </button>
             <button
-              onClick={onOpenCollectModal}
+              onClick={handleCollectFeedbackClick}
               className={`px-3 py-1.5 rounded-sm text-sm font-medium transition-colors
                 ${
                   incorrectMarkers.length > 0
                     ? "bg-purple-600 hover:bg-purple-700"
-                    : "bg-gray-600"
+                    : "bg-gray-600 hover:bg-gray-500"
                 } text-white`}
-              disabled={incorrectMarkers.length === 0}
             >
               Collect AI Feedback{" "}
               {incorrectMarkers.length > 0 &&
