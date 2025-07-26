@@ -8,13 +8,16 @@ import {
   setGeneratingMarkers,
   openCollectingModal,
   openDeleteRejectedModal,
+  openCorrespondingTagConversionModal,
+  setError,
 } from "@/store/slices/markerSlice";
 import { selectStashUrl } from "@/store/slices/configSlice";
 import {
   isMarkerConfirmed,
   isMarkerRejected,
+  getActionMarkers,
 } from "../../../core/marker/markerLogic";
-import { useMarkerOperations } from "@/hooks/useMarkerOperations";
+import { stashappService } from "../../../services/StashappService";
 
 interface MarkerHeaderProps {
   className?: string;
@@ -31,8 +34,23 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
   const isLoading = useAppSelector(selectMarkerLoading);
   const incorrectMarkers = useAppSelector(selectIncorrectMarkers);
   
-  // Get marker operations
-  const { handleCorrespondingTagConversion } = useMarkerOperations();
+  // Handle corresponding tag conversion
+  const handleCorrespondingTagConversion = async () => {
+    if (!markers) return;
+    
+    const actionMarkers = getActionMarkers(markers);
+    if (!actionMarkers || actionMarkers.length === 0) return;
+
+    try {
+      const markersToConvert = await stashappService.convertConfirmedMarkersWithCorrespondingTags(
+        actionMarkers
+      );
+      dispatch(openCorrespondingTagConversionModal({ markers: markersToConvert }));
+    } catch (err) {
+      console.error("Error preparing corresponding tag conversion:", err);
+      dispatch(setError("Failed to prepare markers for conversion"));
+    }
+  };
   
   // Calculate counts for button display
   const rejectedMarkersCount = markers?.filter(isMarkerRejected).length || 0;

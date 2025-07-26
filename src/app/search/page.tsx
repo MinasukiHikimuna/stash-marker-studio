@@ -181,7 +181,7 @@ export default function SearchPage() {
 
   const handleSceneClick = useCallback(
     (sceneId: string) => {
-      router.push(`/marker?sceneId=${sceneId}`);
+      router.push(`/marker/${sceneId}`);
     },
     [router]
   );
