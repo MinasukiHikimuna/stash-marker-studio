@@ -243,6 +243,9 @@ export const IncorrectMarkerCollectionModal: React.FC<
             <p className="text-gray-500 text-sm max-w-md mx-auto">
               To collect AI feedback, first mark some markers as incorrect using keyboard shortcuts.
             </p>
+            <p className="text-gray-500 text-sm max-w-md mx-auto">
+              Feel free to delete the reject markers after collecting them for feedback. Feedback is stored separately in localStorage and deleting the markers doesn't delete the feedback.
+            </p>
           </div>
         )}
         <div className="flex justify-between items-center">
