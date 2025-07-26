@@ -21,7 +21,9 @@
       "Bash(npx tsc:*)",
       "Bash(npx next:*)",
       "mcp__playwright__browser_click",
-      "mcp__playwright__browser_hover"
+      "mcp__playwright__browser_hover",
+      "Bash(npm run lint:*)",
+      "mcp__playwright__browser_handle_dialog"
     ],
     "deny": []
   }
