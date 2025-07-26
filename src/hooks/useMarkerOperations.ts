@@ -336,7 +336,7 @@ export const useMarkerOperations = (
     if (!actionMarkers) return;
 
     try {
-      const markers = await stashappService.convertConfirmedAIMarkers(
+      const markers = await stashappService.convertConfirmedMarkersWithCorrespondingTags(
         actionMarkers
       );
       dispatch(setConfirmedAIMarkers(markers));

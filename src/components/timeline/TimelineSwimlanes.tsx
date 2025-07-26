@@ -13,6 +13,7 @@ import {
 } from "../../core/marker/markerLogic";
 import { getMarkerGroupName, getTrackCountsByGroup, createMarkersWithTracks } from "../../core/marker/markerGrouping";
 import { MarkerGroupAutocomplete } from "../marker/MarkerGroupAutocomplete";
+import { TagAutocomplete } from "../marker/TagAutocomplete";
 
 type TimelineSwimlanesProps = {
   markerGroups: TagGroup[];
@@ -47,9 +48,16 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
   const [reassignmentUI, setReassignmentUI] = useState<{
     tagName: string;
     currentTagId: string;
+    currentCorrespondingTagId: string | null;
+    correspondingTagRelationships?: Array<{
+      tagId: string;
+      tagName: string;
+      correspondingTagName: string;
+    }>;
     x: number;
     y: number;
   } | null>(null);
+  const [correspondingTagId, setCorrespondingTagId] = useState<string>("");
 
   // Ref to track swimlane elements for scrolling
   const swimlaneRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -159,22 +167,86 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
     }
   }, [allTags, markerGroupParentId, dispatch, sceneId]);
 
+  // Handle setting corresponding tag
+  const handleSetCorrespondingTag = useCallback(async (tagId: string, correspondingTagId: string | null) => {
+    try {
+      const currentTag = allTags.find(tag => tag.id === tagId);
+      if (!currentTag) {
+        console.error('Tag not found:', tagId);
+        return;
+      }
+
+      let newDescription = currentTag.description || '';
+      
+      // Remove existing "Corresponding Tag: " entry if it exists
+      newDescription = newDescription.replace(/Corresponding Tag: [^\n]*/g, '').trim();
+      
+      // Add new corresponding tag if provided
+      if (correspondingTagId) {
+        const correspondingTag = allTags.find(tag => tag.id === correspondingTagId);
+        if (correspondingTag) {
+          if (newDescription) {
+            newDescription += '\n';
+          }
+          newDescription += `Corresponding Tag: ${correspondingTag.name}`;
+        }
+      }
+
+      await stashappService.updateTag(tagId, undefined, newDescription);
+      
+      // Refresh tags to reflect the change
+      dispatch(loadAvailableTags());
+      dispatch(loadAllTags());
+      
+      // Refresh markers to sync embedded tag data
+      if (sceneId) {
+        dispatch(loadMarkers(sceneId));
+      }
+      
+      // Close the reassignment UI
+      setReassignmentUI(null);
+    } catch (error) {
+      console.error('Failed to set corresponding tag:', error);
+    }
+  }, [allTags, dispatch, sceneId]);
+
   // Handle clicking the reassignment icon
   const handleReassignmentIconClick = useCallback((e: React.MouseEvent, tagName: string, groupMarkers: SceneMarker[]) => {
     e.stopPropagation();
     
-    // Find the primary tag from the first marker in the group
+    // Find the primary tag from the first marker in the group (for marker group reassignment)
     const primaryTag = groupMarkers[0]?.primary_tag;
     if (!primaryTag) return;
 
+    // Find all tags in the system that point to this base tag as their corresponding tag
+    // This determines which state we should show
+    const tagsPointingToThisAsCorresponding = allTags.filter(tag => {
+      if (!tag.description?.includes("Corresponding Tag: ")) return false;
+      const correspondingTagName = tag.description.split("Corresponding Tag: ")[1].trim();
+      return correspondingTagName === tagName; // tagName is the base tag name
+    });
+
+    // Determine which state to show based on whether other tags point to this as corresponding
+    const correspondingTagRelationships = tagsPointingToThisAsCorresponding.length > 0
+      ? tagsPointingToThisAsCorresponding.map(tag => ({
+          tagId: tag.id,
+          tagName: tag.name,
+          correspondingTagName: tagName // This base tag name
+        }))
+      : undefined; // undefined means State 1, defined means State 2
+
+    // For State 1, we'll show TagAutocomplete, so initialize correspondingTagId
+    setCorrespondingTagId("");
 
     setReassignmentUI({
       tagName: tagName,
       currentTagId: primaryTag.id,
+      currentCorrespondingTagId: null, // Not used in new logic
+      correspondingTagRelationships, // undefined for State 1, array for State 2
       x: e.clientX,
       y: e.clientY,
     });
-  }, []);
+  }, [allTags]);
 
   if (videoDuration <= 0) {
     return null;
@@ -271,7 +343,7 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                           <button
                             className="opacity-0 group-hover/swimlane:opacity-100 transition-opacity text-blue-400 hover:text-blue-300 text-xs"
                             onClick={(e) => handleReassignmentIconClick(e, group.name, group.markers)}
-                            title="Reassign to different marker group"
+                            title="Reassign to different marker group and set corresponding tag"
                           >
                             ⚙️
                           </button>
@@ -373,11 +445,7 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                         >
                           {/* Marker content indicator */}
                           <div className="w-full h-full flex items-center justify-center">
-                            {marker.primary_tag.name.endsWith("_AI") ? (
-                              <div className="w-2 h-2 bg-purple-300 rounded-full opacity-80" />
-                            ) : (
-                              <div className="w-1 h-1 bg-white rounded-full opacity-80" />
-                            )}
+                            <div className="w-1 h-1 bg-white rounded-full opacity-80" />
                           </div>
                         </div>
                       </div>
@@ -455,29 +523,87 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
       {/* Marker Group Reassignment UI */}
       {reassignmentUI && (
         <div
-          className="fixed z-[9001] bg-gray-900 text-white p-3 rounded-lg shadow-lg border border-gray-600 w-64"
+          className="fixed z-[9001] bg-gray-900 text-white p-3 rounded-lg shadow-lg border border-gray-600 w-80"
           style={{
-            left: `${Math.max(16, Math.min(reassignmentUI.x, window.innerWidth - 256 - 16))}px`,
-            top: `${Math.max(16, reassignmentUI.y - 120)}px`,
+            left: `${Math.max(16, Math.min(reassignmentUI.x, window.innerWidth - 320 - 16))}px`,
+            top: `${Math.max(16, reassignmentUI.y - 200)}px`,
           }}
         >
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="font-bold text-sm">
               Reassign &ldquo;{reassignmentUI.tagName}&rdquo;
             </div>
-            <div className="text-xs text-gray-400">
-              Select new marker group:
+            
+            {/* Marker Group Selection */}
+            <div className="space-y-1">
+              <div className="text-xs text-gray-400">
+                Select new marker group:
+              </div>
+              <MarkerGroupAutocomplete
+                value=""
+                onChange={(newMarkerGroupId) => {
+                  handleReassignMarkerGroup(reassignmentUI.currentTagId, newMarkerGroupId);
+                }}
+                availableTags={allTags}
+                placeholder="Search marker groups..."
+                autoFocus={true}
+                onCancel={() => setReassignmentUI(null)}
+              />
             </div>
-            <MarkerGroupAutocomplete
-              value=""
-              onChange={(newMarkerGroupId) => {
-                handleReassignMarkerGroup(reassignmentUI.currentTagId, newMarkerGroupId);
-              }}
-              availableTags={allTags}
-              placeholder="Search marker groups..."
-              autoFocus={true}
-              onCancel={() => setReassignmentUI(null)}
-            />
+
+            {/* Divider */}
+            <div className="border-t border-gray-600"></div>
+
+            {/* Corresponding Tag Selection */}
+            <div className="space-y-1">
+              <div className="text-xs text-gray-400">
+                Set corresponding tag:
+              </div>
+              
+              {/* State 2: Show list of tags that point to this base tag as corresponding */}
+              {reassignmentUI.correspondingTagRelationships ? (
+                <div className="space-y-2">
+                  <div className="text-xs text-blue-300 mb-2">
+                    {reassignmentUI.tagName} has the following corresponding tags:
+                  </div>
+                  {reassignmentUI.correspondingTagRelationships.map((relationship) => (
+                    <div key={relationship.tagId} className="flex items-center justify-between bg-gray-600 px-3 py-2 rounded">
+                      <span className="text-xs text-gray-200">
+                        - {relationship.tagName}
+                      </span>
+                      <button
+                        className="text-xs bg-red-600 hover:bg-red-700 px-2 py-1 rounded"
+                        onClick={() => {
+                          handleSetCorrespondingTag(relationship.tagId, null);
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* State 1: Show autocomplete for setting corresponding tag */
+                <div className="space-y-1">
+                  <TagAutocomplete
+                    value={correspondingTagId}
+                    onChange={setCorrespondingTagId}
+                    availableTags={allTags}
+                    placeholder="Search for corresponding tag..."
+                    onSave={(tagId) => {
+                      handleSetCorrespondingTag(reassignmentUI.currentTagId, tagId || null);
+                    }}
+                    onCancel={() => setReassignmentUI(null)}
+                  />
+                  <div className="text-xs text-gray-500">
+                    Set a corresponding tag that will be converted upon completion of review.
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Note! This will overwrite the existing description of this tag with "Corresponding Tag: Target Tag". Target tag is not modified.
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Click outside to close */}

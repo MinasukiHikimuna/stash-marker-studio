@@ -520,7 +520,7 @@ export const findConfirmedAIMarkers = createAsyncThunk(
   "marker/findConfirmedAIMarkers",
   async (markers: SceneMarker[], { rejectWithValue }) => {
     try {
-      const result = await stashappService.convertConfirmedAIMarkers(markers);
+      const result = await stashappService.convertConfirmedMarkersWithCorrespondingTags(markers);
       return result;
     } catch (error) {
       return rejectWithValue(

@@ -2,7 +2,7 @@
  * Shared marker grouping algorithms for consistent sorting between display and navigation
  */
 
-import { SceneMarker } from "../../services/StashappService";
+import { SceneMarker, Tag } from "../../services/StashappService";
 import { TagGroup, MarkerWithTrack } from "./types";
 import { getMarkerStatus } from "./markerLogic";
 import { MarkerStatus } from "./types";
@@ -12,6 +12,21 @@ export type MarkerGroupInfo = {
   fullName: string;
   displayName: string;
 } | null;
+
+/**
+ * Extract corresponding tag name from tag description
+ */
+function getCorrespondingTagName(tag: Tag): string | null {
+  if (!tag.description?.includes("Corresponding Tag: ")) {
+    return null;
+  }
+  
+  const correspondingTagName = tag.description
+    .split("Corresponding Tag: ")[1]
+    .trim();
+    
+  return correspondingTagName || null;
+}
 
 /**
  * Extract marker group name from tag parents
@@ -45,18 +60,18 @@ export function getMarkerGroupName(marker: SceneMarker, markerGroupParentId: str
 }
 
 /**
- * Group markers by tags with proper marker group ordering
+ * Group markers by tags with proper marker group ordering and corresponding tag support
  * This is the shared algorithm used by both Timeline display and keyboard navigation
  */
 export function groupMarkersByTags(markers: SceneMarker[], markerGroupParentId: string): TagGroup[] {
 
-  // Group all markers by tag name (with AI tag correspondence)
+  // Group all markers by tag name (with corresponding tag support)
   const tagGroupMap = new Map<string, SceneMarker[]>();
 
   for (const marker of markers) {
-    const groupName = marker.primary_tag.name.endsWith("_AI")
-      ? marker.primary_tag.name.replace("_AI", "") // Simple AI tag grouping
-      : marker.primary_tag.name;
+    // Check if this tag has a corresponding tag defined
+    const correspondingTag = getCorrespondingTagName(marker.primary_tag);
+    const groupName = correspondingTag || marker.primary_tag.name;
 
     if (!tagGroupMap.has(groupName)) {
       tagGroupMap.set(groupName, []);

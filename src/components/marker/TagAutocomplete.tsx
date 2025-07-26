@@ -28,6 +28,7 @@ export function TagAutocomplete({
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [openUpward, setOpenUpward] = useState(false);
+  const [shouldAutoOpen, setShouldAutoOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -46,6 +47,7 @@ export function TagAutocomplete({
   // Auto-focus when component mounts if autoFocus is true
   useEffect(() => {
     if (autoFocus && inputRef.current) {
+      setShouldAutoOpen(true);
       inputRef.current.focus();
       // Don't select text since we're clearing it - just focus for typing
     }
@@ -78,14 +80,19 @@ export function TagAutocomplete({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
+    // Always open when user types
     setIsOpen(true);
     setSelectedIndex(-1);
     checkDropdownDirection();
   };
 
   const handleInputFocus = () => {
-    setIsOpen(true);
-    checkDropdownDirection();
+    // Only auto-open if shouldAutoOpen is true (set when autoFocus is used)
+    if (shouldAutoOpen) {
+      setIsOpen(true);
+      checkDropdownDirection();
+      setShouldAutoOpen(false); // Reset after use
+    }
   };
 
   const checkDropdownDirection = () => {

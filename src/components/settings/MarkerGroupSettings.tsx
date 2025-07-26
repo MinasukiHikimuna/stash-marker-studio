@@ -12,6 +12,7 @@ import {
 } from "@/store/slices/configSlice";
 import { TagAutocomplete } from "@/components/marker/TagAutocomplete";
 import { stashappService } from "@/services/StashappService";
+import type { Tag } from "@/services/StashappService";
 
 type MarkerGroupTag = {
   id: string;
@@ -321,6 +322,130 @@ export default function MarkerGroupSettings() {
     }
   };
 
+  // Helper function to get corresponding tag relationships
+  const getCorrespondingTagRelationships = () => {
+    const relationships: { baseTag: Tag; correspondingTags: Tag[] }[] = [];
+    
+    // Find all tags that have corresponding tag descriptions
+    const tagsWithCorrespondingTags = availableTags.filter(tag => 
+      tag.description?.includes("Corresponding Tag: ")
+    );
+
+    // Group by the corresponding tag they point to
+    const correspondingMap = new Map<string, Tag[]>();
+    
+    tagsWithCorrespondingTags.forEach(tag => {
+      if (tag.description?.includes("Corresponding Tag: ")) {
+        const correspondingTagName = tag.description
+          .split("Corresponding Tag: ")[1]
+          .trim();
+        
+        const baseTag = availableTags.find(t => t.name === correspondingTagName);
+        if (baseTag) {
+          if (!correspondingMap.has(baseTag.name)) {
+            correspondingMap.set(baseTag.name, []);
+          }
+          correspondingMap.get(baseTag.name)?.push(tag);
+        }
+      }
+    });
+
+    // Convert map to array format
+    correspondingMap.forEach((correspondingTags, baseTagName) => {
+      const baseTag = availableTags.find(t => t.name === baseTagName);
+      if (baseTag) {
+        relationships.push({ baseTag, correspondingTags });
+      }
+    });
+
+    return relationships;
+  };
+
+  // Helper function to find tags that can have corresponding tags set
+  const getTagsWithoutCorrespondingTags = () => {
+    const relationships = getCorrespondingTagRelationships();
+    const tagsWithCorrespondingTags = new Set();
+    const tagsUsedAsCorresponding = new Set();
+
+    // Track which tags already have corresponding relationships
+    relationships.forEach(({ baseTag, correspondingTags }) => {
+      tagsUsedAsCorresponding.add(baseTag.name);
+      correspondingTags.forEach(tag => {
+        tagsWithCorrespondingTags.add(tag.name);
+      });
+    });
+
+    // Find tags that don't have corresponding tags and aren't used as corresponding tags
+    return availableTags.filter(tag => 
+      !tagsWithCorrespondingTags.has(tag.name) && 
+      !tagsUsedAsCorresponding.has(tag.name) &&
+      !tag.description?.includes("Corresponding Tag: ")
+    );
+  };
+
+  // Handle removing a corresponding tag relationship
+  const removeCorrespondingTag = async (tagId: string) => {
+    try {
+      setIsLoading(true);
+      
+      const tag = availableTags.find(t => t.id === tagId);
+      if (!tag) return;
+
+      let newDescription = tag.description || '';
+      
+      // Remove existing "Corresponding Tag: " entry
+      newDescription = newDescription.replace(/Corresponding Tag: [^\n]*/g, '').trim();
+      
+      await stashappService.updateTag(tagId, undefined, newDescription);
+      
+      // Refresh tags to reflect the change
+      dispatch(loadAvailableTags());
+      
+      setMessage(`Removed corresponding tag relationship for: ${tag.name}`);
+    } catch (error) {
+      setMessage("Failed to remove corresponding tag: " + (error as Error).message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle setting a corresponding tag
+  const setCorrespondingTag = async (baseTagId: string, correspondingTagId: string) => {
+    try {
+      setIsLoading(true);
+      
+      const correspondingTag = availableTags.find(tag => tag.id === correspondingTagId);
+      const baseTag = availableTags.find(tag => tag.id === baseTagId);
+      
+      if (!correspondingTag || !baseTag) {
+        setMessage("Tag not found");
+        return;
+      }
+
+      let newDescription = correspondingTag.description || '';
+      
+      // Remove existing "Corresponding Tag: " entry if it exists
+      newDescription = newDescription.replace(/Corresponding Tag: [^\n]*/g, '').trim();
+      
+      // Add new corresponding tag
+      if (newDescription) {
+        newDescription += '\n';
+      }
+      newDescription += `Corresponding Tag: ${baseTag.name}`;
+
+      await stashappService.updateTag(correspondingTagId, undefined, newDescription);
+      
+      // Refresh tags to reflect the change
+      dispatch(loadAvailableTags());
+      
+      setMessage(`Set ${correspondingTag.name} to correspond to ${baseTag.name}`);
+    } catch (error) {
+      setMessage("Failed to set corresponding tag: " + (error as Error).message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Show loading state while tags are being loaded
   if (isLoadingTags) {
     return (
@@ -424,6 +549,120 @@ export default function MarkerGroupSettings() {
           )}
         </div>
       )}
+
+      {/* Corresponding Tag Relationships */}
+      <div className="bg-gray-800 p-6 rounded-lg">
+        <h2 className="text-xl font-semibold mb-4">Corresponding Tag Relationships</h2>
+        
+        {(() => {
+          const relationships = getCorrespondingTagRelationships();
+          const availableForCorrespondingTags = getTagsWithoutCorrespondingTags();
+          
+          return (
+            <div className="space-y-6">
+              {/* Show existing relationships */}
+              {relationships.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Current Relationships</h3>
+                  {relationships.map(({ baseTag, correspondingTags }) => (
+                    <div key={baseTag.id} className="bg-gray-700 p-4 rounded-lg">
+                      <div className="text-sm text-gray-300 mb-2">
+                        <span className="font-medium text-white">{baseTag.name}</span> has the following corresponding tags:
+                      </div>
+                      <div className="space-y-2">
+                        {correspondingTags.map(tag => (
+                          <div key={tag.id} className="flex items-center justify-between bg-gray-600 px-3 py-2 rounded">
+                            <span className="text-sm text-gray-200">- {tag.name}</span>
+                            <button
+                              onClick={() => removeCorrespondingTag(tag.id)}
+                              className="text-xs bg-red-600 hover:bg-red-700 px-2 py-1 rounded transition-colors"
+                              disabled={isLoading}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Show tags that can have corresponding tags set */}
+              {availableForCorrespondingTags.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Set Corresponding Tags</h3>
+                  <p className="text-sm text-gray-400">
+                    These tags don&apos;t have corresponding tag relationships. You can set a corresponding tag for any of them.
+                  </p>
+                  {availableForCorrespondingTags.map(tag => (
+                    <CorrespondingTagSetter
+                      key={tag.id}
+                      tag={tag}
+                      availableTags={availableTags.filter(t => 
+                        t.id !== tag.id && 
+                        !availableForCorrespondingTags.some(at => at.id === t.id)
+                      )}
+                      onSet={(baseTagId) => setCorrespondingTag(baseTagId, tag.id)}
+                      isLoading={isLoading}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {relationships.length === 0 && availableForCorrespondingTags.length === 0 && (
+                <div className="text-center py-8 text-gray-400">
+                  All tags have corresponding tag relationships defined.
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+    </div>
+  );
+}
+
+interface CorrespondingTagSetterProps {
+  tag: Tag;
+  availableTags: Tag[];
+  onSet: (baseTagId: string) => void;
+  isLoading: boolean;
+}
+
+function CorrespondingTagSetter({ tag, availableTags, onSet, isLoading }: CorrespondingTagSetterProps) {
+  const [selectedBaseTagId, setSelectedBaseTagId] = useState("");
+
+  return (
+    <div className="bg-gray-700 p-4 rounded-lg">
+      <div className="space-y-3">
+        <div className="text-sm">
+          <span className="font-medium text-white">{tag.name}</span>
+          <span className="text-gray-400"> corresponds to:</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <TagAutocomplete
+              value={selectedBaseTagId}
+              onChange={setSelectedBaseTagId}
+              availableTags={availableTags}
+              placeholder="Search for base tag..."
+            />
+          </div>
+          <button
+            onClick={() => {
+              if (selectedBaseTagId) {
+                onSet(selectedBaseTagId);
+                setSelectedBaseTagId("");
+              }
+            }}
+            disabled={!selectedBaseTagId || isLoading}
+            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
+          >
+            Set
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -942,7 +942,7 @@ export class StashappService {
     return result.data.metadataGenerate;
   }
 
-  async buildAITagLookupTable(): Promise<
+  async buildCorrespondingTagLookupTable(): Promise<
     Map<string, { id: string; name: string; correspondingTag: Tag | null }>
   > {
     const allTags = await this.getAllTags();
@@ -951,45 +951,38 @@ export class StashappService {
       { id: string; name: string; correspondingTag: Tag | null }
     >();
 
-    console.log("Building AI tag lookup table...");
+    console.log("Building corresponding tag lookup table...");
     console.log("Total tags found:", allTags.findTags.tags.length);
 
     for (const tag of allTags.findTags.tags) {
-      if (tag.name.endsWith("_AI")) {
-        console.log("Found AI tag:", tag.name);
+      if (tag.description?.includes("Corresponding Tag: ")) {
+        console.log("Found tag with corresponding tag:", tag.name);
         console.log("Tag description:", tag.description);
 
-        if (tag.description?.includes("Corresponding Tag: ")) {
-          const correspondingTagName = tag.description
-            .split("Corresponding Tag: ")[1]
-            .trim();
-          console.log("Looking for corresponding tag:", correspondingTagName);
+        const correspondingTagName = tag.description
+          .split("Corresponding Tag: ")[1]
+          .trim();
+        console.log("Looking for corresponding tag:", correspondingTagName);
 
-          const correspondingTag = allTags.findTags.tags.find(
-            (t) => t.name === correspondingTagName
-          );
+        const correspondingTag = allTags.findTags.tags.find(
+          (t) => t.name === correspondingTagName
+        );
 
-          if (correspondingTag) {
-            console.log("Found corresponding tag:", correspondingTag.name);
-          } else {
-            console.log("No corresponding tag found for:", tag.name);
-          }
-
-          lookupTable.set(tag.id, {
-            id: tag.id,
-            name: tag.name,
-            correspondingTag: correspondingTag || null,
-          });
+        if (correspondingTag) {
+          console.log("Found corresponding tag:", correspondingTag.name);
         } else {
-          console.log(
-            "No corresponding tag info in description for:",
-            tag.name
-          );
+          console.log("No corresponding tag found for:", tag.name);
         }
+
+        lookupTable.set(tag.id, {
+          id: tag.id,
+          name: tag.name,
+          correspondingTag: correspondingTag || null,
+        });
       }
     }
 
-    console.log("AI tag lookup table size:", lookupTable.size);
+    console.log("Corresponding tag lookup table size:", lookupTable.size);
     return lookupTable;
   }
 
@@ -1136,15 +1129,15 @@ export class StashappService {
       : `${fullUrl}?apikey=${this.apiKey}`;
   }
 
-  async convertConfirmedAIMarkers(
+  async convertConfirmedMarkersWithCorrespondingTags(
     markers: SceneMarker[]
-  ): Promise<{ aiMarker: SceneMarker; correspondingTag: Tag }[]> {
-    console.log("Converting confirmed AI markers...");
+  ): Promise<{ sourceMarker: SceneMarker; correspondingTag: Tag }[]> {
+    console.log("Converting confirmed markers with corresponding tags...");
     console.log("Total markers to check:", markers.length);
 
-    const aiTagLookup = await this.buildAITagLookupTable();
-    const confirmedAIMarkers: {
-      aiMarker: SceneMarker;
+    const correspondingTagLookup = await this.buildCorrespondingTagLookupTable();
+    const confirmedMarkersToConvert: {
+      sourceMarker: SceneMarker;
       correspondingTag: Tag;
     }[] = [];
 
@@ -1160,33 +1153,33 @@ export class StashappService {
         marker.tags.map((t) => t.name)
       );
 
-      const aiTagInfo = aiTagLookup.get(marker.primary_tag.id);
-      console.log("AI tag info found:", !!aiTagInfo);
-      if (aiTagInfo) {
-        console.log("AI tag details:", {
-          name: aiTagInfo.name,
-          correspondingTag: aiTagInfo.correspondingTag?.name,
+      const correspondingTagInfo = correspondingTagLookup.get(marker.primary_tag.id);
+      console.log("Corresponding tag info found:", !!correspondingTagInfo);
+      if (correspondingTagInfo) {
+        console.log("Corresponding tag details:", {
+          name: correspondingTagInfo.name,
+          correspondingTag: correspondingTagInfo.correspondingTag?.name,
         });
       }
 
-      if (isConfirmed && aiTagInfo?.correspondingTag) {
-        console.log("Adding confirmed AI marker for conversion:", {
-          aiTag: marker.primary_tag.name,
-          correspondingTag: aiTagInfo.correspondingTag.name,
+      if (isConfirmed && correspondingTagInfo?.correspondingTag) {
+        console.log("Adding confirmed marker for conversion:", {
+          sourceTag: marker.primary_tag.name,
+          correspondingTag: correspondingTagInfo.correspondingTag.name,
         });
 
-        confirmedAIMarkers.push({
-          aiMarker: marker,
-          correspondingTag: aiTagInfo.correspondingTag,
+        confirmedMarkersToConvert.push({
+          sourceMarker: marker,
+          correspondingTag: correspondingTagInfo.correspondingTag,
         });
       }
     }
 
     console.log(
       "Total markers ready for conversion:",
-      confirmedAIMarkers.length
+      confirmedMarkersToConvert.length
     );
-    return confirmedAIMarkers;
+    return confirmedMarkersToConvert;
   }
 
   async updateTagParents(tagId: string, newParentIds: string[]): Promise<Tag> {
