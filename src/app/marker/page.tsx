@@ -325,15 +325,6 @@ export default function MarkerPage() {
     fetchTags();
   }, [fetchTags]);
 
-
-  // confirmDeleteRejectedMarkers now comes from useMarkerOperations hook
-
-  // handleAIConversion and handleConfirmAIConversion now come from useMarkerOperations hook
-
-  // checkAllMarkersApproved now comes from useMarkerOperations hook
-
-  // identifyAITagsToRemove now comes from useMarkerOperations hook
-
   // Handle completion button click
   const handleComplete = useCallback(async () => {
     const actionMarkers = getActionMarkers();
