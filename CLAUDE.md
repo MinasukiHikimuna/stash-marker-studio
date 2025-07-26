@@ -35,7 +35,7 @@ Stash Marker Studio is a companion app for Stashapp that makes working with vide
 
 - Markers have status tags: CONFIRMED, REJECTED, or unprocessed
 - Shot boundary markers (from PySceneDetect) are filtered out of action markers
-- AI tags ending with "\_AI" can be converted to corresponding real tags
+- Tags with corresponding tag metadata can be converted to their corresponding real tags
 
 ### Key Domain Concepts
 
@@ -51,7 +51,7 @@ Stash Marker Studio is a companion app for Stashapp that makes working with vide
 - AI-generated: From external AI models
 - PySceneDetect: Shot boundary detection (MARKER_SHOT_BOUNDARY tag)
 
-**AI Tag Conversion**: AI tags (ending "\_AI") can be converted to real tags via description field "Corresponding Tag: {TagName}"
+**Tag Conversion**: Tags with corresponding tag metadata can be converted to their corresponding real tags via description field "Corresponding Tag: {TagName}"
 
 ### Component Structure
 

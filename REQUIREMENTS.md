@@ -1,6 +1,309 @@
 # Requirements Documentation
 
+This should not deal with the details of the code. It should document high-level requirements.
+
 ## Marker page
+
+### General Navigation
+
+#### Overview
+
+The general navigation system provides keyboard-driven movement through the timeline interface, including swimlane navigation, zoom controls, and marker selection based on video playhead position.
+
+#### Key Concepts
+
+- **Swimlane navigation**: Moving between different marker categories/types
+- **Timeline zoom**: Adjusting temporal resolution for detailed work
+- **Playhead-based selection**: Automatic marker selection based on video position
+- **Timeline centering**: Keeping important content visible during navigation
+
+#### Navigation Shortcuts
+
+##### Swimlane Movement
+
+- **Up arrow**: Move to swimlane above current selection
+- **Down arrow**: Move to swimlane below current selection
+- **Left arrow**: Move to previous marker within current swimlane
+- **Right arrow**: Move to next marker within current swimlane
+
+##### Timeline Zoom Controls
+
+- **Default key**: `+` (Plus)
+- **Function**: Zoom in to show more temporal detail
+- **Behavior**: Increases timeline resolution for precise work
+
+- **Default key**: `-` (Minus)
+- **Function**: Zoom out to show broader temporal context
+- **Behavior**: Decreases timeline resolution for overview
+
+- **Default key**: `0` (Zero)
+- **Function**: Reset timeline zoom to default level
+- **Behavior**: Returns to standard timeline resolution
+
+##### Playhead-Based Marker Selection
+
+- **Default key**: `Tab`
+- **Function**: Select next marker at or after current video position
+- **Scope**: Searches forward in time from playhead position
+- **Behavior**: Automatically updates as video plays
+
+- **Default key**: `Shift+Tab`
+- **Function**: Select previous marker at or before current video position
+- **Scope**: Searches backward in time from playhead position
+- **Behavior**: Finds most recent marker relative to playhead
+
+##### Center Timeline on Playhead
+
+- **Default key**: `H`
+- **Function**: Center timeline view on current video playhead position
+- **Behavior**: Adjusts timeline scroll to keep playhead visible
+- **Context**: Maintains current zoom level while adjusting position
+
+#### Behavior Specifications
+
+##### Swimlane Order
+
+- Navigation follows visual swimlane order from top to bottom
+- Boundary behavior stops at first/last swimlanes without wrapping
+- Empty swimlanes are skipped during navigation
+
+##### Zoom Behavior
+
+- Zoom operations maintain playhead position as focal point
+- Minimum and maximum zoom levels prevent excessive scaling
+- Zoom state persists across navigation operations
+
+##### Playhead Synchronization
+
+- Timeline automatically follows video playback
+- Manual centering overrides automatic following temporarily
+- System re-enables automatic following after user inactivity
+
+##### Expected User Experience
+
+1. Users can quickly navigate between marker categories using arrow keys
+2. Users can adjust timeline detail level for different tasks using +/-/0
+3. Users can synchronize marker selection with video position using Tab/Shift+Tab
+4. Users can maintain visual context during navigation using H
+5. Navigation operations feel responsive and predictable
+6. System maintains user orientation during complex navigation sequences
+
+### Marker Grouping and Organization
+
+#### Overview
+
+The system provides two levels of marker organization: tag-based swimlane grouping and hierarchical marker groups. This allows for both automatic grouping of related markers on individual swimlanes and manual organization of multiple swimlanes into logical sections.
+
+#### Tag-Based Swimlane Grouping
+
+##### Corresponding Tag System
+
+- **Same Swimlane Grouping**: Tags with "Corresponding Tag" metadata are grouped together on the same swimlane
+- **Metadata-Based**: Grouping relies on the "Corresponding Tag: {TagName}" description field rather than naming conventions
+- **User Control**: Users explicitly define which tags should be grouped together via tag descriptions
+- **Actual Tag Display**: Swimlanes show actual tag names, making it clear what tags are being used
+
+##### Swimlane Creation
+
+- **Per Tag Type**: Each unique tag gets its own swimlane by default
+- **Optional Grouping**: Tags are only grouped when explicitly configured via corresponding tag metadata
+- **Transparent Organization**: Users can see exactly which tags are in use without hidden grouping logic
+- **Track Assignment**: Overlapping markers within a swimlane use separate tracks to prevent visual conflicts
+- **Alphabetical Ordering**: Swimlanes are ordered alphabetically by tag name when not part of a marker group
+
+##### Corresponding Tag Management
+
+- **Gear Icon Access**: Each swimlane displays a gear icon on hover for managing corresponding tag relationships
+- **Two-State Interface**: Gear icon shows different interfaces based on the swimlane's corresponding tag state
+- **State 1 - No Relationships**: If the swimlane's base tag has no other tags pointing to it as corresponding, shows TagAutocomplete to set a corresponding tag for any tag in the swimlane
+- **State 2 - Existing Relationships**: If the swimlane's base tag has other tags pointing to it as corresponding, shows list format like "Kissing has following corresponding tags: - Kissing_AI [Remove]"
+- **Individual Removal**: Each corresponding tag relationship displays its own Remove button
+- **Description Field Management**: Remove buttons reset the "Corresponding Tag: {TagName}" description field of the specific AI tag
+- **Real-time Updates**: Changes are immediately reflected in the timeline and trigger data refresh
+
+#### Marker Groups
+
+##### Overview
+
+Marker groups provide hierarchical organization of multiple swimlanes into visually distinct sections with customizable ordering and display names.
+
+##### Key Concepts
+
+- **Marker Group Parent Tag**: A configured tag that serves as the parent for all marker group tags
+- **Marker Group Tags**: Child tags that define specific marker groups with "Marker Group: N. Name" naming convention
+- **Swimlane Grouping**: Each marker group contains multiple related swimlanes that are visually grouped together
+- **Natural Ordering**: Marker groups are sorted numerically by their order number prefix
+
+##### Tag Hierarchy
+
+- **Parent Tag**: Configured via settings as the root for all marker group tags
+- **Child Tags**: Named with pattern "Marker Group: N. DisplayName" where N is order number
+- **Primary Tag Association**: Markers are grouped when their primary tag has a marker group parent
+
+##### Swimlane Assignment
+
+- Each marker group contains multiple swimlanes that share the same marker group classification
+- Swimlanes within a group are visually grouped together in the timeline
+- Groups are ordered by the numeric prefix in marker group names (1, 2, 3, etc.)
+- Multiple tracks within each swimlane handle overlapping markers automatically
+- Empty marker groups are excluded from timeline display
+
+#### Configuration
+
+##### Parent Tag Setup
+
+- **Location**: Settings → Marker Groups → Parent Tag for Marker Groups
+- **Function**: Defines which tag serves as the parent for all marker group tags
+- **Persistence**: Configuration saved to server and synchronized across sessions
+- **Requirement**: Must be set before creating or managing marker group tags
+
+##### Marker Group Management
+
+- **Creation**: Add new marker groups with custom display names
+- **Automatic Naming**: System prefixes groups with "Marker Group: N." for consistent ordering
+- **Drag Reordering**: Visual drag-and-drop interface for changing group order
+- **Rename Operations**: Edit display names while preserving numeric ordering
+- **Deletion**: Remove marker groups (with confirmation for safety)
+
+#### Timeline Integration
+
+##### Swimlane Display
+
+- **Visual Separation**: Each marker group appears as a distinct section containing related swimlanes
+- **Group Headers**: Marker group names are displayed above their contained swimlanes
+- **Multi-Track Support**: Overlapping markers within each swimlane use separate tracks
+- **Height Calculation**: Each swimlane height adjusts automatically based on track count
+- **Status Indicators**: Individual swimlane and group status (confirmed/rejected) affects visual styling
+
+##### Navigation Support
+
+- **Keyboard Navigation**: Arrow keys move between swimlanes and markers, respecting group boundaries
+- **Global Navigation**: Shift+N/M for cross-group unprocessed marker navigation
+- **Selection Context**: Selected marker highlights its containing swimlane and group
+- **Auto-Scroll**: Timeline automatically scrolls to show selected marker's group and swimlane
+
+
+#### Behavior Specifications
+
+##### Organization Hierarchy
+
+- **Two-Level System**: Tag-based swimlane grouping operates independently from marker group organization
+- **Swimlane Level**: Tags with corresponding tag metadata optionally group on the same swimlane
+- **Group Level**: Multiple swimlanes can be manually organized into marker groups
+- **Sort Order**: Marker groups sorted by numeric prefix, then swimlanes within groups alphabetically
+- **Status Calculation**: Group status based on collective status of contained swimlanes
+
+##### Visual Organization
+
+- **Group Headers**: Marker group names are displayed as section headers above their swimlanes
+- **Swimlane Grouping**: Related swimlanes are visually grouped together under their marker group
+- **Track Indicators**: Multi-track swimlanes show track count in their individual labels
+- **Status Colors**: Rejected swimlanes use red background, selected swimlanes use highlighted background
+
+##### Navigation Behavior
+
+- **Group Order**: Navigation follows marker group order (1, 2, 3, etc.) then swimlane order within groups
+- **Within-Group Movement**: Arrow keys navigate between swimlanes within the current marker group
+- **Cross-Group Movement**: Global navigation (Shift+N/M) searches across all marker groups and swimlanes
+- **Boundary Handling**: Navigation stops at first/last items without wrapping
+
+#### Expected User Experience
+
+1. Users can organize related swimlanes into logical categories using marker groups
+2. Users can customize the order and names of marker groups through drag-and-drop interface
+3. Users can navigate efficiently between related markers using group-aware keyboard shortcuts
+4. Users can visually distinguish between different marker categories through group separation
+5. System automatically handles overlapping markers within swimlanes using multi-track layout
+6. Configuration persists across sessions and synchronizes with server storage
+
+
+### Video Playback Controls
+
+#### Overview
+
+The video playback control system provides comprehensive keyboard shortcuts for video navigation, including play/pause, seeking, and frame-precise stepping for detailed marker work.
+
+#### Key Concepts
+
+- **Play/pause control**: Basic video playback state management
+- **Seeking operations**: Jumping to specific time positions
+- **Frame stepping**: Frame-accurate navigation for precise work
+- **Playback from markers**: Starting playback from specific marker positions
+
+#### Playback Shortcuts
+
+##### Play/Pause Toggle
+
+- **Default keys**: `Space` or `K`
+- **Function**: Toggle between play and pause states
+- **Behavior**: Immediate response without video buffering delays
+- **Context**: Works regardless of current timeline focus
+
+##### Seek Backward/Forward
+
+- **Default key**: `J` (Backward)
+- **Function**: Seek backward 5 seconds from current position
+- **Precision**: Accurate timing based on video frame rate
+
+- **Default key**: `L` (Forward)
+- **Function**: Seek forward 5 seconds from current position
+- **Precision**: Accurate timing based on video frame rate
+
+##### Frame Stepping
+
+- **Default key**: `,` (Comma)
+- **Function**: Step backward one frame
+- **Precision**: Single frame accuracy for detailed work
+
+- **Default key**: `.` (Period)
+- **Function**: Step forward one frame
+- **Precision**: Single frame accuracy for detailed work
+
+##### Multi-Frame Stepping
+
+- **Default key**: `Shift+,` (Shift+Comma)
+- **Function**: Step backward 10 frames
+- **Purpose**: Faster navigation while maintaining frame precision
+
+- **Default key**: `Shift+.` (Shift+Period)
+- **Function**: Step forward 10 frames
+- **Purpose**: Faster navigation while maintaining frame precision
+
+##### Play from Marker
+
+- **Default key**: `Enter`
+- **Function**: Start video playback from selected marker's start time
+- **Behavior**: Automatically seeks to marker position and begins playback
+- **Context**: Only active when a marker is selected
+
+#### Behavior Specifications
+
+##### Frame Rate Handling
+
+- All frame operations account for video-specific frame rates
+- System automatically detects frame rate from video metadata
+- Fallback to 30fps when frame rate detection fails
+
+##### Seeking Accuracy
+
+- Seeking operations maintain frame-accurate positioning
+- System handles variable frame rate videos appropriately
+- Timeline updates immediately to reflect new position
+
+##### Playback State Synchronization
+
+- Play/pause state synchronizes between video element and UI
+- Keyboard shortcuts override mouse controls when active
+- System handles video loading states gracefully
+
+##### Expected User Experience
+
+1. Users can control video playback without mouse interaction using Space/K
+2. Users can quickly navigate video content using J/L for 5-second jumps
+3. Users can perform frame-accurate work using comma/period keys
+4. Users can efficiently move through longer sequences using Shift+comma/period
+5. Users can start playback from specific markers using Enter
+6. Video controls feel responsive and provide immediate feedback
 
 ### Unprocessed Marker Navigation
 
@@ -95,7 +398,7 @@ The marker confirmation and rejection system allows users to approve or reject m
 
 - **Default key**: `Z`
 - **Function**: Toggle marker between confirmed and unprocessed states
-- **Behavior**: 
+- **Behavior**:
   - Unprocessed → Confirmed (adds MARKER_STATUS_CONFIRMED tag)
   - Confirmed → Unprocessed (removes MARKER_STATUS_CONFIRMED tag)
   - Rejected → Confirmed (removes MARKER_STATUS_REJECTED, adds MARKER_STATUS_CONFIRMED)
@@ -104,10 +407,17 @@ The marker confirmation and rejection system allows users to approve or reject m
 
 - **Default key**: `X`
 - **Function**: Toggle marker between rejected and unprocessed states
-- **Behavior**: 
+- **Behavior**:
   - Unprocessed → Rejected (adds MARKER_STATUS_REJECTED tag)
   - Rejected → Unprocessed (removes MARKER_STATUS_REJECTED tag)
   - Confirmed → Rejected (removes MARKER_STATUS_CONFIRMED, adds MARKER_STATUS_REJECTED)
+
+##### Delete All Rejected Markers
+
+- **Default key**: `Shift+X`
+- **Function**: Initiate bulk deletion of all markers with rejected status
+- **Behavior**: Opens confirmation dialog before permanent deletion
+- **Safety**: Requires explicit confirmation to prevent accidental data loss
 
 #### Behavior Specifications
 
@@ -125,3 +435,410 @@ The marker confirmation and rejection system allows users to approve or reject m
 3. Users can toggle markers back to unprocessed by pressing the same key again
 4. State changes follow predictable toggle patterns
 5. Users can easily correct mistakes by repeating the same action
+
+### Marker Creation
+
+#### Overview
+
+The marker creation system provides multiple methods for creating new markers, including regular markers, shot boundary markers, marker duplication, and marker splitting operations.
+
+#### Key Concepts
+
+- **Regular markers**: Standard action markers created at current video position
+- **Shot boundary markers**: Special markers for scene transitions (PySceneDetect integration)
+- **Marker duplication**: Creating copies of existing markers with identical properties
+- **Marker splitting**: Dividing existing markers into multiple segments
+
+#### Creation Shortcuts
+
+##### Create Regular Marker
+
+- **Default key**: `A`
+- **Function**: Create new marker at current video position
+- **Duration**: Default 20-second duration from current time
+- **Behavior**: Enters creation mode allowing immediate tag assignment
+
+##### Create Shot Boundary Marker
+
+- **Default key**: `Shift+A`
+- **Function**: Create shot boundary marker at current position
+- **Purpose**: Mark scene transitions or cuts for video editing workflow
+- **Tags**: Automatically applies shot boundary classification tags
+
+##### Duplicate Current Marker
+
+- **Default key**: `D`
+- **Function**: Create exact copy of currently selected marker
+- **Timing**: Uses same start/end times as source marker
+- **Properties**: Copies all tags and metadata from source marker
+- **Selection**: Automatically selects the new duplicate marker
+
+##### Split Current Marker
+
+- **Default key**: `S`
+- **Function**: Split selected marker at current video position
+- **Result**: Creates two markers from one, dividing at playhead position
+- **Properties**: Both resulting markers inherit original properties
+
+##### Split Video Cut Marker
+
+- **Default key**: `V`
+- **Function**: Specialized split operation for video editing workflows
+- **Purpose**: Create markers aligned with video editing cuts or transitions
+
+#### Behavior Specifications
+
+##### Creation Modes
+
+- Creation operations enter temporary editing mode
+- New markers appear immediately in timeline
+- Escape key cancels creation and removes temporary markers
+- Completion saves markers to database and applies tags
+
+##### Default Properties
+
+- New markers inherit appropriate default tags based on creation method
+- Regular markers use current tag selection context
+- Shot boundary markers apply predefined system tags
+- Duplicated markers maintain all original properties
+
+##### Expected User Experience
+
+1. Users can quickly create markers during video review using A
+2. Users can mark shot boundaries for editing workflows using Shift+A
+3. Users can duplicate good markers to save time using D
+4. Users can divide long markers into segments using S
+5. Creation operations provide immediate visual feedback
+6. System supports rapid marker creation without interrupting video flow
+
+### Marker Editing
+
+#### Overview
+
+The marker editing system provides comprehensive tools for modifying marker properties, including tag assignment, timing adjustments, and advanced operations like copying and merging marker data.
+
+#### Key Concepts
+
+- **Tag editing**: Modifying marker classifications and metadata
+- **Time adjustment**: Precise control over marker start and end times
+- **Copy/paste operations**: Transferring timing data between markers
+- **Marker merging**: Combining properties from multiple markers
+
+#### Editing Shortcuts
+
+##### Edit Marker Tag
+
+- **Default key**: `Q`
+- **Function**: Open tag editing interface for selected marker
+- **Scope**: Allows modification of all marker tags and properties
+- **Interface**: Modal or inline editing depending on context
+
+##### Set Marker Start Time
+
+- **Default key**: `W`
+- **Function**: Set marker start time to current video position
+- **Precision**: Frame-accurate timing based on video frame rate
+- **Validation**: Ensures start time does not exceed end time
+
+##### Set Marker End Time
+
+- **Default key**: `E`
+- **Function**: Set marker end time to current video position
+- **Precision**: Frame-accurate timing based on video frame rate
+- **Validation**: Ensures end time is not before start time
+
+##### Copy Marker Times
+
+- **Default key**: `T`
+- **Function**: Copy start and end times of selected marker to clipboard
+- **Storage**: Times stored in memory for pasting to other markers
+- **Format**: Preserves precise timing data for accurate transfer
+
+##### Paste Marker Times
+
+- **Default key**: `Shift+T`
+- **Function**: Apply previously copied times to selected marker
+- **Behavior**: Updates both start and end times simultaneously
+- **Requirements**: Must have previously copied times from another marker
+
+##### Copy Marker for Merge
+
+- **Default key**: `R`
+- **Function**: Copy selected marker properties for merging with another marker
+- **Data**: Captures all marker metadata including tags and timing
+- **Purpose**: First step in marker merging workflow
+
+##### Merge Marker Properties
+
+- **Default key**: `Shift+R`
+- **Function**: Merge previously copied marker properties with selected marker
+- **Behavior**: Combines tags and properties from both markers
+- **Conflict resolution**: System-defined rules for handling duplicate properties
+
+#### Behavior Specifications
+
+##### Time Precision
+
+- All timing operations use frame-accurate precision
+- System accounts for variable frame rates across different video files
+- Timing validation prevents invalid marker configurations
+
+##### Property Inheritance
+
+- Merged markers combine properties intelligently
+- Conflicting properties follow predefined resolution rules
+- System maintains data integrity throughout merge operations
+
+##### Expected User Experience
+
+1. Users can quickly modify marker tags using Q
+2. Users can set precise marker boundaries using W/E while watching video
+3. Users can transfer timing between similar markers using T/Shift+T
+4. Users can combine marker properties efficiently using R/Shift+R
+5. Editing operations provide immediate visual feedback
+6. System prevents invalid marker configurations through validation
+
+### Video Jump Navigation
+
+#### Overview
+
+The video jump navigation system provides shortcuts for quickly moving to specific positions within the video, including marker boundaries, scene boundaries, and shot transitions.
+
+#### Key Concepts
+
+- **Marker boundaries**: Jumping to start/end positions of selected marker
+- **Scene boundaries**: Navigating to video beginning/end
+- **Shot navigation**: Moving between detected shot boundaries
+- **Contextual jumping**: Navigation that respects current selection state
+
+#### Jump Navigation Shortcuts
+
+##### Jump to Marker Boundaries
+
+- **Default key**: `I`
+- **Function**: Jump to start time of currently selected marker
+- **Behavior**: Seeks video to marker's start position without changing playback state
+
+- **Default key**: `O`
+- **Function**: Jump to end time of currently selected marker
+- **Behavior**: Seeks video to marker's end position (or start + 30s if no end time)
+
+##### Jump to Scene Boundaries
+
+- **Default key**: `Shift+I`
+- **Function**: Jump to beginning of current scene/video
+- **Position**: Seeks to 0:00 timestamp
+- **Context**: Useful for reviewing entire scene content
+
+- **Default key**: `Shift+O`
+- **Function**: Jump to end of current scene/video
+- **Position**: Seeks to final timestamp of video
+- **Context**: Useful for checking scene completion
+
+##### Shot Boundary Navigation
+
+- **Default key**: `Y`
+- **Function**: Jump to previous shot boundary
+- **Integration**: Uses PySceneDetect shot boundary data when available
+- **Fallback**: Uses manual shot boundary markers if auto-detection unavailable
+
+- **Default key**: `U`
+- **Function**: Jump to next shot boundary
+- **Integration**: Uses PySceneDetect shot boundary data when available
+- **Fallback**: Uses manual shot boundary markers if auto-detection unavailable
+
+#### Behavior Specifications
+
+##### Marker Context Requirements
+
+- Marker boundary jumps require an active marker selection
+- System provides feedback when no marker is selected
+- Invalid markers (no timing data) are handled gracefully
+
+##### Shot Boundary Integration
+
+- Shot boundaries come from PySceneDetect integration when available
+- Manual shot boundary markers serve as backup navigation points
+- System intelligently combines automatic and manual shot data
+
+##### Jump Accuracy
+
+- All jump operations use frame-accurate positioning
+- System accounts for video-specific timing requirements
+- Edge cases (missing data, invalid positions) are handled safely
+
+##### Expected User Experience
+
+1. Users can quickly navigate to marker boundaries for review using I/O
+2. Users can jump to scene start/end for context using Shift+I/O
+3. Users can move between shots efficiently using Y/U
+4. Jump operations provide immediate visual feedback
+5. System maintains video context during navigation jumps
+6. Navigation feels predictable and supports rapid review workflows
+
+### AI Feedback Collection
+
+#### Overview
+
+The AI feedback collection system provides tools for collecting feedback on AI-generated markers to improve AI model training. This system operates independently from marker states and allows users to flag problematic AI predictions while automatically rejecting the markers.
+
+#### Key Concepts
+
+- **AI feedback collection**: Independent system for tracking AI model errors
+- **Automatic rejection**: Markers are automatically rejected when added to feedback collection
+- **Persistent storage**: Feedback data persists independently of marker lifecycle
+- **Screengrab generation**: Client automatically captures video frames for each collected marker
+- **Export capability**: Feedback data can be downloaded as organized zip files
+
+#### AI Feedback Shortcuts
+
+##### Add to AI Feedback Collection
+
+- **Default key**: `C`
+- **Function**: Add current marker to AI feedback collection and reject it
+- **Behavior**:
+  - Rejects the marker (adds MARKER_STATUS_REJECTED tag)
+  - Adds marker metadata to AI feedback collection storage
+  - Triggers screengrab capture of current video frame
+  - Persists feedback data independently of marker state
+- **Storage**: Uses local storage to persist AI feedback data across sessions
+
+##### Open AI Feedback Modal
+
+- **Default key**: `Shift+C`
+- **Function**: Open modal interface for managing AI feedback collection
+- **Scope**: Displays all markers currently in AI feedback collection
+- **Features**:
+  - Review collected feedback items
+  - Preview captured screengrabs
+  - Download feedback as zip file
+  - Remove items from collection
+
+#### Behavior Specifications
+
+##### AI Feedback Data Management
+
+- AI feedback data is stored locally with complete marker metadata
+- Includes marker timing, tag information, scene context, and video screengrabs
+- Data persists independently of marker lifecycle (markers can be deleted without losing feedback)
+- Feedback collection survives browser sessions and application restarts
+- No automatic sync with server - data remains local until explicitly exported
+
+##### Screengrab Capture
+
+- Automatically captures current video frame when marker is added to collection
+- Screengrabs are organized by marker for easy review
+- Images stored locally until exported
+- Supports various video formats and resolutions
+
+##### Export Functionality
+
+- Feedback data exported as organized zip file
+- Contains marker metadata and associated screengrabs
+- Grouped by scene/marker for easy analysis
+- Suitable for AI model training feedback workflows
+
+##### Expected User Experience
+
+1. Users can quickly flag problematic AI markers for training feedback using C
+2. Users can access comprehensive feedback management interface using Shift+C
+3. Users can export organized feedback packages for AI model improvement
+4. System automatically captures relevant visual context for each flagged marker
+5. Feedback collection operates independently of normal marker workflow
+6. Users can safely delete markers knowing feedback data is preserved
+
+### System Operations
+
+#### Overview
+
+The system operations provide essential application control functions, including escape handling for canceling operations, modal dialog management, and state recovery mechanisms.
+
+#### Key Concepts
+
+- **Escape handling**: Universal cancel operation for various application modes
+- **Modal management**: Keyboard control for dialog interactions
+- **State recovery**: Graceful handling of interrupted operations
+- **Mode detection**: Context-aware behavior based on current application state
+
+#### System Shortcuts
+
+##### Escape Key Handling
+
+- **Default key**: `Escape`
+- **Function**: Context-sensitive cancel operation
+- **Behaviors**:
+  - **During marker editing**: Cancel edit and restore original marker state
+  - **During marker creation**: Remove temporary marker and exit creation mode
+  - **During marker duplication**: Cancel duplication and restore original selection
+  - **In normal mode**: No action (prevents accidental state changes)
+
+##### Modal Dialog Controls
+
+- **Default key**: `Enter` (in modal context)
+- **Function**: Confirm modal dialog action
+- **Scope**: Works in completion modal and deletion confirmation dialog
+- **Priority**: Modal shortcuts take precedence over normal shortcuts
+
+- **Default key**: `Escape` (in modal context)
+- **Function**: Cancel modal dialog action
+- **Scope**: Closes any open modal without executing action
+- **Safety**: Prevents accidental destructive operations
+
+#### Behavior Specifications
+
+##### Context Detection
+
+- System automatically detects current application mode
+- Escape behavior adapts to current operation context
+- Modal state takes priority over normal operation shortcuts
+
+##### State Recovery
+
+- Interrupted operations restore application to previous stable state
+- Temporary data (like temp markers) is cleaned up automatically
+- User selections are preserved when safe to do so
+
+##### Error Handling
+
+- System handles invalid states gracefully without crashes
+- User feedback provided for failed operations
+- Recovery mechanisms restore application functionality
+
+##### Expected User Experience
+
+1. Users can cancel any operation safely using Escape
+2. Users can confirm modal actions quickly using Enter
+3. Users can abandon operations without losing work
+4. System behavior is predictable across different modes
+5. Error states are resolved automatically when possible
+6. Application maintains stable state throughout complex operations
+
+## Implementation Notes
+
+### Keyboard Shortcut Architecture
+
+- All shortcuts are managed through the `KeyboardShortcutService`
+- Dynamic registration allows for customizable key bindings
+- Conflict resolution ensures single action per key combination
+- Context awareness prevents inappropriate action execution
+
+### Integration Requirements
+
+- **Stashapp Backend**: GraphQL mutations for marker operations
+- **PySceneDetect**: Optional integration for automatic shot boundary detection
+- **Local Storage**: Persistent incorrect marker tracking
+- **Video Element**: Direct integration for frame-accurate seeking
+
+### Performance Considerations
+
+- Keyboard handlers use event delegation for efficiency
+- State updates are batched to prevent excessive re-renders
+- Video seeking operations are debounced for smooth playback
+- Memory management for large marker datasets
+
+### Accessibility Features
+
+- Keyboard-first design supports assistive technologies
+- Visual feedback for all keyboard operations
+- Clear focus indicators throughout the interface
+- Screen reader compatible shortcuts and labels
