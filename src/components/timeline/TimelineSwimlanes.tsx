@@ -599,7 +599,7 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                     Set a corresponding tag that will be converted upon completion of review.
                   </div>
                   <div className="text-xs text-gray-500">
-                    Note! This will overwrite the existing description of this tag with "Corresponding Tag: Target Tag". Target tag is not modified.
+                    Note! This will overwrite the existing description of this tag with &ldquo;Corresponding Tag: Target Tag&rdquo;. Target tag is not modified.
                   </div>
                 </div>
               )}
