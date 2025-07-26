@@ -272,8 +272,6 @@ export default function MarkerPage() {
   const handleDeleteRejectedMarkers = handleDeleteRejectedMarkersFromHook;
   const confirmDeleteRejectedMarkers = confirmDeleteRejectedMarkersFromHook;
 
-  // useMarkerOperations replaced with Redux thunks
-
   const handleEditMarker = useCallback((marker: SceneMarker) => {
     setEditingMarkerId(marker.id);
     setEditingTagId(marker.primary_tag.id);
