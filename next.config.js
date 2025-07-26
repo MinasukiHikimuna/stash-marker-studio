@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
+  distDir: process.env.BUILD_DIR || '.next',
   images: {
     remotePatterns: [
       {
