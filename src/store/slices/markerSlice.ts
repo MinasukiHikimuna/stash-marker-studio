@@ -876,6 +876,12 @@ const markerSlice = createSlice({
       .addCase(initializeMarkerPage.pending, (state) => {
         state.initializing = true;
         state.initializationError = null;
+        // Clear previous scene data immediately to prevent showing stale markers
+        state.markers = [];
+        state.scene = null;
+        state.sceneId = null;
+        state.sceneTitle = null;
+        state.ui.selectedMarkerId = null;
       })
       .addCase(initializeMarkerPage.fulfilled, (state, action) => {
         state.initializing = false;

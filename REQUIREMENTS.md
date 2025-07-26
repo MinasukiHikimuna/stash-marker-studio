@@ -4,6 +4,10 @@ This should not deal with the details of the code. It should document high-level
 
 ## Marker page
 
+### Scene Transitions
+
+When marker page is opened, markers are grouped to swimlanes and swimlanes to marker groups. After those have been loaded, first unprocessed marker is selected top-to-bottom, left-to-right based on swimlanes. Previous scene data is immediately cleared when transitioning to prevent stale content display.
+
 ### General Navigation
 
 #### Overview

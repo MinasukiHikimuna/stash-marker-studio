@@ -187,12 +187,21 @@ export default function MarkerPage() {
 
   const fetchData = useCallback(async () => {
     const sceneId = new URL(window.location.href).searchParams.get("sceneId");
+    console.log("fetchData called - Scene transition starting", {
+      newSceneId: sceneId,
+      currentSceneId: scene?.id,
+      currentMarkersCount: markers?.length || 0,
+      currentSelectedMarkerId: selectedMarkerId
+    });
+    
     if (!sceneId) {
       router.push("/search");
       return;
     }
     
+    console.log("Dispatching initializeMarkerPage for scene:", sceneId);
     await dispatch(initializeMarkerPage(sceneId));
+    console.log("initializeMarkerPage completed for scene:", sceneId);
   }, [dispatch, router]);
 
   useEffect(() => {
@@ -813,25 +822,27 @@ export default function MarkerPage() {
       });
       
       if (!selectedMarker) {
-        // Only attempt selection if we have swimlane data
-        if (markersWithTracks.length > 0 && tagGroups.length > 0) {
+        // Wait for both actionMarkers and markersWithTracks to be populated
+        if (actionMarkers.length > 0 && markersWithTracks.length > 0 && tagGroups.length > 0) {
           console.log("No selected marker found, searching for first unprocessed with swimlane data...");
           const firstUnprocessedId = findNextUnprocessedGlobal();
           console.log("First unprocessed search result", {
-            firstUnprocessedId,
-            fallbackToFirst: !firstUnprocessedId
+            firstUnprocessedId
           });
           
           if (firstUnprocessedId) {
             console.log("Selecting first unprocessed marker:", firstUnprocessedId);
             dispatch(setSelectedMarkerId(firstUnprocessedId));
           } else {
-            // Fallback to first marker if no unprocessed markers found
-            console.log("No unprocessed markers found, selecting first marker:", actionMarkers[0].id);
-            dispatch(setSelectedMarkerId(actionMarkers[0].id));
+            console.log("No unprocessed markers found - this may indicate all markers are processed");
+            // Do not fall back to chronological selection - rely purely on swimlane-based approach
           }
         } else {
-          console.log("Waiting for swimlane data before selecting marker");
+          console.log("Waiting for both action markers and swimlane data", {
+            actionMarkersCount: actionMarkers.length,
+            markersWithTracksCount: markersWithTracks.length,
+            tagGroupsCount: tagGroups.length
+          });
         }
       }
     } else {

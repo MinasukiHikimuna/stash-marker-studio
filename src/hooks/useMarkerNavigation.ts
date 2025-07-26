@@ -28,18 +28,16 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
     const isRejected = isMarkerRejected(marker);
     const result = !isConfirmed && !isRejected;
     
-    // Only log detailed info for first few calls to avoid spam
-    if (Math.random() < 0.1) { // Log 10% of calls
-      console.log("isUnprocessed check", {
-        markerId: marker.id,
-        tag: marker.primary_tag.name,
-        seconds: marker.seconds,
-        tags: marker.tags?.map(tag => tag.name) || [],
-        isConfirmed,
-        isRejected,
-        result
-      });
-    }
+    // Always log for debugging marker selection issues
+    console.log("isUnprocessed check", {
+      markerId: marker.id,
+      tag: marker.primary_tag.name,
+      seconds: marker.seconds,
+      tags: marker.tags?.map(tag => tag.name) || [],
+      isConfirmed,
+      isRejected,
+      result
+    });
     
     return result;
   }, []);
