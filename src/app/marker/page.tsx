@@ -714,10 +714,10 @@ export default function MarkerPage() {
   // Use navigation hook
   const {
     findNextUnprocessedMarker,
-    findPreviousUnprocessedMarker,
+    findPreviousUnprocessedGlobal,
     findNextUnprocessedMarkerInSwimlane,
     findPreviousUnprocessedMarkerInSwimlane,
-    findNextUnprocessedSwimlane,
+    findNextUnprocessedGlobal,
     navigateBetweenSwimlanes,
     navigateWithinSwimlane,
     findNextMarkerAtPlayhead,
@@ -765,10 +765,10 @@ export default function MarkerPage() {
     navigateBetweenSwimlanes,
     navigateWithinSwimlane,
     findNextUnprocessedMarker,
-    findPreviousUnprocessedMarker,
+    findPreviousUnprocessedGlobal,
     findNextUnprocessedMarkerInSwimlane,
     findPreviousUnprocessedMarkerInSwimlane,
-    findNextUnprocessedSwimlane,
+    findNextUnprocessedGlobal,
     findNextMarkerAtPlayhead,
     findPreviousMarkerAtPlayhead,
     zoomIn,
@@ -777,31 +777,69 @@ export default function MarkerPage() {
     centerPlayhead,
   });
 
-  // Effect to update selected marker when filtering changes to ensure it's valid
+  // Effect to ensure selected marker is valid
   useEffect(() => {
-    // Only proceed if we have both action markers AND swimlane data
-    if (actionMarkers.length > 0 && markersWithTracks.length > 0 && tagGroups.length > 0) {
-      // Check if currently selected marker still exists after filtering
+    console.log("Marker selection effect triggered", {
+      actionMarkersCount: actionMarkers.length,
+      selectedMarkerId,
+      hasSwimLaneData: markersWithTracks.length > 0 && tagGroups.length > 0,
+      markersWithTracksCount: markersWithTracks.length,
+      tagGroupsCount: tagGroups.length,
+      actionMarkers: actionMarkers.map(m => ({
+        id: m.id,
+        seconds: m.seconds,
+        tag: m.primary_tag.name,
+        status: {
+          isConfirmed: m.tags?.some(tag => tag.name === 'MARKER_STATUS_CONFIRMED'),
+          isRejected: m.tags?.some(tag => tag.name === 'MARKER_STATUS_REJECTED')
+        }
+      }))
+    });
+
+    if (actionMarkers.length > 0) {
+      // Check if currently selected marker still exists
       const selectedMarker = actionMarkers.find(
         (m) => m.id === selectedMarkerId
       );
       
+      console.log("Selected marker check", {
+        selectedMarkerId,
+        selectedMarkerExists: !!selectedMarker,
+        selectedMarkerDetails: selectedMarker ? {
+          id: selectedMarker.id,
+          tag: selectedMarker.primary_tag.name,
+          seconds: selectedMarker.seconds
+        } : null
+      });
+      
       if (!selectedMarker) {
-        // If selected marker is not in filtered list, find next unprocessed marker
-        // using the same algorithm as Shift+M for consistency
-        const nextUnprocessedId = findNextUnprocessedSwimlane();
-        if (nextUnprocessedId) {
-          dispatch(setSelectedMarkerId(nextUnprocessedId));
+        // Only attempt selection if we have swimlane data
+        if (markersWithTracks.length > 0 && tagGroups.length > 0) {
+          console.log("No selected marker found, searching for first unprocessed with swimlane data...");
+          const firstUnprocessedId = findNextUnprocessedGlobal();
+          console.log("First unprocessed search result", {
+            firstUnprocessedId,
+            fallbackToFirst: !firstUnprocessedId
+          });
+          
+          if (firstUnprocessedId) {
+            console.log("Selecting first unprocessed marker:", firstUnprocessedId);
+            dispatch(setSelectedMarkerId(firstUnprocessedId));
+          } else {
+            // Fallback to first marker if no unprocessed markers found
+            console.log("No unprocessed markers found, selecting first marker:", actionMarkers[0].id);
+            dispatch(setSelectedMarkerId(actionMarkers[0].id));
+          }
         } else {
-          // Fallback to first marker if no unprocessed markers found
-          dispatch(setSelectedMarkerId(actionMarkers[0].id));
+          console.log("Waiting for swimlane data before selecting marker");
         }
       }
-    } else if (actionMarkers.length === 0) {
-      // If no markers after filtering, clear selection
+    } else {
+      // If no markers, clear selection
+      console.log("No action markers, clearing selection");
       dispatch(setSelectedMarkerId(null));
     }
-  }, [actionMarkers, selectedMarkerId, dispatch, findNextUnprocessedSwimlane, markersWithTracks.length, tagGroups.length]);
+  }, [actionMarkers, selectedMarkerId, dispatch, findNextUnprocessedGlobal, markersWithTracks.length, tagGroups.length]);
 
 
   // Scroll selected marker into view

@@ -59,10 +59,10 @@ interface UseDynamicKeyboardShortcutsParams {
   navigateBetweenSwimlanes: (direction: 'up' | 'down') => void;
   navigateWithinSwimlane: (direction: 'left' | 'right') => void;
   findNextUnprocessedMarker: () => string | null;
-  findPreviousUnprocessedMarker: () => string | null;
+  findPreviousUnprocessedGlobal: () => string | null;
+  findNextUnprocessedGlobal: () => string | null;
   findNextUnprocessedMarkerInSwimlane: () => string | null;
   findPreviousUnprocessedMarkerInSwimlane: () => string | null;
-  findNextUnprocessedSwimlane: () => string | null;
   findNextMarkerAtPlayhead: (currentTime: number) => string | null;
   findPreviousMarkerAtPlayhead: (currentTime: number) => string | null;
   
@@ -116,11 +116,10 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       // showToast,
       navigateBetweenSwimlanes,
       navigateWithinSwimlane,
-      // findNextUnprocessedMarker,
-      findPreviousUnprocessedMarker,
+      findPreviousUnprocessedGlobal,
       findNextUnprocessedMarkerInSwimlane,
       findPreviousUnprocessedMarkerInSwimlane,
-      findNextUnprocessedSwimlane,
+      findNextUnprocessedGlobal,
       findNextMarkerAtPlayhead,
       findPreviousMarkerAtPlayhead,
       zoomIn,
@@ -250,7 +249,7 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
         if (markerId) dispatch(setSelectedMarkerId(markerId));
       },
       'navigation.previousUnprocessedGlobal': () => {
-        const markerId = findPreviousUnprocessedMarker();
+        const markerId = findPreviousUnprocessedGlobal();
         if (markerId) dispatch(setSelectedMarkerId(markerId));
       },
       'navigation.nextUnprocessedInSwimlane': () => {
@@ -258,8 +257,8 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
         if (markerId) dispatch(setSelectedMarkerId(markerId));
       },
       'navigation.nextUnprocessedGlobal': () => {
-        const swimlane = findNextUnprocessedSwimlane();
-        if (swimlane) dispatch(setSelectedMarkerId(swimlane));
+        const markerId = findNextUnprocessedGlobal();
+        if (markerId) dispatch(setSelectedMarkerId(markerId));
       },
       'navigation.centerPlayhead': () => centerPlayhead(),
       'navigation.zoomIn': () => zoomIn(),
