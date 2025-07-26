@@ -19,6 +19,7 @@ import {
 import { keyboardShortcutService } from '../services/KeyboardShortcutService';
 import { type SceneMarker, type Scene } from '../services/StashappService';
 import { incorrectMarkerStorage } from '../utils/incorrectMarkerStorage';
+import { isMarkerConfirmed, isMarkerRejected } from '../core/marker/markerLogic';
 
 interface UseDynamicKeyboardShortcutsParams {
   actionMarkers: SceneMarker[];
@@ -134,8 +135,8 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       // Marker Review
       'marker.confirm': () => {
         if (!currentMarker || !scene?.id) return;
-        const hasConfirmedStatus = incorrectMarkers.some(m => m.markerId === currentMarker.id);
-        if (hasConfirmedStatus) {
+        const isAlreadyConfirmed = isMarkerConfirmed(currentMarker);
+        if (isAlreadyConfirmed) {
           dispatch(resetMarker({ sceneId: scene.id, markerId: currentMarker.id }));
         } else {
           dispatch(confirmMarker({ sceneId: scene.id, markerId: currentMarker.id }));
@@ -144,8 +145,8 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
 
       'marker.reject': () => {
         if (!currentMarker || !scene?.id) return;
-        const hasRejectedStatus = incorrectMarkers.some(m => m.markerId === currentMarker.id);
-        if (hasRejectedStatus) {
+        const isAlreadyRejected = isMarkerRejected(currentMarker);
+        if (isAlreadyRejected) {
           dispatch(resetMarker({ sceneId: scene.id, markerId: currentMarker.id }));
         } else {
           dispatch(rejectMarker({ sceneId: scene.id, markerId: currentMarker.id }));

@@ -75,3 +75,53 @@ The unprocessed marker navigation system provides keyboard shortcuts for efficie
 2. Users can jump between categories to find the next unprocessed marker using Shift+N/M
 3. Navigation is predictable and never "wraps around" unexpectedly
 4. The system provides efficient workflow for marker review tasks
+
+### Marker Confirmation and Rejection
+
+#### Overview
+
+The marker confirmation and rejection system allows users to approve or reject markers during review. The system uses toggle behavior where repeated presses of the same key cycle between the action state and unprocessed.
+
+#### Key Concepts
+
+- **Confirmed markers**: Markers approved by the user, tagged with MARKER_STATUS_CONFIRMED
+- **Rejected markers**: Markers rejected by the user, tagged with MARKER_STATUS_REJECTED
+- **Toggle behavior**: Repeated confirm/reject actions toggle the marker back to unprocessed
+- **State cycling**: Actions cycle through states rather than being idempotent
+
+#### Confirmation/Rejection Shortcuts
+
+##### Confirm Marker
+
+- **Default key**: `Z`
+- **Function**: Toggle marker between confirmed and unprocessed states
+- **Behavior**: 
+  - Unprocessed → Confirmed (adds MARKER_STATUS_CONFIRMED tag)
+  - Confirmed → Unprocessed (removes MARKER_STATUS_CONFIRMED tag)
+  - Rejected → Confirmed (removes MARKER_STATUS_REJECTED, adds MARKER_STATUS_CONFIRMED)
+
+##### Reject Marker
+
+- **Default key**: `X`
+- **Function**: Toggle marker between rejected and unprocessed states
+- **Behavior**: 
+  - Unprocessed → Rejected (adds MARKER_STATUS_REJECTED tag)
+  - Rejected → Unprocessed (removes MARKER_STATUS_REJECTED tag)
+  - Confirmed → Rejected (removes MARKER_STATUS_CONFIRMED, adds MARKER_STATUS_REJECTED)
+
+#### Behavior Specifications
+
+##### State Transitions
+
+- **From Unprocessed**: Z confirms, X rejects
+- **From Confirmed**: Z toggles back to unprocessed, X changes to rejected
+- **From Rejected**: X toggles back to unprocessed, Z changes to confirmed
+- **Toggle behavior**: Repeated presses of the same key toggle between that state and unprocessed
+
+##### Expected User Experience
+
+1. Users can quickly confirm markers they approve using Z
+2. Users can quickly reject markers they disapprove using X
+3. Users can toggle markers back to unprocessed by pressing the same key again
+4. State changes follow predictable toggle patterns
+5. Users can easily correct mistakes by repeating the same action
