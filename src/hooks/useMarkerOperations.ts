@@ -13,9 +13,9 @@ import {
   selectCurrentVideoTime,
   selectCopiedMarkerTimes,
   selectDeleteRejectedModalData,
-  selectAIConversionModalData,
+  selectCorrespondingTagConversionModalData,
   openDeleteRejectedModal,
-  openAIConversionModal,
+  openCorrespondingTagConversionModal,
   closeModal,
   setCopiedMarkerTimes,
   setError,
@@ -55,7 +55,7 @@ export const useMarkerOperations = (
   const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
   const currentVideoTime = useAppSelector(selectCurrentVideoTime);
   const deleteRejectedModalData = useAppSelector(selectDeleteRejectedModalData);
-  const aiConversionModalData = useAppSelector(selectAIConversionModalData);
+  const correspondingTagConversionModalData = useAppSelector(selectCorrespondingTagConversionModalData);
   const copiedMarkerTimes = useAppSelector(selectCopiedMarkerTimes);
 
   // Get action markers helper
@@ -328,8 +328,8 @@ export const useMarkerOperations = (
     }
   }, [deleteRejectedModalData, dispatch, scene?.id]);
 
-  // Handle AI conversion
-  const handleAIConversion = useCallback(async () => {
+  // Handle corresponding tag conversion
+  const handleCorrespondingTagConversion = useCallback(async () => {
     const actionMarkers = getActionMarkers();
     if (!actionMarkers) return;
 
@@ -337,17 +337,17 @@ export const useMarkerOperations = (
       const markers = await stashappService.convertConfirmedMarkersWithCorrespondingTags(
         actionMarkers
       );
-      dispatch(openAIConversionModal({ markers }));
+      dispatch(openCorrespondingTagConversionModal({ markers }));
     } catch (err) {
-      console.error("Error preparing AI conversion:", err);
+      console.error("Error preparing corresponding tag conversion:", err);
       dispatch(setError("Failed to prepare markers for conversion"));
     }
   }, [getActionMarkers, dispatch]);
 
-  // Handle confirm AI conversion
-  const handleConfirmAIConversion = useCallback(async () => {
+  // Handle confirm corresponding tag conversion
+  const handleConfirmCorrespondingTagConversion = useCallback(async () => {
     try {
-      const markers = aiConversionModalData?.markers || [];
+      const markers = correspondingTagConversionModalData?.markers || [];
       for (const { sourceMarker, correspondingTag } of markers) {
         await stashappService.updateMarkerTagAndTitle(
           sourceMarker.id,
@@ -359,7 +359,7 @@ export const useMarkerOperations = (
       console.error("Error converting markers:", err);
       throw err; // Let the modal handle the error display
     }
-  }, [aiConversionModalData, dispatch, scene?.id]);
+  }, [correspondingTagConversionModalData, dispatch, scene?.id]);
 
   // Check if all markers are approved (confirmed or rejected)
   const checkAllMarkersApproved = useCallback(() => {
@@ -532,8 +532,8 @@ export const useMarkerOperations = (
     confirmDeleteRejectedMarkers,
     
     // AI operations
-    handleAIConversion,
-    handleConfirmAIConversion,
+    handleCorrespondingTagConversion,
+    handleConfirmCorrespondingTagConversion,
     
     // Completion operations
     identifyAITagsToRemove,

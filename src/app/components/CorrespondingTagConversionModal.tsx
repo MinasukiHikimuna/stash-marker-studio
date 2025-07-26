@@ -1,7 +1,7 @@
 import React from "react";
 import { SceneMarker, Tag } from "@/services/StashappService";
 
-interface AITagConversionModalProps {
+interface CorrespondingTagConversionModalProps {
   isOpen: boolean;
   onClose: () => void;
   markers: { sourceMarker: SceneMarker; correspondingTag: Tag }[];
@@ -19,7 +19,7 @@ const formatTime = (seconds: number): string => {
     .padStart(2, "0")}.${milliseconds.toString().padStart(3, "0")}`;
 };
 
-export const AITagConversionModal: React.FC<AITagConversionModalProps> = ({
+export const CorrespondingTagConversionModal: React.FC<CorrespondingTagConversionModalProps> = ({
   isOpen,
   onClose,
   markers,

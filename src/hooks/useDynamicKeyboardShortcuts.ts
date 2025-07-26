@@ -36,7 +36,7 @@ interface UseDynamicKeyboardShortcutsParams {
   currentVideoTime: number;
   isCompletionModalOpen: boolean;
   isDeletingRejected: boolean;
-  isAIConversionModalOpen: boolean;
+  isCorrespondingTagConversionModalOpen: boolean;
   isCollectingModalOpen: boolean;
   videoElementRef: React.RefObject<HTMLVideoElement | null>;
   
@@ -57,7 +57,7 @@ interface UseDynamicKeyboardShortcutsParams {
   jumpToPreviousShot: () => void;
   executeCompletion: () => void;
   confirmDeleteRejectedMarkers: () => void;
-  handleConfirmAIConversion: () => void;
+  handleConfirmCorrespondingTagConversion: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
   
   // Navigation functions
@@ -118,7 +118,7 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       jumpToPreviousShot,
       executeCompletion,
       confirmDeleteRejectedMarkers,
-      handleConfirmAIConversion,
+      handleConfirmCorrespondingTagConversion,
       // showToast,
       navigateBetweenSwimlanes,
       navigateWithinSwimlane,
@@ -382,15 +382,15 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
           executeCompletion();
         } else if (params.isDeletingRejected) {
           confirmDeleteRejectedMarkers();
-        } else if (params.isAIConversionModalOpen) {
-          handleConfirmAIConversion();
+        } else if (params.isCorrespondingTagConversionModalOpen) {
+          handleConfirmCorrespondingTagConversion();
         }
         // Note: Collecting modal has no confirm action, only cancel/close
       },
 
       'modal.cancel': () => {
         if (params.isCompletionModalOpen || params.isDeletingRejected || 
-            params.isAIConversionModalOpen || params.isCollectingModalOpen) {
+            params.isCorrespondingTagConversionModalOpen || params.isCollectingModalOpen) {
           dispatch(closeModal());
         }
       },
@@ -444,7 +444,7 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
 
       // Handle Enter key conflict: when no modal is open, Enter should play from marker
       const isAnyModalOpen = params.isCompletionModalOpen || params.isDeletingRejected || 
-                              params.isAIConversionModalOpen || params.isCollectingModalOpen;
+                              params.isCorrespondingTagConversionModalOpen || params.isCollectingModalOpen;
       if (actionId === 'modal.confirm' && event.key === 'Enter' && !isAnyModalOpen) {
         actionId = 'video.playFromMarker';
       }
@@ -475,14 +475,14 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       }
     },
     [actionHandlers, params.isCompletionModalOpen, params.isDeletingRejected, 
-     params.isAIConversionModalOpen, params.isCollectingModalOpen]
+     params.isCorrespondingTagConversionModalOpen, params.isCollectingModalOpen]
   );
 
   // Modal keyboard handler
   const handleModalKeyDown = useCallback(
     (event: KeyboardEvent) => {
       const isAnyModalOpen = params.isCompletionModalOpen || params.isDeletingRejected || 
-                              params.isAIConversionModalOpen || params.isCollectingModalOpen;
+                              params.isCorrespondingTagConversionModalOpen || params.isCollectingModalOpen;
       if (!isAnyModalOpen) {
         return;
       }
@@ -507,7 +507,7 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       }
     },
     [actionHandlers, params.isCompletionModalOpen, params.isDeletingRejected, 
-     params.isAIConversionModalOpen, params.isCollectingModalOpen]
+     params.isCorrespondingTagConversionModalOpen, params.isCollectingModalOpen]
   );
 
   // Set up event listeners

@@ -18,7 +18,7 @@ interface MarkerPageHeaderProps {
   checkAllMarkersApproved: () => boolean;
   onDeleteRejected: () => void;
   onOpenCollectModal: () => void;
-  onAIConversion: () => void;
+  onCorrespondingTagConversion: () => void;
   onComplete: () => void;
 }
 
@@ -30,7 +30,7 @@ export function MarkerPageHeader({
   checkAllMarkersApproved,
   onDeleteRejected,
   onOpenCollectModal,
-  onAIConversion,
+  onCorrespondingTagConversion,
   onComplete,
 }: MarkerPageHeaderProps) {
   const router = useRouter();
@@ -124,7 +124,7 @@ export function MarkerPageHeader({
                 `(${incorrectMarkers.length})`}
             </button>
             <button
-              onClick={onAIConversion}
+              onClick={onCorrespondingTagConversion}
               className={`px-3 py-1.5 rounded-sm text-sm transition-colors ${
                 correspondingTagsCount > 0
                   ? "bg-teal-600 hover:bg-teal-700 text-white"

@@ -32,7 +32,7 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
   const incorrectMarkers = useAppSelector(selectIncorrectMarkers);
   
   // Get marker operations
-  const { handleAIConversion } = useMarkerOperations();
+  const { handleCorrespondingTagConversion } = useMarkerOperations();
   
   // Calculate counts for button display
   const rejectedMarkersCount = markers?.filter(isMarkerRejected).length || 0;
@@ -128,7 +128,7 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
               `(${incorrectMarkers.length})`}
           </button>
           <button
-            onClick={handleAIConversion}
+            onClick={handleCorrespondingTagConversion}
             className={`px-3 py-1.5 rounded-sm text-sm transition-colors ${
               correspondingTagsCount > 0
                 ? "bg-teal-600 hover:bg-teal-700 text-white"

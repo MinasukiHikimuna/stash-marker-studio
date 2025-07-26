@@ -16,7 +16,7 @@ export type CompletionModalData = {
   tagsToRemove: Tag[];
 };
 
-export type AIConversionModalData = {
+export type CorrespondingTagConversionModalData = {
   markers: { sourceMarker: SceneMarker; correspondingTag: Tag }[];
 };
 
@@ -27,7 +27,7 @@ export type DeleteRejectedModalData = {
 export type ModalState = 
   | { type: 'none' }
   | { type: 'completion'; data: CompletionModalData }
-  | { type: 'aiConversion'; data: AIConversionModalData }
+  | { type: 'correspondingTagConversion'; data: CorrespondingTagConversionModalData }
   | { type: 'keyboardShortcuts' }
   | { type: 'collecting' }
   | { type: 'deleteRejected'; data: DeleteRejectedModalData };
@@ -727,8 +727,8 @@ const markerSlice = createSlice({
       state.ui.modal = { type: 'completion', data: action.payload };
     },
 
-    openAIConversionModal: (state, action: PayloadAction<AIConversionModalData>) => {
-      state.ui.modal = { type: 'aiConversion', data: action.payload };
+    openCorrespondingTagConversionModal: (state, action: PayloadAction<CorrespondingTagConversionModalData>) => {
+      state.ui.modal = { type: 'correspondingTagConversion', data: action.payload };
     },
 
     openKeyboardShortcutsModal: (state) => {
@@ -1190,7 +1190,7 @@ export const {
   setModalState,
   closeModal,
   openCompletionModal,
-  openAIConversionModal,
+  openCorrespondingTagConversionModal,
   openKeyboardShortcutsModal,
   openCollectingModal,
   openDeleteRejectedModal,
@@ -1264,8 +1264,8 @@ export const selectIsModalOpen = (state: { marker: MarkerState }) =>
 export const selectIsCompletionModalOpen = (state: { marker: MarkerState }) =>
   state.marker.ui.modal.type === 'completion';
 
-export const selectIsAIConversionModalOpen = (state: { marker: MarkerState }) =>
-  state.marker.ui.modal.type === 'aiConversion';
+export const selectIsCorrespondingTagConversionModalOpen = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal.type === 'correspondingTagConversion';
 
 export const selectIsKeyboardShortcutsModalOpen = (state: { marker: MarkerState }) =>
   state.marker.ui.modal.type === 'keyboardShortcuts';
@@ -1280,8 +1280,8 @@ export const selectIsDeletingRejected = (state: { marker: MarkerState }) =>
 export const selectCompletionModalData = (state: { marker: MarkerState }) =>
   state.marker.ui.modal.type === 'completion' ? state.marker.ui.modal.data : null;
 
-export const selectAIConversionModalData = (state: { marker: MarkerState }) =>
-  state.marker.ui.modal.type === 'aiConversion' ? state.marker.ui.modal.data : null;
+export const selectCorrespondingTagConversionModalData = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal.type === 'correspondingTagConversion' ? state.marker.ui.modal.data : null;
 
 export const selectDeleteRejectedModalData = (state: { marker: MarkerState }) =>
   state.marker.ui.modal.type === 'deleteRejected' ? state.marker.ui.modal.data : null;
@@ -1290,8 +1290,8 @@ export const selectDeleteRejectedModalData = (state: { marker: MarkerState }) =>
 export const selectRejectedMarkers = (state: { marker: MarkerState }) =>
   state.marker.ui.modal.type === 'deleteRejected' ? state.marker.ui.modal.data.rejectedMarkers : [];
 
-export const selectConfirmedAIMarkers = (state: { marker: MarkerState }) =>
-  state.marker.ui.modal.type === 'aiConversion' ? state.marker.ui.modal.data.markers : [];
+export const selectConfirmedCorrespondingTagMarkers = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal.type === 'correspondingTagConversion' ? state.marker.ui.modal.data.markers : [];
 
 // Editing selectors
 export const selectMarkerStartTime = (state: { marker: MarkerState }) =>

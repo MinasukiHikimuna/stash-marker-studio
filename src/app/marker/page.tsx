@@ -10,7 +10,7 @@ import { KeyboardShortcutsModal } from "../components/KeyboardShortcutsModal";
 import Timeline, { TimelineRef } from "../../components/Timeline";
 import { VideoPlayer } from "../../components/marker/video/VideoPlayer";
 import { MarkerWithTrack, TagGroup } from "../../core/marker/types";
-import { AITagConversionModal } from "../components/AITagConversionModal";
+import { CorrespondingTagConversionModal } from "../components/CorrespondingTagConversionModal";
 import { MarkerPageHeader } from "../../components/marker/MarkerPageHeader";
 import { MarkerSummary } from "../../components/marker/MarkerSummary";
 import { MarkerList } from "../../components/marker/MarkerList";
@@ -36,10 +36,10 @@ import {
   selectIsCreatingMarker,
   selectIsDuplicatingMarker,
   selectIsDeletingRejected,
-  selectIsAIConversionModalOpen,
+  selectIsCorrespondingTagConversionModalOpen,
   selectIsKeyboardShortcutsModalOpen,
   selectIsCollectingModalOpen,
-  selectAIConversionModalData,
+  selectCorrespondingTagConversionModalData,
   selectDeleteRejectedModalData,
   selectCompletionModalData,
   setSelectedMarkerId,
@@ -103,10 +103,10 @@ export default function MarkerPage() {
   const isCreatingMarker = useAppSelector(selectIsCreatingMarker);
   const isDuplicatingMarker = useAppSelector(selectIsDuplicatingMarker);
   const isDeletingRejected = useAppSelector(selectIsDeletingRejected);
-  const isAIConversionModalOpen = useAppSelector(selectIsAIConversionModalOpen);
+  const isCorrespondingTagConversionModalOpen = useAppSelector(selectIsCorrespondingTagConversionModalOpen);
   const isKeyboardShortcutsModalOpen = useAppSelector(selectIsKeyboardShortcutsModalOpen);
   const isCollectingModalOpen = useAppSelector(selectIsCollectingModalOpen);
-  const aiConversionModalData = useAppSelector(selectAIConversionModalData);
+  const correspondingTagConversionModalData = useAppSelector(selectCorrespondingTagConversionModalData);
   const deleteRejectedModalData = useAppSelector(selectDeleteRejectedModalData);
   const completionModalData = useAppSelector(selectCompletionModalData);
   const isCompletionModalOpen = useAppSelector(selectIsCompletionModalOpen);
@@ -246,8 +246,8 @@ export default function MarkerPage() {
     pasteMarkerTimes: pasteMarkerTimesFromHook,
     handleDeleteRejectedMarkers: handleDeleteRejectedMarkersFromHook,
     confirmDeleteRejectedMarkers: confirmDeleteRejectedMarkersFromHook,
-    handleAIConversion,
-    handleConfirmAIConversion,
+    handleCorrespondingTagConversion,
+    handleConfirmCorrespondingTagConversion,
     getMarkerSummary: getMarkerSummaryFromHook,
     checkAllMarkersApproved,
     identifyAITagsToRemove,
@@ -750,7 +750,7 @@ export default function MarkerPage() {
     currentVideoTime,
     isCompletionModalOpen,
     isDeletingRejected,
-    isAIConversionModalOpen,
+    isCorrespondingTagConversionModalOpen,
     isCollectingModalOpen,
     videoElementRef,
     fetchData,
@@ -769,7 +769,7 @@ export default function MarkerPage() {
     jumpToPreviousShot,
     executeCompletion: executeCompletionWrapper,
     confirmDeleteRejectedMarkers,
-    handleConfirmAIConversion,
+    handleConfirmCorrespondingTagConversion,
     showToast,
     navigateBetweenSwimlanes,
     navigateWithinSwimlane,
@@ -956,7 +956,7 @@ export default function MarkerPage() {
         checkAllMarkersApproved={checkAllMarkersApproved}
         onDeleteRejected={handleDeleteRejectedMarkers}
         onOpenCollectModal={() => dispatch(openCollectingModal())}
-        onAIConversion={handleAIConversion}
+        onCorrespondingTagConversion={handleCorrespondingTagConversion}
         onComplete={handleComplete}
       />
 
@@ -1044,13 +1044,13 @@ export default function MarkerPage() {
         onConfirm={confirmDeleteRejectedMarkers}
       />
 
-      <AITagConversionModal
-        isOpen={isAIConversionModalOpen}
+      <CorrespondingTagConversionModal
+        isOpen={isCorrespondingTagConversionModalOpen}
         onClose={() =>
           dispatch(closeModal())
         }
-        markers={aiConversionModalData?.markers || []}
-        onConfirm={handleConfirmAIConversion}
+        markers={correspondingTagConversionModalData?.markers || []}
+        onConfirm={handleConfirmCorrespondingTagConversion}
       />
 
       {/* Toast Notifications */}
