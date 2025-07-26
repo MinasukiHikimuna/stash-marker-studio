@@ -19,10 +19,8 @@ type TimelineSwimlanesProps = {
   videoDuration: number;
   currentTime: number;
   selectedMarkerId: string | null;
-  filteredSwimlane: string | null;
   timelineWidth: { width: number; pixelsPerSecond: number };
   onMarkerClick: (marker: SceneMarker) => void;
-  onSwimlaneFilter?: (swimlaneName: string | null) => void;
   labelWidth: number;
 };
 
@@ -31,10 +29,8 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
   videoDuration,
   currentTime,
   selectedMarkerId,
-  filteredSwimlane,
   timelineWidth,
   onMarkerClick,
-  onSwimlaneFilter,
   labelWidth,
 }) => {
   const dispatch = useAppDispatch();
@@ -248,22 +244,14 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                 <div
                   key={trackIndex}
                   className={`
-                    flex items-center px-3 text-sm cursor-pointer transition-colors
-                    ${filteredSwimlane === group.name ? 'bg-blue-600' : 
-                      group.isRejected ? 'bg-red-900/40' : 
+                    flex items-center px-3 text-sm transition-colors
+                    ${group.isRejected ? 'bg-red-900/40' : 
                       isSelectedMarkerInThisGroup ? 'bg-gray-700' : 
                       index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-900'}
-                    hover:bg-gray-700
                     ${trackIndex === trackCount - 1 ? 'border-b border-gray-600' : ''}
                   `}
                   style={{
                     height: `${TRACK_HEIGHT + (trackIndex === trackCount - 1 ? SWIMLANE_PADDING : TRACK_SPACING)}px`,
-                  }}
-                  onClick={() => {
-                    if (onSwimlaneFilter) {
-                      const newFilter = filteredSwimlane === group.name ? null : group.name;
-                      onSwimlaneFilter(newFilter);
-                    }
                   }}
                 >
                   {/* Only show label and counts on the first track */}
@@ -278,7 +266,6 @@ const TimelineSwimlanes: React.FC<TimelineSwimlanesProps> = ({
                         <span className={`flex items-center gap-1 text-gray-200 ${isSelectedMarkerInThisGroup ? 'font-bold' : ''}`}>
                           {group.name}
                           {group.isRejected && " (R)"}
-                          {filteredSwimlane === group.name && " 🔍"}
                           {trackCount > 1 && ` (${trackCount})`}
                           {/* Reassignment icon - only show on hover */}
                           <button

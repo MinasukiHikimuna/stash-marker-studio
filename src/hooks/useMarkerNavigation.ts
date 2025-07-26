@@ -243,7 +243,7 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
     }
 
     return null; // No unprocessed markers found
-  }, [markersWithTracks, tagGroups, actionMarkers, selectedMarkerId, isUnprocessed, getActionMarkers]);
+  }, [markersWithTracks, tagGroups, actionMarkers, selectedMarkerId, isUnprocessed]);
 
   // Helper function for swimlane navigation
   const navigateBetweenSwimlanes = useCallback(

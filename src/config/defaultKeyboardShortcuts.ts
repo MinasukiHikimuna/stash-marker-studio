@@ -445,15 +445,6 @@ export const defaultShortcuts: KeyboardShortcut[] = [
   },
 
   // System Actions
-  {
-    id: "system.toggleFilter",
-    bindings: [{ key: "f" }],
-    description: "Toggle swimlane filter",
-    category: "system",
-    action: { type: "function", functionName: "toggleSwimlaneFilter" },
-    enabled: true,
-    editable: true,
-  },
 
   // Non-editable Shortcuts
   {

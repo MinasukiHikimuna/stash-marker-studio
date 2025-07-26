@@ -153,7 +153,7 @@ export default function ServerConfigPage() {
 
       // Convert form data to AppConfig format with normalized URL
       const appConfig: AppConfig = {
-        ...existingConfig, // Preserve existing config (like keyboardShortcuts)
+        ...(existingConfig as AppConfig), // Preserve existing config (like keyboardShortcuts and shotBoundaryConfig)
         ...formData,
         serverConfig: {
           ...formData.serverConfig,

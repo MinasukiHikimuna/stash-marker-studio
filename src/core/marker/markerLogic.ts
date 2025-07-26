@@ -114,14 +114,13 @@ export const parseTimeColonDot = (str: string): number => {
 };
 
 export const getActionMarkers = (
-  markers: SceneMarker[],
-  filteredSwimlane: string | null
+  markers: SceneMarker[]
 ): SceneMarker[] => {
   if (!markers) {
     return [];
   }
 
-  let filteredMarkers = markers.filter((marker) => {
+  return markers.filter((marker) => {
     // Always include temp markers regardless of their primary tag
     if (marker.id.startsWith("temp-")) {
       return true;
@@ -129,20 +128,6 @@ export const getActionMarkers = (
     // Filter out shot boundary markers for non-temp markers
     return !isShotBoundaryMarker(marker);
   });
-
-  // Apply swimlane filter if active
-  if (filteredSwimlane) {
-    filteredMarkers = filteredMarkers.filter((marker) => {
-      // Handle AI tag grouping - if the marker's tag name ends with "_AI",
-      // group it with the base tag name for filtering
-      const tagGroupName = marker.primary_tag.name.endsWith("_AI")
-        ? marker.primary_tag.name.replace("_AI", "")
-        : marker.primary_tag.name;
-      return tagGroupName === filteredSwimlane;
-    });
-  }
-
-  return filteredMarkers;
 };
 
 export const findNearestMarker = (

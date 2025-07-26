@@ -10,7 +10,6 @@ import {
   setCreatingMarker,
   setDuplicatingMarker,
   setMarkers,
-  setFilteredSwimlane,
   setSelectedMarkerId,
   seekToTime,
   playVideo,
@@ -20,7 +19,6 @@ import {
 import { keyboardShortcutService } from '../services/KeyboardShortcutService';
 import { type SceneMarker, type Scene } from '../services/StashappService';
 import { incorrectMarkerStorage } from '../utils/incorrectMarkerStorage';
-import { isShotBoundaryMarker } from '../core/marker/markerLogic';
 
 interface UseDynamicKeyboardShortcutsParams {
   actionMarkers: SceneMarker[];
@@ -30,7 +28,6 @@ interface UseDynamicKeyboardShortcutsParams {
   editingMarkerId: string | null;
   isCreatingMarker: boolean;
   isDuplicatingMarker: boolean;
-  filteredSwimlane: string | null;
   incorrectMarkers: { markerId: string; [key: string]: unknown }[];
   availableTags: { id: string; name: string; [key: string]: unknown }[] | null;
   videoDuration: number | null;
@@ -96,7 +93,6 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       editingMarkerId,
       isCreatingMarker,
       isDuplicatingMarker,
-      filteredSwimlane,
       incorrectMarkers,
       currentVideoTime,
       videoDuration,
@@ -263,7 +259,7 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       },
       'navigation.nextUnprocessedGlobal': () => {
         const swimlane = findNextUnprocessedSwimlane();
-        if (swimlane) dispatch(setFilteredSwimlane(swimlane));
+        if (swimlane) dispatch(setSelectedMarkerId(swimlane));
       },
       'navigation.centerPlayhead': () => centerPlayhead(),
       'navigation.zoomIn': () => zoomIn(),
@@ -344,47 +340,6 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       'video.jumpToNextShot': () => jumpToNextShot(),
 
       // System Actions
-      'system.toggleFilter': () => {
-        if (actionMarkers.length > 0) {
-          if (!currentMarker) return;
-          
-          const tagGroupName = currentMarker.primary_tag.name.endsWith("_AI")
-            ? currentMarker.primary_tag.name.replace("_AI", "")
-            : currentMarker.primary_tag.name;
-
-          const newFilter = filteredSwimlane === tagGroupName ? null : tagGroupName;
-          dispatch(setFilteredSwimlane(newFilter));
-
-          // Preserve selection after filtering
-          setTimeout(() => {
-            if (!markers) return;
-
-            let newFilteredMarkers = markers.filter((marker) => {
-              if (marker.id.startsWith("temp-")) return true;
-              return !isShotBoundaryMarker(marker);
-            });
-
-            if (newFilter) {
-              newFilteredMarkers = newFilteredMarkers.filter((marker) => {
-                const tagGroupName = marker.primary_tag.name.endsWith("_AI")
-                  ? marker.primary_tag.name.replace("_AI", "")
-                  : marker.primary_tag.name;
-                return tagGroupName === newFilter;
-              });
-            }
-
-            if (currentMarker?.id) {
-              dispatch(setSelectedMarkerId(currentMarker.id));
-            } else if (newFilteredMarkers.length > 0) {
-              dispatch(setSelectedMarkerId(newFilteredMarkers[0].id));
-            } else {
-              dispatch(setSelectedMarkerId(null));
-            }
-          }, 0);
-        } else if (filteredSwimlane) {
-          dispatch(setFilteredSwimlane(null));
-        }
-      },
 
       'system.escape': () => {
         if (editingMarkerId) {

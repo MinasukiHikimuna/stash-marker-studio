@@ -10,14 +10,12 @@ interface MarkerSummaryStats {
 }
 
 interface MarkerSummaryProps {
-  filteredSwimlane: string | null;
   markerSummary: MarkerSummaryStats;
   shotBoundariesCount: number;
   markers: SceneMarker[] | null;
   isCreatingMarker: boolean;
   isDuplicatingMarker: boolean;
   selectedMarkerId: string | null;
-  onClearFilter: () => void;
   onCreateMarker: () => void;
   onSplitMarker: () => void;
   onShowShortcuts: () => void;
@@ -26,14 +24,12 @@ interface MarkerSummaryProps {
 }
 
 export function MarkerSummary({
-  filteredSwimlane,
   markerSummary,
   shotBoundariesCount,
   markers,
   isCreatingMarker,
   isDuplicatingMarker,
   selectedMarkerId,
-  onClearFilter,
   onCreateMarker,
   onSplitMarker,
   onShowShortcuts,
@@ -68,19 +64,6 @@ export function MarkerSummary({
       data-testid="marker-summary"
     >
       <div className="flex items-center space-x-4">
-        {filteredSwimlane && (
-          <div className="flex items-center bg-yellow-600 text-yellow-100 px-2 py-1 rounded-sm text-xs">
-            <span className="mr-1">🔍</span>
-            <span>Filtered: {filteredSwimlane}</span>
-            <button
-              onClick={onClearFilter}
-              className="ml-2 text-yellow-200 hover:text-white"
-              title="Clear filter"
-            >
-              ✕
-            </button>
-          </div>
-        )}
         <div className="flex items-center">
           <span className="text-green-400 mr-1">✓</span>
           <span className="text-white">

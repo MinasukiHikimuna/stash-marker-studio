@@ -24,8 +24,6 @@ type TimelineProps = {
   onMarkerClick: (marker: SceneMarker) => void;
   selectedMarkerId: string | null;
   showShotBoundaries?: boolean;
-  filteredSwimlane?: string | null;
-  onSwimlaneFilter?: (swimlaneName: string | null) => void;
   scene?: Scene;
   zoom?: number;
   onSwimlaneDataUpdate?: (tagGroups: TagGroup[], markersWithTracks: MarkerWithTrack[]) => void;
@@ -44,8 +42,6 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({
   onMarkerClick,
   selectedMarkerId,
   showShotBoundaries = true,
-  filteredSwimlane = null,
-  onSwimlaneFilter,
   scene = undefined,
   zoom = 1,
   onSwimlaneDataUpdate,
@@ -459,10 +455,8 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({
           videoDuration={videoDuration}
           currentTime={currentTime}
           selectedMarkerId={selectedMarkerId}
-          filteredSwimlane={filteredSwimlane}
           timelineWidth={timelineWidth}
           onMarkerClick={onMarkerClick}
-          onSwimlaneFilter={onSwimlaneFilter}
           labelWidth={uniformTagLabelWidth}
         />
       </div>

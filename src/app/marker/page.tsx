@@ -26,7 +26,6 @@ import {
   selectScene,
   selectAvailableTags,
   selectSelectedMarkerId,
-  selectFilteredSwimlane,
   selectIncorrectMarkers,
   selectVideoDuration,
   selectCurrentVideoTime,
@@ -41,7 +40,6 @@ import {
   selectIsCollectingModalOpen,
   selectRejectedMarkers,
   selectConfirmedAIMarkers,
-  setFilteredSwimlane,
   setSelectedMarkerId,
   clearError,
   setAvailableTags,
@@ -94,7 +92,6 @@ export default function MarkerPage() {
   const scene = useAppSelector(selectScene);
   const availableTags = useAppSelector(selectAvailableTags);
   const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
-  const filteredSwimlane = useAppSelector(selectFilteredSwimlane);
   const incorrectMarkers = useAppSelector(selectIncorrectMarkers);
   const videoDuration = useAppSelector(selectVideoDuration);
   const currentVideoTime = useAppSelector(selectCurrentVideoTime);
@@ -185,13 +182,6 @@ export default function MarkerPage() {
     [setAvailableTimelineWidth]
   );
 
-  // Temporary handler - will be replaced after actionMarkers is defined
-  const handleSwimlaneFilter = useCallback(
-    (swimlaneName: string | null) => {
-      dispatch(setFilteredSwimlane(swimlaneName));
-    },
-    [dispatch]
-  );
 
   // videoRef removed - now handled in VideoPlayer component
 
@@ -236,12 +226,7 @@ export default function MarkerPage() {
       return [];
     }
 
-    console.log(
-      "Calculating action markers from",
-      markers.length,
-      "markers"
-    );
-    let filteredMarkers = markers.filter((marker) => {
+    const filteredMarkers = markers.filter((marker) => {
       // Always include temp markers regardless of their primary tag
       if (marker.id.startsWith("temp-")) {
         return true;
@@ -249,37 +234,9 @@ export default function MarkerPage() {
       // Filter out shot boundary markers for non-temp markers
       return !isShotBoundaryMarker(marker);
     });
-    console.log(
-      "After filtering shot boundaries:",
-      filteredMarkers.length,
-      "markers"
-    );
-
-    // Apply swimlane filter if active
-    if (filteredSwimlane) {
-      console.log("Applying swimlane filter:", filteredSwimlane);
-      filteredMarkers = filteredMarkers.filter((marker) => {
-        // Handle AI tag grouping - if the marker's tag name ends with "_AI",
-        // group it with the base tag name for filtering
-        const tagGroupName = marker.primary_tag.name.endsWith("_AI")
-          ? marker.primary_tag.name.replace("_AI", "")
-          : marker.primary_tag.name;
-        return tagGroupName === filteredSwimlane;
-      });
-      console.log("After swimlane filter:", filteredMarkers.length, "markers");
-    }
-
-    console.log("Final action markers:", {
-      count: filteredMarkers.length,
-      firstFew: filteredMarkers.slice(0, 3).map((m) => ({
-        id: m.id,
-        tagId: m.primary_tag.id,
-        tagName: m.primary_tag.name,
-      })),
-    });
 
     return filteredMarkers;
-  }, [markers, filteredSwimlane]);
+  }, [markers]);
 
   // Keep getActionMarkers for backwards compatibility
   const getActionMarkers = useCallback(() => {
@@ -537,26 +494,6 @@ export default function MarkerPage() {
         }
       }
 
-      // When filtering is active, override tag to keep the marker visible
-      if (filteredSwimlane && availableTags.length > 0) {
-        // Check if current tag matches the filter
-        const currentTagGroupName = selectedTag.name.endsWith("_AI")
-          ? selectedTag.name.replace("_AI", "")
-          : selectedTag.name;
-
-        // If it doesn't match, find a tag that does
-        if (currentTagGroupName !== filteredSwimlane) {
-          const matchingTag = availableTags.find((tag) => {
-            const tagGroupName = tag.name.endsWith("_AI")
-              ? tag.name.replace("_AI", "")
-              : tag.name;
-            return tagGroupName === filteredSwimlane;
-          });
-          if (matchingTag) {
-            selectedTag = matchingTag;
-          }
-        }
-      }
 
       // Create temporary marker object
       const tempMarker: SceneMarker = {
@@ -591,7 +528,6 @@ export default function MarkerPage() {
     [
       scene,
       availableTags,
-      filteredSwimlane,
       markers,
       actionMarkers,
       selectedMarkerId,
@@ -819,7 +755,6 @@ export default function MarkerPage() {
     editingMarkerId,
     isCreatingMarker,
     isDuplicatingMarker,
-    filteredSwimlane,
     incorrectMarkers,
     availableTags,
     videoDuration,
@@ -1007,14 +942,12 @@ export default function MarkerPage() {
             <div className="flex flex-1 min-h-0">
               <div className="w-1/3 flex flex-col border-r border-gray-300 min-h-0">
                 <MarkerSummary
-                  filteredSwimlane={filteredSwimlane}
                   markerSummary={getMarkerSummary()}
                   shotBoundariesCount={getShotBoundaries().length}
                   markers={markers}
                   isCreatingMarker={isCreatingMarker}
                   isDuplicatingMarker={isDuplicatingMarker}
                   selectedMarkerId={selectedMarkerId}
-                  onClearFilter={() => handleSwimlaneFilter(null)}
                   onCreateMarker={handleCreateMarker}
                   onSplitMarker={() => splitCurrentMarker()}
                   onShowShortcuts={() => dispatch(setKeyboardShortcutsModalOpen(true))}
@@ -1064,8 +997,6 @@ export default function MarkerPage() {
                 onMarkerClick={handleMarkerClick}
                 onSwimlaneDataUpdate={handleSwimlaneDataUpdate}
                 onAvailableWidthUpdate={handleAvailableWidthUpdate}
-                filteredSwimlane={filteredSwimlane}
-                onSwimlaneFilter={handleSwimlaneFilter}
                 scene={scene}
                 zoom={zoom}
               />

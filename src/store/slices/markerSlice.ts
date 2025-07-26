@@ -75,7 +75,6 @@ export interface MarkerState {
 
   // Filters and display
   filters: {
-    filteredSwimlane: string | null;
     incorrectMarkers: IncorrectMarker[];
   };
 
@@ -143,7 +142,6 @@ const initialState: MarkerState = {
 
   // Filters
   filters: {
-    filteredSwimlane: null,
     incorrectMarkers: [],
   },
 
@@ -859,9 +857,6 @@ const markerSlice = createSlice({
     },
 
     // Filter actions
-    setFilteredSwimlane: (state, action: PayloadAction<string | null>) => {
-      state.filters.filteredSwimlane = action.payload;
-    },
 
     // Error handling
     clearError: (state) => {
@@ -1184,7 +1179,6 @@ export const {
   togglePlayPause,
   clearPendingSeek,
   clearPendingPlayPause,
-  setFilteredSwimlane,
   clearError,
   setError,
   resetState,
@@ -1278,8 +1272,6 @@ export const selectCopiedMarkerTimes = (state: { marker: MarkerState }) =>
   state.marker.operations.copiedMarkerTimes;
 
 // Filter selectors
-export const selectFilteredSwimlane = (state: { marker: MarkerState }) =>
-  state.marker.filters.filteredSwimlane;
 export const selectIncorrectMarkers = (state: { marker: MarkerState }) =>
   state.marker.filters.incorrectMarkers;
 
