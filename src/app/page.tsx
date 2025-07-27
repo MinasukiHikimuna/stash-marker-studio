@@ -7,8 +7,15 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    router.push("/search");
+    console.log("Home page: redirecting to /search");
+    router.replace("/search");
   }, [router]);
 
-  return null;
+  console.log("Home page: rendering");
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+      <div>Loading...</div>
+    </div>
+  );
 }

@@ -13,7 +13,7 @@ import {
   type MarkerGroupTag
 } from "@/store/slices/configSlice";
 import { selectAvailableTags, loadAvailableTags } from "@/store/slices/markerSlice";
-import { TagAutocomplete } from "@/components/marker/TagAutocomplete";
+import { ConfigTagAutocomplete } from "@/components/settings/ConfigTagAutocomplete";
 import type { AppConfig } from "@/serverConfig";
 import { stashappService } from "@/services/StashappService";
 
@@ -348,12 +348,16 @@ export default function MarkerGroupSettings() {
               Marker Group Parent Tag
             </label>
             <div className="flex gap-2">
-              <TagAutocomplete
+              <ConfigTagAutocomplete
                 value={formData.markerGroupParent || ""}
                 onChange={handleParentChange}
                 availableTags={availableTags}
                 placeholder="Type to search for a parent tag..."
                 className="flex-1"
+                onTagCreated={async (_newTag) => {
+                  // Reload available tags after creating a new tag
+                  await dispatch(loadAvailableTags());
+                }}
               />
               {formData.markerGroupParent && (
                 <button

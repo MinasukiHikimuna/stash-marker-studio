@@ -15,7 +15,8 @@ import {
   loadAvailableTags,
 } from "@/store/slices/markerSlice";
 import type { AppConfig } from "@/serverConfig";
-import { TagAutocomplete } from "@/components/marker/TagAutocomplete";
+import { ConfigTagAutocomplete } from "@/components/settings/ConfigTagAutocomplete";
+import { validateConfiguration } from "@/utils/configValidation";
 
 export default function ServerConfigPage() {
   const router = useRouter();
@@ -41,6 +42,8 @@ export default function ServerConfigPage() {
   const [connectionStatus, setConnectionStatus] = useState("");
   const [isInitialSetup, setIsInitialSetup] = useState(false);
   const [tagsLoaded, setTagsLoaded] = useState(false);
+  const [isServerConfigured, setIsServerConfigured] = useState(false);
+  const [_configValidation, setConfigValidation] = useState(validateConfiguration(null));
 
   // Load current config into form
   useEffect(() => {
@@ -52,16 +55,29 @@ export default function ServerConfigPage() {
       !markerConfig.statusRejected;
     setIsInitialSetup(isEmpty);
 
+    // Check if server is configured (has URL and API key)
+    const serverConfigured = !!(serverConfig.url && serverConfig.apiKey);
+    setIsServerConfigured(serverConfigured);
+
     setFormData({
       serverConfig,
       markerConfig,
       markerGroupingConfig,
     });
-  }, [serverConfig, markerConfig, markerGroupingConfig]);
+
+    // Update configuration validation
+    const validation = validateConfiguration({
+      serverConfig,
+      markerConfig,
+      markerGroupingConfig,
+      shotBoundaryConfig,
+    } as AppConfig);
+    setConfigValidation(validation);
+  }, [serverConfig, markerConfig, markerGroupingConfig, shotBoundaryConfig]);
 
   // Load tags and test connection when server config is available
   useEffect(() => {
-    if (serverConfig.url && serverConfig.apiKey && !tagsLoaded) {
+    if (serverConfig.url && serverConfig.apiKey && !tagsLoaded && isServerConfigured) {
       const loadTags = async () => {
         try {
           // Apply current config to StashappService so it can make API calls
@@ -126,6 +142,7 @@ export default function ServerConfigPage() {
     markerGroupingConfig,
     shotBoundaryConfig,
     tagsLoaded,
+    isServerConfigured,
     dispatch,
   ]);
 
@@ -137,6 +154,36 @@ export default function ServerConfigPage() {
         [field]: value,
       },
     }));
+
+    // Update server configured status when server config changes
+    if (section === "serverConfig") {
+      const newServerConfig = {
+        ...formData.serverConfig,
+        [field]: value,
+      };
+      const serverConfigured = !!(newServerConfig.url && newServerConfig.apiKey);
+      setIsServerConfigured(serverConfigured);
+      
+      // Clear connection status when server config changes
+      if (field === "url" || field === "apiKey") {
+        setConnectionStatus("");
+        setTagsLoaded(false);
+      }
+    }
+
+    // Update configuration validation with new form data
+    const updatedFormData = {
+      ...formData,
+      [section]: {
+        ...formData[section as keyof typeof formData],
+        [field]: value,
+      },
+    };
+    const validation = validateConfiguration({
+      ...updatedFormData,
+      shotBoundaryConfig,
+    } as AppConfig);
+    setConfigValidation(validation);
   };
 
   const handleSave = async () => {
@@ -270,6 +317,27 @@ export default function ServerConfigPage() {
         setConnectionStatus(
           `Connection successful! Stash version: ${result.data.version.version}`
         );
+        
+        // After successful connection test, load tags if they haven't been loaded yet
+        if (!tagsLoaded) {
+          try {
+            const appConfig = {
+              serverConfig: {
+                url: normalizedUrl,
+                apiKey: formData.serverConfig.apiKey,
+              },
+              markerConfig: formData.markerConfig,
+              markerGroupingConfig: formData.markerGroupingConfig,
+              shotBoundaryConfig,
+            };
+            const { stashappService } = await import("@/services/StashappService");
+            stashappService.applyConfig(appConfig);
+            await dispatch(loadAvailableTags()).unwrap();
+            setTagsLoaded(true);
+          } catch (error) {
+            console.error("Failed to load tags after connection test:", error);
+          }
+        }
       } else {
         setConnectionStatus(
           "Connection successful but unexpected response format"
@@ -377,63 +445,82 @@ export default function ServerConfigPage() {
       </div>
 
       {/* Marker Status Configuration */}
-      <div className="bg-gray-800 p-6 rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">Marker Status Tags</h2>
+      <div className={`bg-gray-800 p-6 rounded-lg ${!isServerConfigured ? 'opacity-50' : ''}`}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Marker Status Tags</h2>
+          {!isServerConfigured && (
+            <span className="text-sm text-yellow-400 bg-yellow-900/30 px-3 py-1 rounded-md">
+              Configure server connection first
+            </span>
+          )}
+        </div>
+        {!isServerConfigured && (
+          <div className="mb-4 p-3 bg-blue-900/30 border border-blue-700 rounded-md">
+            <p className="text-blue-100 text-sm">
+              Please configure your Stash server connection and test it successfully before setting up marker tags.
+              This ensures the app can access your Stash instance to load available tags.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2">
               Confirmed Status Tag ID
             </label>
-            <TagAutocomplete
+            <ConfigTagAutocomplete
               value={formData.markerConfig.statusConfirmed}
               onChange={(tagId) =>
                 handleInputChange("markerConfig", "statusConfirmed", tagId)
               }
               availableTags={availableTags}
-              placeholder="Search for confirmed status tag..."
+              placeholder={isServerConfigured ? "Search for confirmed status tag..." : "Configure server first"}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
+              disabled={!isServerConfigured}
             />
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">
               Rejected Status Tag ID
             </label>
-            <TagAutocomplete
+            <ConfigTagAutocomplete
               value={formData.markerConfig.statusRejected}
               onChange={(tagId) =>
                 handleInputChange("markerConfig", "statusRejected", tagId)
               }
               availableTags={availableTags}
-              placeholder="Search for rejected status tag..."
+              placeholder={isServerConfigured ? "Search for rejected status tag..." : "Configure server first"}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
+              disabled={!isServerConfigured}
             />
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">
               Manual Source Tag ID
             </label>
-            <TagAutocomplete
+            <ConfigTagAutocomplete
               value={formData.markerConfig.sourceManual}
               onChange={(tagId) =>
                 handleInputChange("markerConfig", "sourceManual", tagId)
               }
               availableTags={availableTags}
-              placeholder="Search for manual source tag..."
+              placeholder={isServerConfigured ? "Search for manual source tag..." : "Configure server first"}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
+              disabled={!isServerConfigured}
             />
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">
               Reviewed Tag ID
             </label>
-            <TagAutocomplete
+            <ConfigTagAutocomplete
               value={formData.markerConfig.aiReviewed}
               onChange={(tagId) =>
                 handleInputChange("markerConfig", "aiReviewed", tagId)
               }
               availableTags={availableTags}
-              placeholder="Search for Reviewed tag..."
+              placeholder={isServerConfigured ? "Search for Reviewed tag..." : "Configure server first"}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:outline-none"
+              disabled={!isServerConfigured}
             />
           </div>
         </div>

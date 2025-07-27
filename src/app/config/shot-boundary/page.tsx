@@ -11,7 +11,7 @@ import {
   selectAvailableTags,
   loadAvailableTags,
 } from "@/store/slices/markerSlice";
-import { TagAutocomplete } from "@/components/marker/TagAutocomplete";
+import { ConfigTagAutocomplete } from "@/components/settings/ConfigTagAutocomplete";
 
 interface VersionInfo {
   name: string;
@@ -196,12 +196,16 @@ export default function ShotBoundaryConfigPage() {
             <label className="block text-sm font-medium mb-2">
               Shot Boundary Tag ID
             </label>
-            <TagAutocomplete
+            <ConfigTagAutocomplete
               value={formData.shotBoundary}
               onChange={(tagId) => handleInputChange("shotBoundary", tagId)}
               availableTags={availableTags}
               placeholder="Search for shot boundary tag..."
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
+              onTagCreated={async (_newTag) => {
+                // Reload available tags after creating a new tag
+                await dispatch(loadAvailableTags());
+              }}
             />
             <p className="text-xs text-gray-400 mt-1">
               Primary tag applied to shot boundary markers
@@ -211,7 +215,7 @@ export default function ShotBoundaryConfigPage() {
             <label className="block text-sm font-medium mb-2">
               Source Detection Tag ID
             </label>
-            <TagAutocomplete
+            <ConfigTagAutocomplete
               value={formData.sourceShotBoundaryAnalysis}
               onChange={(tagId) =>
                 handleInputChange("sourceShotBoundaryAnalysis", tagId)
@@ -219,6 +223,10 @@ export default function ShotBoundaryConfigPage() {
               availableTags={availableTags}
               placeholder="Search for source detection tag..."
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
+              onTagCreated={async (_newTag) => {
+                // Reload available tags after creating a new tag
+                await dispatch(loadAvailableTags());
+              }}
             />
             <p className="text-xs text-gray-400 mt-1">
               Tag indicating markers were created by PySceneDetect analysis
@@ -228,12 +236,16 @@ export default function ShotBoundaryConfigPage() {
             <label className="block text-sm font-medium mb-2">
               AI Tagged ID
             </label>
-            <TagAutocomplete
+            <ConfigTagAutocomplete
               value={formData.aiTagged}
               onChange={(tagId) => handleInputChange("aiTagged", tagId)}
               availableTags={availableTags}
               placeholder="Search for AI tagged tag..."
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
+              onTagCreated={async (_newTag) => {
+                // Reload available tags after creating a new tag
+                await dispatch(loadAvailableTags());
+              }}
             />
             <p className="text-xs text-gray-400 mt-1">
               Tag used to identify scenes eligible for shot boundary processing
@@ -243,7 +255,7 @@ export default function ShotBoundaryConfigPage() {
             <label className="block text-sm font-medium mb-2">
               Processed Tag ID
             </label>
-            <TagAutocomplete
+            <ConfigTagAutocomplete
               value={formData.shotBoundaryProcessed}
               onChange={(tagId) =>
                 handleInputChange("shotBoundaryProcessed", tagId)
@@ -251,6 +263,10 @@ export default function ShotBoundaryConfigPage() {
               availableTags={availableTags}
               placeholder="Search for processed tag..."
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
+              onTagCreated={async (_newTag) => {
+                // Reload available tags after creating a new tag
+                await dispatch(loadAvailableTags());
+              }}
             />
             <p className="text-xs text-gray-400 mt-1">
               Tag applied to scenes after shot boundary processing is complete
