@@ -81,7 +81,7 @@ export default function ServerConfigPage() {
           console.error("Failed to automatically load tags:", error);
         }
       };
-      
+
       // Also test connection automatically
       const testConnectionOnLoad = async () => {
         try {
@@ -145,7 +145,7 @@ export default function ServerConfigPage() {
 
     try {
       // Get current config to preserve keyboard shortcuts
-      const configResponse = await fetch('/api/config');
+      const configResponse = await fetch("/api/config");
       let existingConfig = {};
       if (configResponse.ok) {
         existingConfig = await configResponse.json();
@@ -209,7 +209,9 @@ export default function ServerConfigPage() {
 
   const handleTestConnection = async () => {
     if (!formData.serverConfig.url || !formData.serverConfig.apiKey) {
-      setConnectionStatus("Please enter both URL and API key to test connection");
+      setConnectionStatus(
+        "Please enter both URL and API key to test connection"
+      );
       return;
     }
 
@@ -269,11 +271,15 @@ export default function ServerConfigPage() {
           `Connection successful! Stash version: ${result.data.version.version}`
         );
       } else {
-        setConnectionStatus("Connection successful but unexpected response format");
+        setConnectionStatus(
+          "Connection successful but unexpected response format"
+        );
       }
     } catch (error) {
       console.error("Connection test error:", error);
-      setConnectionStatus("Connection test failed: " + (error as Error).message);
+      setConnectionStatus(
+        "Connection test failed: " + (error as Error).message
+      );
     }
   };
 
@@ -282,7 +288,8 @@ export default function ServerConfigPage() {
       {isInitialSetup && (
         <div className="bg-blue-900 border border-blue-700 p-4 rounded-lg">
           <p className="text-blue-100">
-            Welcome to Stash Marker Studio! Please configure your Stash server connection and tag settings to get started.
+            Welcome to Stash Marker Studio! Please configure your Stash server
+            connection and tag settings to get started.
           </p>
         </div>
       )}
@@ -319,9 +326,7 @@ export default function ServerConfigPage() {
         <h2 className="text-xl font-semibold mb-4">Server Configuration</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Stash URL
-            </label>
+            <label className="block text-sm font-medium mb-2">Stash URL</label>
             <input
               type="url"
               value={formData.serverConfig.url}
@@ -338,9 +343,7 @@ export default function ServerConfigPage() {
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">
-              API Key
-            </label>
+            <label className="block text-sm font-medium mb-2">API Key</label>
             <input
               type="password"
               value={formData.serverConfig.apiKey}
@@ -421,7 +424,7 @@ export default function ServerConfigPage() {
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">
-              AI Reviewed Tag ID
+              Reviewed Tag ID
             </label>
             <TagAutocomplete
               value={formData.markerConfig.aiReviewed}
@@ -429,14 +432,12 @@ export default function ServerConfigPage() {
                 handleInputChange("markerConfig", "aiReviewed", tagId)
               }
               availableTags={availableTags}
-              placeholder="Search for AI reviewed tag..."
+              placeholder="Search for Reviewed tag..."
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:outline-none"
             />
           </div>
         </div>
       </div>
-
-
     </div>
   );
 }
