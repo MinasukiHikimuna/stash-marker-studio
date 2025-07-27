@@ -129,6 +129,24 @@ The interface provides visual feedback for each state, with rejected markers usi
 
 Stash Marker Studio requires Stash version 0.28 or later. 0.28 introduced support for start and end times for markers which is crucial for the tool.
 
+### Quick Start with Docker (Recommended)
+
+The easiest way to get started is using the pre-built Docker image from GitHub Container Registry:
+
+```bash
+# Create configuration file
+cp app-config.sample.json app-config.json
+
+# Run the latest image
+docker run -p 3000:3000 -v ./app-config.json:/app/app-config.json ghcr.io/minasukihikimuna/stash-marker-studio:latest
+```
+
+Open [http://localhost:3000](http://localhost:3000) and use the configuration UI to set up your Stashapp connection and tag IDs.
+
+### Alternative: Build from Source
+
+If you prefer to build the image yourself:
+
 1. Clone the repository
 2. Copy the sample configuration file:
 
