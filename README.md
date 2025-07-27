@@ -68,6 +68,7 @@ Note: This feature is distinct from the "Corresponding Tags" system, which is us
 Stash Marker Studio supports both AI-generated marker review and general marker creation/editing workflows:
 
 **For AI-Generated Markers:**
+
 - Load scene with existing AI-generated markers
 - Navigate through unprocessed markers using keyboard shortcuts
 - Confirm or reject markers based on accuracy
@@ -76,6 +77,7 @@ Stash Marker Studio supports both AI-generated marker review and general marker 
 - Complete review and apply final tag conversions
 
 **For Manual Marker Creation:**
+
 - Create new markers at current video position during playback
 - Set precise start/end times using frame-accurate controls
 - Apply appropriate tags and organize using marker groups
@@ -94,8 +96,6 @@ Stash Marker Studio supports both AI-generated marker review and general marker 
 
 The corresponding tag system works by setting tag descriptions in Stashapp. For example, setting "Kissing_AI" tag's Description to "Corresponding Tag: Kissing" creates the relationship. Stash Marker Studio's "Convert Corresponding Tags" functionality shows these conversions for user confirmation before applying them.
 
-![Corresponding Tags](stash-marker-studio-corresponding-tags.png)
-
 ## Interface Overview
 
 ### Timeline Organization
@@ -111,12 +111,14 @@ Stash Marker Studio organizes markers using a two-level system for maximum flexi
 Tags can be linked together using the "Corresponding Tag" system. When you set a tag's description to "Corresponding Tag: TagName" in Stashapp, those tags will be grouped together on the same swimlane. This is useful for organizing related tags like "Kissing" and "Kissing_AI" together.
 
 Each swimlane displays a gear icon on hover that provides different interfaces based on the current state:
+
 - **No relationships**: Shows a tag autocomplete to set up corresponding tag relationships
 - **Existing relationships**: Shows a list of connected tags with individual remove buttons for each relationship
 
 ### Marker States
 
 Markers can be in one of three states, each with distinct visual styling:
+
 - **Unprocessed**: New markers awaiting review (default state)
 - **Confirmed**: Approved markers tagged for retention
 - **Rejected**: Rejected markers tagged for potential deletion
@@ -160,16 +162,19 @@ npm run dev
 For `pyscenedetect-process.js`, you need to [install PySceneDetect](https://www.scenedetect.com/download/) and ffmpeg, then run the custom script which will run shot boundary analysis on your scenes which have already been AI analyzed.
 
 **Requirements:**
+
 - **PySceneDetect**: Version 0.5.6 or higher recommended
 - **ffmpeg**: Version 7.1 or higher recommended
 
 You can check your installed versions:
+
 ```bash
 scenedetect version
 ffmpeg -version
 ```
 
 Run the script:
+
 ```bash
 npm install
 node src/scripts/pyscenedetect-process.js
@@ -186,17 +191,20 @@ Configuration is managed through the application's internal configuration interf
 You'll need to create the following tags in Stashapp. Tag names are customizable, but the example names shown follow common conventions:
 
 **Marker Status Tags:**
+
 - **Status Confirmed**: Assigned to approved markers permanently (example: "Marker Status: Confirmed")
 - **Status Rejected**: Assigned to rejected markers until deletion (example: "Marker Status: Rejected")
 - **Source Manual**: Assigned to markers created manually in the application (example: "Marker Source: Manual")
 - **AI Reviewed**: Assigned to scenes after marker review completion (example: "AI_Reviewed")
 
 **Marker Grouping Tags (Optional):**
+
 - **Marker Group Parent**: Parent tag for organizing marker groups (example: "Marker Group")
   - Create child tags with pattern "Marker Group: N. DisplayName" for organization
   - Enables visual grouping of related marker types in the timeline
 
 **PySceneDetect Integration Tags (Optional):**
+
 - **Shot Boundary**: Primary tag for shot boundary markers (example: "Video Cut")
 - **Source Shot Boundary**: Source tag for PySceneDetect-created markers (example: "Marker Source: PySceneDetect")
 - **AI Tagged**: Tag for scenes ready for PySceneDetect processing (example: "AI_Tagged")
@@ -205,6 +213,7 @@ You'll need to create the following tags in Stashapp. Tag names are customizable
 #### Server Configuration
 
 Configure your Stashapp connection through the configuration interface:
+
 - **Stashapp URL**: Your Stash GraphQL endpoint (typically http://localhost:9999/graphql)
 - **API Key**: Authentication key from Stashapp Settings → Security (leave empty if no auth required)
 
