@@ -20,10 +20,9 @@ export function validateConfiguration(config: AppConfig | null | undefined): Con
     return result;
   }
 
-  // Check server configuration
-  if (!config.serverConfig?.url || !config.serverConfig?.apiKey) {
-    if (!config.serverConfig?.url) result.missingFields.push("Server URL");
-    if (!config.serverConfig?.apiKey) result.missingFields.push("API Key");
+  // Check server configuration - only URL is required, API key is optional
+  if (!config.serverConfig?.url) {
+    result.missingFields.push("Server URL");
   } else {
     result.hasServerConfig = true;
   }

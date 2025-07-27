@@ -2,6 +2,7 @@ import { type AppConfig } from "@/serverConfig";
 import { NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { validateConfiguration } from "@/utils/configValidation";
 
 const CONFIG_FILE_PATH = path.join(process.cwd(), "app-config.json");
 
@@ -45,10 +46,11 @@ export async function POST(request: Request) {
   try {
     const config: AppConfig = await request.json();
     
-    // Validate required fields
-    if (!config.serverConfig?.url || !config.serverConfig?.apiKey) {
+    // Validate required fields using the same validation logic
+    const validation = validateConfiguration(config);
+    if (!validation.hasServerConfig && validation.missingFields.length > 0) {
       return NextResponse.json(
-        { error: "Server URL and API key are required" },
+        { error: `Missing required fields: ${validation.missingFields.join(", ")}` },
         { status: 400 }
       );
     }

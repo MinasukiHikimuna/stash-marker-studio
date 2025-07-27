@@ -191,16 +191,18 @@ export class StashappService {
     query: string,
     variables: Record<string, unknown>
   ): Promise<T> {
-    if (!this.apiKey) {
-      throw new Error("Not authenticated");
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    
+    // Only add ApiKey header if we have an API key
+    if (this.apiKey) {
+      headers.ApiKey = this.apiKey;
     }
 
     const response = await fetch(`${this.stashUrl}/graphql`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ApiKey: this.apiKey,
-      },
+      headers,
       body: JSON.stringify({ query, variables }),
     });
 
@@ -1101,14 +1103,15 @@ export class StashappService {
     return this.addApiKeyToUrl(spritePath);
   };
 
-  // Helper method to add API key to any URL
+  // Helper method to add API key to any URL (only if API key is available)
   addApiKeyToUrl(url: string): string {
-    if (!this.apiKey) {
-      throw new Error("Not authenticated");
-    }
-
     // If URL is relative (starts with /), prepend STASH_URL
     const fullUrl = url.startsWith("/") ? `${this.stashUrl}${url}` : url;
+
+    // Only add API key if we have one
+    if (!this.apiKey) {
+      return fullUrl;
+    }
 
     return fullUrl.includes("?")
       ? `${fullUrl}&apikey=${this.apiKey}`

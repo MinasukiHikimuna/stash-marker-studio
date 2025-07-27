@@ -43,6 +43,9 @@ export default function ServerConfigPage() {
   const [isInitialSetup, setIsInitialSetup] = useState(false);
   const [tagsLoaded, setTagsLoaded] = useState(false);
   const [isServerConfigured, setIsServerConfigured] = useState(false);
+  const [isConnectionTested, setIsConnectionTested] = useState(false);
+  const [isLoadingTags, setIsLoadingTags] = useState(false);
+  const [tagLoadError, setTagLoadError] = useState("");
   const [_configValidation, setConfigValidation] = useState(validateConfiguration(null));
 
   // Load current config into form
@@ -55,8 +58,8 @@ export default function ServerConfigPage() {
       !markerConfig.statusRejected;
     setIsInitialSetup(isEmpty);
 
-    // Check if server is configured (has URL and API key)
-    const serverConfigured = !!(serverConfig.url && serverConfig.apiKey);
+    // Check if server is configured (has URL, API key is optional)
+    const serverConfigured = !!serverConfig.url;
     setIsServerConfigured(serverConfigured);
 
     setFormData({
@@ -77,30 +80,17 @@ export default function ServerConfigPage() {
 
   // Load tags and test connection when server config is available
   useEffect(() => {
-    if (serverConfig.url && serverConfig.apiKey && !tagsLoaded && isServerConfigured) {
-      const loadTags = async () => {
+    if (serverConfig.url && !tagsLoaded && isServerConfigured) {
+      const loadTagsAndTestConnection = async () => {
+        setIsLoadingTags(true);
+        setTagLoadError("");
+        setConnectionStatus("Testing connection and loading tags...");
+        
         try {
-          // Apply current config to StashappService so it can make API calls
-          const appConfig = {
-            serverConfig,
-            markerConfig,
-            markerGroupingConfig,
-            shotBoundaryConfig,
-          };
-          const { stashappService } = await import(
-            "@/services/StashappService"
-          );
-          stashappService.applyConfig(appConfig);
+          // Normalize the URL to handle common issues
+          const normalizedUrl = normalizeUrl(serverConfig.url);
 
-          await dispatch(loadAvailableTags()).unwrap();
-        } catch (error) {
-          console.error("Failed to automatically load tags:", error);
-        }
-      };
-
-      // Also test connection automatically
-      const testConnectionOnLoad = async () => {
-        try {
+          // Test connection first
           const testQuery = `
             query Version {
               version {
@@ -109,32 +99,63 @@ export default function ServerConfigPage() {
             }
           `;
 
-          const response = await fetch(`${serverConfig.url}/graphql`, {
+          const response = await fetch(`${normalizedUrl}/graphql`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              ApiKey: serverConfig.apiKey,
+              ...(serverConfig.apiKey && { ApiKey: serverConfig.apiKey }),
             },
             body: JSON.stringify({ query: testQuery }),
           });
 
-          if (response.ok) {
-            const result = await response.json();
-            if (result.data?.version?.version) {
-              setConnectionStatus(
-                `Connection successful! Stash version: ${result.data.version.version}`
-              );
-            }
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status} - ${errorText.substring(0, 200)}...`);
+          }
+
+          const result = await response.json();
+
+          if (result.errors) {
+            throw new Error(`GraphQL error: ${result.errors[0]?.message || "Unknown error"}`);
+          }
+
+          if (result.data?.version?.version) {
+            setConnectionStatus(
+              `Connection successful! Stash version: ${result.data.version.version}`
+            );
+            setIsConnectionTested(true);
+
+            // Now load tags since connection is successful
+            const appConfig = {
+              serverConfig: {
+                url: normalizedUrl,
+                apiKey: serverConfig.apiKey,
+              },
+              markerConfig,
+              markerGroupingConfig,
+              shotBoundaryConfig,
+            };
+            const { stashappService } = await import(
+              "@/services/StashappService"
+            );
+            stashappService.applyConfig(appConfig);
+
+            await dispatch(loadAvailableTags()).unwrap();
+            setTagsLoaded(true);
+          } else {
+            throw new Error("Connection successful but unexpected response format");
           }
         } catch (error) {
-          // Silently fail on page load - user can manually test if needed
-          console.log("Auto connection test failed:", error);
+          console.error("Failed to automatically test connection and load tags:", error);
+          const errorMessage = error instanceof Error ? error.message : "Failed to connect and load tags";
+          setTagLoadError(errorMessage);
+          setConnectionStatus(`Connection failed: ${errorMessage}`);
+        } finally {
+          setIsLoadingTags(false);
         }
       };
 
-      loadTags();
-      testConnectionOnLoad();
-      setTagsLoaded(true);
+      loadTagsAndTestConnection();
     }
   }, [
     serverConfig,
@@ -161,13 +182,16 @@ export default function ServerConfigPage() {
         ...formData.serverConfig,
         [field]: value,
       };
-      const serverConfigured = !!(newServerConfig.url && newServerConfig.apiKey);
+      const serverConfigured = !!newServerConfig.url;
       setIsServerConfigured(serverConfigured);
       
       // Clear connection status when server config changes
-      if (field === "url" || field === "apiKey") {
+      if (field === "url") {
         setConnectionStatus("");
         setTagsLoaded(false);
+        setTagLoadError("");
+        setIsLoadingTags(false);
+        setIsConnectionTested(false);
       }
     }
 
@@ -255,9 +279,9 @@ export default function ServerConfigPage() {
   };
 
   const handleTestConnection = async () => {
-    if (!formData.serverConfig.url || !formData.serverConfig.apiKey) {
+    if (!formData.serverConfig.url) {
       setConnectionStatus(
-        "Please enter both URL and API key to test connection"
+        "Please enter URL to test connection"
       );
       return;
     }
@@ -280,7 +304,7 @@ export default function ServerConfigPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ApiKey: formData.serverConfig.apiKey,
+          ...(formData.serverConfig.apiKey && { ApiKey: formData.serverConfig.apiKey }),
         },
         body: JSON.stringify({ query: testQuery }),
       });
@@ -317,6 +341,7 @@ export default function ServerConfigPage() {
         setConnectionStatus(
           `Connection successful! Stash version: ${result.data.version.version}`
         );
+        setIsConnectionTested(true);
         
         // After successful connection test, load tags if they haven't been loaded yet
         if (!tagsLoaded) {
@@ -418,9 +443,12 @@ export default function ServerConfigPage() {
               onChange={(e) =>
                 handleInputChange("serverConfig", "apiKey", e.target.value)
               }
-              placeholder="Your Stash API key"
+              placeholder="Your Stash API key (optional)"
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
             />
+            <p className="text-xs text-gray-400 mt-1">
+              Leave empty if your Stash instance doesn&quot;t require an API key
+            </p>
           </div>
         </div>
         <div className="mt-4 flex items-center gap-4">
@@ -445,20 +473,37 @@ export default function ServerConfigPage() {
       </div>
 
       {/* Marker Status Configuration */}
-      <div className={`bg-gray-800 p-6 rounded-lg ${!isServerConfigured ? 'opacity-50' : ''}`}>
+      <div className={`bg-gray-800 p-6 rounded-lg ${!isConnectionTested ? 'opacity-50' : ''}`}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">Marker Status Tags</h2>
-          {!isServerConfigured && (
+          {!isConnectionTested && (
             <span className="text-sm text-yellow-400 bg-yellow-900/30 px-3 py-1 rounded-md">
-              Configure server connection first
+              Test connection first
             </span>
           )}
         </div>
-        {!isServerConfigured && (
+        {!isConnectionTested && (
           <div className="mb-4 p-3 bg-blue-900/30 border border-blue-700 rounded-md">
             <p className="text-blue-100 text-sm">
-              Please configure your Stash server connection and test it successfully before setting up marker tags.
-              This ensures the app can access your Stash instance to load available tags.
+              Please configure your Stash server URL and ensure connection test passes to enable tag selection.
+              {isLoadingTags && " Testing connection and loading tags..."}
+            </p>
+          </div>
+        )}
+        {isServerConfigured && tagLoadError && (
+          <div className="mb-4 p-3 bg-yellow-900/30 border border-yellow-700 rounded-md">
+            <p className="text-yellow-100 text-sm">
+              Could not automatically load tags: {tagLoadError}
+            </p>
+            <p className="text-yellow-100 text-xs mt-1">
+              You can try the &ldquo;Test Connection&rdquo; button or proceed with manual tag ID entry.
+            </p>
+          </div>
+        )}
+        {isServerConfigured && isLoadingTags && (
+          <div className="mb-4 p-3 bg-blue-900/30 border border-blue-700 rounded-md">
+            <p className="text-blue-100 text-sm">
+              Loading available tags from your Stash instance...
             </p>
           </div>
         )}
@@ -473,9 +518,9 @@ export default function ServerConfigPage() {
                 handleInputChange("markerConfig", "statusConfirmed", tagId)
               }
               availableTags={availableTags}
-              placeholder={isServerConfigured ? "Search for confirmed status tag..." : "Configure server first"}
+              placeholder={isConnectionTested ? "Search for confirmed status tag..." : "Test connection first"}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
-              disabled={!isServerConfigured}
+              disabled={!isConnectionTested}
             />
           </div>
           <div>
@@ -488,9 +533,9 @@ export default function ServerConfigPage() {
                 handleInputChange("markerConfig", "statusRejected", tagId)
               }
               availableTags={availableTags}
-              placeholder={isServerConfigured ? "Search for rejected status tag..." : "Configure server first"}
+              placeholder={isConnectionTested ? "Search for rejected status tag..." : "Test connection first"}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
-              disabled={!isServerConfigured}
+              disabled={!isConnectionTested}
             />
           </div>
           <div>
@@ -503,9 +548,9 @@ export default function ServerConfigPage() {
                 handleInputChange("markerConfig", "sourceManual", tagId)
               }
               availableTags={availableTags}
-              placeholder={isServerConfigured ? "Search for manual source tag..." : "Configure server first"}
+              placeholder={isConnectionTested ? "Search for manual source tag..." : "Test connection first"}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
-              disabled={!isServerConfigured}
+              disabled={!isConnectionTested}
             />
           </div>
           <div>
@@ -518,9 +563,9 @@ export default function ServerConfigPage() {
                 handleInputChange("markerConfig", "aiReviewed", tagId)
               }
               availableTags={availableTags}
-              placeholder={isServerConfigured ? "Search for Reviewed tag..." : "Configure server first"}
+              placeholder={isConnectionTested ? "Search for Reviewed tag..." : "Test connection first"}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:outline-none"
-              disabled={!isServerConfigured}
+              disabled={!isConnectionTested}
             />
           </div>
         </div>
