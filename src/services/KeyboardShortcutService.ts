@@ -180,11 +180,20 @@ class KeyboardShortcutService {
     const config: KeyboardShortcutConfig = {};
 
     for (const shortcut of this.shortcuts) {
-      // Export all shortcuts (including defaults)
-      config[shortcut.id] = {
-        bindings: shortcut.bindings,
-        enabled: shortcut.enabled
-      };
+      const defaultShortcut = defaultShortcuts.find(s => s.id === shortcut.id);
+      
+      // Only export if different from default
+      if (defaultShortcut) {
+        const bindingsChanged = !this.areBindingsEqual(shortcut.bindings, defaultShortcut.bindings);
+        const enabledChanged = shortcut.enabled !== defaultShortcut.enabled;
+        
+        if (bindingsChanged || enabledChanged) {
+          config[shortcut.id] = {
+            bindings: shortcut.bindings,
+            enabled: shortcut.enabled
+          };
+        }
+      }
     }
 
     return config;

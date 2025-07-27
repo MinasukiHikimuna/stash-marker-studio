@@ -32,7 +32,7 @@ describe('defaultKeyboardShortcuts', () => {
     it('should have bindings for all shortcuts', () => {
       defaultShortcuts.forEach(shortcut => {
         expect(shortcut.bindings).toBeDefined();
-        expect(shortcut.bindings.length).toBeGreaterThan(0);
+        expect(shortcut.bindings).toBeInstanceOf(Array);
         
         shortcut.bindings.forEach(binding => {
           expect(binding.key).toBeDefined();

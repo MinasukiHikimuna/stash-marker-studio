@@ -1,11 +1,12 @@
-import { KeyboardShortcutService } from './KeyboardShortcutService';
+import { keyboardShortcutService } from './KeyboardShortcutService';
 import { KeyBinding, KeyboardShortcutConfig } from '../types/keyboard';
 
-// Create a new instance for each test
-let service: KeyboardShortcutService;
+// Use the singleton instance
+let service = keyboardShortcutService;
 
 beforeEach(() => {
-  service = new KeyboardShortcutService();
+  // Reset the service for each test
+  service.resetAllShortcuts();
 });
 
 describe('KeyboardShortcutService', () => {
@@ -25,14 +26,14 @@ describe('KeyboardShortcutService', () => {
     it('should merge user config with defaults', async () => {
       const userConfig: KeyboardShortcutConfig = {
         'marker.confirm': {
-          bindings: [{ key: 'c' }]
+          bindings: [{ key: 'b' }]
         }
       };
 
       await service.initialize(userConfig);
       
       const confirmShortcut = service.getShortcut('marker.confirm');
-      expect(confirmShortcut?.bindings).toEqual([{ key: 'c' }]);
+      expect(confirmShortcut?.bindings).toEqual([{ key: 'b' }]);
     });
   });
 
@@ -197,14 +198,14 @@ describe('KeyboardShortcutService', () => {
     });
 
     it('should export only changed shortcuts', () => {
-      // Change a shortcut
-      service.updateShortcut('marker.confirm', [{ key: 'c' }]);
+      // Change a shortcut to a non-conflicting key
+      service.updateShortcut('marker.confirm', [{ key: 'b' }]);
       
       const config = service.exportConfig();
       
       // Should only contain the changed shortcut
       expect(Object.keys(config)).toEqual(['marker.confirm']);
-      expect(config['marker.confirm'].bindings).toEqual([{ key: 'c' }]);
+      expect(config['marker.confirm'].bindings).toEqual([{ key: 'b' }]);
     });
 
     it('should export empty config when no changes', () => {
