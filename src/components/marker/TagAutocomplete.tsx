@@ -41,6 +41,9 @@ export function TagAutocomplete({
     } else if (autoFocus) {
       // Clear input when starting inline editing so user can just start typing
       setInputValue("");
+    } else if (!currentTag && !autoFocus) {
+      // Clear input when no tag is selected (value is empty)
+      setInputValue("");
     }
   }, [currentTag, autoFocus]);
 

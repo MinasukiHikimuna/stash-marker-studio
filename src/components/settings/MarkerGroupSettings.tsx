@@ -1,161 +1,101 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import {
-  selectAvailableTags,
-  loadAvailableTags,
-} from "@/store/slices/markerSlice";
-import {
+import { 
   selectMarkerGroupingConfig,
+  selectMarkerGroups,
+  selectMarkerGroupsLoading,
+  selectMarkerGroupsError,
+  loadMarkerGroups,
   setMarkerGroupingConfig,
+  setFullConfig,
+  type MarkerGroupTag
 } from "@/store/slices/configSlice";
+import { selectAvailableTags, loadAvailableTags } from "@/store/slices/markerSlice";
 import { TagAutocomplete } from "@/components/marker/TagAutocomplete";
+import type { AppConfig } from "@/serverConfig";
 import { stashappService } from "@/services/StashappService";
-import type { Tag } from "@/services/StashappService";
-
-type MarkerGroupTag = {
-  id: string;
-  name: string;
-  orderNumber: number;
-};
 
 export default function MarkerGroupSettings() {
   const dispatch = useAppDispatch();
   const markerGroupingConfig = useAppSelector(selectMarkerGroupingConfig);
   const availableTags = useAppSelector(selectAvailableTags);
-  
-  const [markerGroupParent, setMarkerGroupParent] = useState("");
-  const [markerGroupTags, setMarkerGroupTags] = useState<MarkerGroupTag[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const reduxMarkerGroups = useAppSelector(selectMarkerGroups);
+  const isLoadingGroups = useAppSelector(selectMarkerGroupsLoading);
+  const groupsError = useAppSelector(selectMarkerGroupsError);
   const [isLoadingTags, setIsLoadingTags] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [formData, setFormData] = useState({
+    markerGroupParent: ""
+  });
+  const [newGroupName, setNewGroupName] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [deletingGroupId, setDeletingGroupId] = useState<string | null>(null);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editingGroupName, setEditingGroupName] = useState("");
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
-  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [dragOverItem, setDragOverItem] = useState<string | null>(null);
 
-  // Load current config
+  // Sync form data with Redux state
   useEffect(() => {
-    setMarkerGroupParent(markerGroupingConfig.markerGroupParent);
+    setFormData({
+      markerGroupParent: markerGroupingConfig.markerGroupParent || ""
+    });
   }, [markerGroupingConfig]);
-
-  // Load available tags on component mount if not already loaded
+  
+  // Load available tags on mount if not already loaded
   useEffect(() => {
+    console.log("useEffect triggered - availableTags.length:", availableTags.length);
     if (availableTags.length === 0) {
+      console.log("Loading tags...");
       setIsLoadingTags(true);
       dispatch(loadAvailableTags()).finally(() => {
+        console.log("Tags loaded!");
         setIsLoadingTags(false);
       });
     }
   }, [dispatch, availableTags.length]);
 
-  // Load marker group tags when parent changes
   useEffect(() => {
-    const loadMarkerGroupTags = async () => {
-      if (!markerGroupParent) return;
-      
-      setIsLoading(true);
-      try {
-        // Find all tags that have the marker group parent as their parent
-        // and start with "Marker Group: "
-        const groupTags = availableTags
-          .filter(tag => 
-            tag.parents?.some(parent => parent.id === markerGroupParent) &&
-            tag.name.startsWith("Marker Group: ")
-          )
-          .map(tag => {
-            // Extract order number from name like "Marker Group: 1. Position Name"
-            const match = tag.name.match(/Marker Group: (\d+)\./);
-            const orderNumber = match ? parseInt(match[1], 10) : 999;
-            
-            return {
-              id: tag.id,
-              name: tag.name,
-              orderNumber,
-            };
-          })
-          .sort((a, b) => {
-            // Use natural sorting on the full name to handle numeric ordering properly
-            return a.name.localeCompare(b.name, undefined, { 
-              numeric: true, 
-              sensitivity: 'base' 
-            });
-          });
-          
-        setMarkerGroupTags(groupTags);
-      } catch (error) {
-        console.error("Failed to load marker group tags:", error);
-        setMessage("Failed to load marker group tags");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (markerGroupParent) {
-      loadMarkerGroupTags();
-    } else {
-      setMarkerGroupTags([]);
+    console.log("loadMarkerGroups useEffect - parent:", markerGroupingConfig.markerGroupParent, "tags:", availableTags.length);
+    if (markerGroupingConfig.markerGroupParent && availableTags.length > 0) {
+      console.log("Dispatching loadMarkerGroups...");
+      dispatch(loadMarkerGroups());
     }
-  }, [markerGroupParent, availableTags]);
+  }, [markerGroupingConfig.markerGroupParent, availableTags.length, dispatch]);
 
-  const loadMarkerGroupTags = async () => {
-    if (!markerGroupParent) return;
-    
-    setIsLoading(true);
-    try {
-      // Find all tags that have the marker group parent as their parent
-      // and start with "Marker Group: "
-      const groupTags = availableTags
-        .filter(tag => 
-          tag.parents?.some(parent => parent.id === markerGroupParent) &&
-          tag.name.startsWith("Marker Group: ")
-        )
-        .map(tag => {
-          // Extract order number from name like "Marker Group: 1. Position Name"
-          const match = tag.name.match(/Marker Group: (\d+)\./);
-          const orderNumber = match ? parseInt(match[1], 10) : 999;
-          
-          return {
-            id: tag.id,
-            name: tag.name,
-            orderNumber,
-          };
-        })
-        .sort((a, b) => {
-          // Use natural sorting on the full name to handle numeric ordering properly
-          return a.name.localeCompare(b.name, undefined, { 
-            numeric: true, 
-            sensitivity: 'base' 
-          });
-        });
-        
-      setMarkerGroupTags(groupTags);
-    } catch (error) {
-      console.error("Failed to load marker group tags:", error);
-      setMessage("Failed to load marker group tags");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleParentChange = (parentId: string) => {
+    setFormData({ markerGroupParent: parentId });
+    // Also update Redux immediately for UI responsiveness
+    dispatch(setMarkerGroupingConfig({ markerGroupParent: parentId }));
   };
 
-  const handleSaveParentTag = async (newParentValue?: string) => {
-    const parentValue = newParentValue ?? markerGroupParent;
-    
+  const handleClearParent = () => {
+    setFormData({ markerGroupParent: "" });
+    // Also update Redux immediately for UI responsiveness
+    dispatch(setMarkerGroupingConfig({ markerGroupParent: "" }));
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setMessage("");
+
     try {
-      setIsLoading(true);
-      
-      // Update Redux store
-      dispatch(setMarkerGroupingConfig({ markerGroupParent: parentValue }));
-      
-      // Save to server config
+      // Get current full config to preserve other settings
       const configResponse = await fetch('/api/config');
       let existingConfig = {};
       if (configResponse.ok) {
         existingConfig = await configResponse.json();
       }
 
-      const updatedConfig = {
-        ...existingConfig,
-        markerGroupingConfig: { markerGroupParent: parentValue },
+      // Create updated config with new marker grouping settings
+      const appConfig: AppConfig = {
+        ...(existingConfig as AppConfig),
+        markerGroupingConfig: {
+          markerGroupParent: formData.markerGroupParent
+        }
       };
 
       const response = await fetch("/api/config", {
@@ -163,311 +103,233 @@ export default function MarkerGroupSettings() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(updatedConfig),
+        body: JSON.stringify(appConfig),
       });
 
       if (!response.ok) {
         throw new Error("Failed to save configuration");
       }
 
-      setMessage("Parent tag configuration saved!");
+      // Update Redux store
+      dispatch(setFullConfig(appConfig));
+
+      setMessage("Configuration saved successfully!");
     } catch (error) {
-      setMessage("Failed to save parent tag: " + (error as Error).message);
+      setMessage("Error saving configuration: " + (error as Error).message);
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
-  const addNewMarkerGroup = () => {
-    if (!markerGroupParent) {
-      setMessage("Please set a marker group parent tag first");
+  const getNextMarkerGroupNumber = () => {
+    if (reduxMarkerGroups.length === 0) return 1;
+    
+    const numbers = reduxMarkerGroups
+      .map(group => group.orderNumber)
+      .filter(num => num !== 999) // Exclude invalid numbers
+      .sort((a, b) => a - b);
+    
+    // Find the first gap or return next number
+    for (let i = 1; i <= numbers.length + 1; i++) {
+      if (!numbers.includes(i)) {
+        return i;
+      }
+    }
+    return numbers.length + 1;
+  };
+
+  const handleCreateMarkerGroup = async () => {
+    if (!newGroupName.trim()) {
+      setMessage("Please enter a name for the marker group.");
       return;
     }
 
-    setIsCreatingNew(true);
-  };
+    if (!formData.markerGroupParent) {
+      setMessage("Please select a parent tag first.");
+      return;
+    }
 
-  const createMarkerGroup = async (groupName: string) => {
+    setIsCreating(true);
+    setMessage("");
+
     try {
-      setIsLoading(true);
-      
-      const nextOrderNumber = markerGroupTags.length > 0 
-        ? Math.max(...markerGroupTags.map(tag => tag.orderNumber)) + 1 
-        : 1;
-
-      const newTagName = `Marker Group: ${nextOrderNumber}. ${groupName.trim()}`;
+      const nextNumber = getNextMarkerGroupNumber();
+      const tagName = `Marker Group: ${nextNumber}. ${newGroupName.trim()}`;
       
       // Create the tag with the parent
-      await stashappService.createTag(
-        newTagName,
-        `Marker group ${nextOrderNumber}`,
-        [markerGroupParent]
-      );
+      await stashappService.createTag(tagName, undefined, [formData.markerGroupParent]);
       
-      // Refresh the tag list
-      await loadMarkerGroupTags();
+      // Reload available tags and marker groups
       await dispatch(loadAvailableTags());
+      await dispatch(loadMarkerGroups());
       
-      setIsCreatingNew(false);
+      setNewGroupName("");
+      setMessage(`Created marker group: ${tagName}`);
     } catch (error) {
-      setMessage("Failed to create marker group: " + (error as Error).message);
+      setMessage("Error creating marker group: " + (error as Error).message);
     } finally {
-      setIsLoading(false);
+      setIsCreating(false);
     }
   };
 
-  const cancelCreateMarkerGroup = () => {
-    setIsCreatingNew(false);
-  };
-
-  const removeMarkerGroup = async (tagId: string) => {
-    try {
-      setIsLoading(true);
-      
-      await stashappService.deleteTag(tagId);
-      
-      // Refresh the tag lists
-      await loadMarkerGroupTags();
-      await dispatch(loadAvailableTags());
-      
-    } catch (error) {
-      setMessage("Failed to delete marker group: " + (error as Error).message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-
-  const renameMarkerGroup = async (tagId: string, newDisplayName: string) => {
-    try {
-      setIsLoading(true);
-      
-      const tag = markerGroupTags.find(t => t.id === tagId);
-      if (!tag) return;
-
-      const newTagName = `Marker Group: ${tag.orderNumber}. ${newDisplayName}`;
-      
-      await stashappService.updateTag(tagId, newTagName, "", [markerGroupParent]);
-      
-      // Refresh the tag lists
-      await loadMarkerGroupTags();
-      await dispatch(loadAvailableTags());
-      
-      setMessage(`Renamed marker group to: ${newDisplayName}`);
-    } catch (error) {
-      setMessage("Failed to rename marker group: " + (error as Error).message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDragStart = (e: React.DragEvent, tagId: string) => {
-    setDraggedItem(tagId);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDrop = async (e: React.DragEvent, targetTagId: string) => {
-    e.preventDefault();
-    
-    if (!draggedItem || draggedItem === targetTagId) {
-      setDraggedItem(null);
+  const handleDeleteMarkerGroup = async (groupId: string, groupName: string) => {
+    if (!confirm(`Are you sure you want to delete "${groupName}"? This action cannot be undone.`)) {
       return;
     }
 
-    await reorderMarkerGroups(draggedItem, targetTagId);
-    setDraggedItem(null);
+    setDeletingGroupId(groupId);
+    setMessage("");
+
+    try {
+      await stashappService.deleteTag(groupId);
+      
+      // Reload available tags and marker groups
+      await dispatch(loadAvailableTags());
+      await dispatch(loadMarkerGroups());
+      
+      setMessage(`Deleted marker group: ${groupName}`);
+    } catch (error) {
+      setMessage("Error deleting marker group: " + (error as Error).message);
+    } finally {
+      setDeletingGroupId(null);
+    }
   };
 
-  const reorderMarkerGroups = async (draggedTagId: string, targetTagId: string) => {
+  const startEditingGroup = (group: MarkerGroupTag) => {
+    setEditingGroupId(group.id);
+    // Extract just the user-provided name part after "Marker Group: X. "
+    const match = group.name.match(/^Marker Group: \d+\. (.+)$/);
+    setEditingGroupName(match ? match[1] : group.name);
+  };
+
+  const cancelEditingGroup = () => {
+    setEditingGroupId(null);
+    setEditingGroupName("");
+  };
+
+  const handleUpdateMarkerGroup = async (groupId: string, currentName: string) => {
+    if (!editingGroupName.trim()) {
+      setMessage("Please enter a name for the marker group.");
+      return;
+    }
+
+    setMessage("");
+
     try {
-      setIsLoading(true);
-
-      const draggedIndex = markerGroupTags.findIndex(t => t.id === draggedTagId);
-      const targetIndex = markerGroupTags.findIndex(t => t.id === targetTagId);
+      // Extract the number from the current name
+      const match = currentName.match(/^Marker Group: (\d+)\./);
+      const number = match ? match[1] : "1";
       
-      if (draggedIndex === -1 || targetIndex === -1) return;
+      const newTagName = `Marker Group: ${number}. ${editingGroupName.trim()}`;
+      
+      // Update the tag name
+      await stashappService.updateTag(groupId, newTagName);
+      
+      // Reload available tags and marker groups
+      await dispatch(loadAvailableTags());
+      await dispatch(loadMarkerGroups());
+      
+      setEditingGroupId(null);
+      setEditingGroupName("");
+      setMessage(`Updated marker group to: ${newTagName}`);
+    } catch (error) {
+      setMessage("Error updating marker group: " + (error as Error).message);
+    }
+  };
 
-      // Create new order array
-      const newOrder = [...markerGroupTags];
-      const draggedTag = newOrder.splice(draggedIndex, 1)[0];
-      newOrder.splice(targetIndex, 0, draggedTag);
+  const handleDragStart = (e: React.DragEvent, groupId: string) => {
+    setDraggedItem(groupId);
+    e.dataTransfer.effectAllowed = "move";
+  };
 
-      // Update all affected tags with new order numbers
-      const updatePromises = newOrder.map(async (tag, index) => {
-        const newOrderNumber = index + 1;
-        const displayName = tag.name.replace(/^Marker Group: \d+\.\s*/, "");
-        const newTagName = `Marker Group: ${newOrderNumber}. ${displayName}`;
+  const handleDragOver = (e: React.DragEvent, groupId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverItem(groupId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverItem(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetGroupId: string) => {
+    e.preventDefault();
+    
+    if (!draggedItem || draggedItem === targetGroupId) {
+      setDraggedItem(null);
+      setDragOverItem(null);
+      return;
+    }
+
+    setMessage("");
+
+    try {
+      // Find the dragged and target groups
+      const draggedGroup = reduxMarkerGroups.find(g => g.id === draggedItem);
+      const targetGroup = reduxMarkerGroups.find(g => g.id === targetGroupId);
+      
+      if (!draggedGroup || !targetGroup) {
+        throw new Error("Could not find groups to reorder");
+      }
+
+      // Create a copy of the groups array for reordering
+      const groupsCopy = [...reduxMarkerGroups];
+      const draggedIndex = groupsCopy.findIndex(g => g.id === draggedItem);
+      const targetIndex = groupsCopy.findIndex(g => g.id === targetGroupId);
+
+      // Remove dragged item and insert at target position
+      const [removed] = groupsCopy.splice(draggedIndex, 1);
+      groupsCopy.splice(targetIndex, 0, removed);
+
+      // Update all groups with new sequential numbers and extract user names
+      const updatePromises = groupsCopy.map(async (group, index) => {
+        const newNumber = index + 1;
         
-        if (tag.name !== newTagName) {
-          await stashappService.updateTag(tag.id, newTagName, "", [markerGroupParent]);
+        // Extract user-provided name part
+        const nameMatch = group.name.match(/^Marker Group: \d+\. (.+)$/);
+        const userProvidedName = nameMatch ? nameMatch[1] : group.name;
+        
+        const newTagName = `Marker Group: ${newNumber}. ${userProvidedName}`;
+        
+        // Only update if the name actually changed
+        if (group.name !== newTagName) {
+          await stashappService.updateTag(group.id, newTagName);
         }
       });
 
+      // Execute all updates
       await Promise.all(updatePromises);
       
-      // Refresh the tag lists
-      await loadMarkerGroupTags();
+      // Reload available tags and marker groups
       await dispatch(loadAvailableTags());
+      await dispatch(loadMarkerGroups());
       
-      setMessage("Marker groups reordered successfully");
+      setMessage("Marker groups reordered successfully!");
     } catch (error) {
-      setMessage("Failed to reorder marker groups: " + (error as Error).message);
+      setMessage("Error reordering marker groups: " + (error as Error).message);
     } finally {
-      setIsLoading(false);
+      setDraggedItem(null);
+      setDragOverItem(null);
     }
   };
-
-  // Helper function to get corresponding tag relationships
-  const getCorrespondingTagRelationships = () => {
-    const relationships: { baseTag: Tag; correspondingTags: Tag[] }[] = [];
-    
-    // Find all tags that have corresponding tag descriptions
-    const tagsWithCorrespondingTags = availableTags.filter(tag => 
-      tag.description?.includes("Corresponding Tag: ")
-    );
-
-    // Group by the corresponding tag they point to
-    const correspondingMap = new Map<string, Tag[]>();
-    
-    tagsWithCorrespondingTags.forEach(tag => {
-      if (tag.description?.includes("Corresponding Tag: ")) {
-        const correspondingTagName = tag.description
-          .split("Corresponding Tag: ")[1]
-          .trim();
-        
-        const baseTag = availableTags.find(t => t.name === correspondingTagName);
-        if (baseTag) {
-          if (!correspondingMap.has(baseTag.name)) {
-            correspondingMap.set(baseTag.name, []);
-          }
-          correspondingMap.get(baseTag.name)?.push(tag);
-        }
-      }
-    });
-
-    // Convert map to array format
-    correspondingMap.forEach((correspondingTags, baseTagName) => {
-      const baseTag = availableTags.find(t => t.name === baseTagName);
-      if (baseTag) {
-        relationships.push({ baseTag, correspondingTags });
-      }
-    });
-
-    return relationships;
-  };
-
-  // Helper function to find tags that can have corresponding tags set
-  const getTagsWithoutCorrespondingTags = () => {
-    const relationships = getCorrespondingTagRelationships();
-    const tagsWithCorrespondingTags = new Set();
-    const tagsUsedAsCorresponding = new Set();
-
-    // Track which tags already have corresponding relationships
-    relationships.forEach(({ baseTag, correspondingTags }) => {
-      tagsUsedAsCorresponding.add(baseTag.name);
-      correspondingTags.forEach(tag => {
-        tagsWithCorrespondingTags.add(tag.name);
-      });
-    });
-
-    // Find tags that don't have corresponding tags and aren't used as corresponding tags
-    return availableTags.filter(tag => 
-      !tagsWithCorrespondingTags.has(tag.name) && 
-      !tagsUsedAsCorresponding.has(tag.name) &&
-      !tag.description?.includes("Corresponding Tag: ")
-    );
-  };
-
-  // Handle removing a corresponding tag relationship
-  const removeCorrespondingTag = async (tagId: string) => {
-    try {
-      setIsLoading(true);
-      
-      const tag = availableTags.find(t => t.id === tagId);
-      if (!tag) return;
-
-      let newDescription = tag.description || '';
-      
-      // Remove existing "Corresponding Tag: " entry
-      newDescription = newDescription.replace(/Corresponding Tag: [^\n]*/g, '').trim();
-      
-      await stashappService.updateTag(tagId, undefined, newDescription);
-      
-      // Refresh tags to reflect the change
-      dispatch(loadAvailableTags());
-      
-      setMessage(`Removed corresponding tag relationship for: ${tag.name}`);
-    } catch (error) {
-      setMessage("Failed to remove corresponding tag: " + (error as Error).message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle setting a corresponding tag
-  const setCorrespondingTag = async (baseTagId: string, correspondingTagId: string) => {
-    try {
-      setIsLoading(true);
-      
-      const correspondingTag = availableTags.find(tag => tag.id === correspondingTagId);
-      const baseTag = availableTags.find(tag => tag.id === baseTagId);
-      
-      if (!correspondingTag || !baseTag) {
-        setMessage("Tag not found");
-        return;
-      }
-
-      let newDescription = correspondingTag.description || '';
-      
-      // Remove existing "Corresponding Tag: " entry if it exists
-      newDescription = newDescription.replace(/Corresponding Tag: [^\n]*/g, '').trim();
-      
-      // Add new corresponding tag
-      if (newDescription) {
-        newDescription += '\n';
-      }
-      newDescription += `Corresponding Tag: ${baseTag.name}`;
-
-      await stashappService.updateTag(correspondingTagId, undefined, newDescription);
-      
-      // Refresh tags to reflect the change
-      dispatch(loadAvailableTags());
-      
-      setMessage(`Set ${correspondingTag.name} to correspond to ${baseTag.name}`);
-    } catch (error) {
-      setMessage("Failed to set corresponding tag: " + (error as Error).message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Show loading state while tags are being loaded
-  if (isLoadingTags) {
-    return (
-      <div className="space-y-8">
-        <div className="bg-gray-800 p-6 rounded-lg">
-          <div className="flex items-center justify-center py-8">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              <p className="text-gray-400">Loading available tags...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8">
+      {/* Save Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="px-6 py-2 bg-green-600 hover:bg-green-500 disabled:bg-gray-600 rounded-md transition-colors font-medium"
+        >
+          {isSaving ? "Saving..." : "Save Configuration"}
+        </button>
+      </div>
+
       {message && (
         <div
           className={`p-4 rounded-lg ${
-            message.includes("Failed") || message.includes("Error")
+            message.includes("Error") || message.includes("failed")
               ? "bg-red-900 border border-red-700 text-red-100"
               : "bg-green-900 border border-green-700 text-green-100"
           }`}
@@ -476,374 +338,183 @@ export default function MarkerGroupSettings() {
         </div>
       )}
 
-      {/* Marker Group Parent Tag Configuration */}
       <div className="bg-gray-800 p-6 rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">Marker Group Parent Tag</h2>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Parent Tag for Marker Groups
-            </label>
-            <TagAutocomplete
-              value={markerGroupParent}
-              onChange={(newValue) => {
-                setMarkerGroupParent(newValue);
-                handleSaveParentTag(newValue);
-              }}
-              availableTags={availableTags}
-              placeholder="Search for marker group parent tag..."
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
-            />
-            <p className="text-xs text-gray-400 mt-2">
-              This tag will be the parent of all marker group tags.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Marker Group Tags Management */}
-      {markerGroupParent && (
-        <div className="bg-gray-800 p-6 rounded-lg">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Marker Group Tags</h2>
-            <button
-              onClick={addNewMarkerGroup}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md transition-colors"
-            >
-              Add New Group
-            </button>
-          </div>
-
-          <p>Marker group tags will automatically be prefixed with &ldquo;Marker Group: x.&rdquo; to support easy sorting in the timeline.</p>
-          
-          {isLoading ? (
-            <div className="text-center py-4">Loading marker groups...</div>
-          ) : markerGroupTags.length === 0 && !isCreatingNew ? (
-            <div className="text-center py-8 text-gray-400">
-              No marker group tags found. Click &quot;Add New Group&quot; to create your first marker group.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {isCreatingNew && (
-                <NewMarkerGroupItem
-                  onSave={createMarkerGroup}
-                  onCancel={cancelCreateMarkerGroup}
-                  nextOrderNumber={markerGroupTags.length > 0 
-                    ? Math.max(...markerGroupTags.map(tag => tag.orderNumber)) + 1 
-                    : 1}
-                />
-              )}
-              {markerGroupTags.map((tag) => (
-                <MarkerGroupTagItem
-                  key={tag.id}
-                  tag={tag}
-                  isDragging={draggedItem === tag.id}
-                  onRename={(newDisplayName) => renameMarkerGroup(tag.id, newDisplayName)}
-                  onRemove={() => removeMarkerGroup(tag.id)}
-                  onDragStart={(e) => handleDragStart(e, tag.id)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, tag.id)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Corresponding Tag Relationships */}
-      <div className="bg-gray-800 p-6 rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">Corresponding Tag Relationships</h2>
+        <h2 className="text-xl font-semibold mb-4">Marker Group Settings</h2>
         
-        {(() => {
-          const relationships = getCorrespondingTagRelationships();
-          const availableForCorrespondingTags = getTagsWithoutCorrespondingTags();
-          
-          return (
-            <div className="space-y-6">
-              {/* Show existing relationships */}
-              {relationships.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Current Relationships</h3>
-                  {relationships.map(({ baseTag, correspondingTags }) => (
-                    <div key={baseTag.id} className="bg-gray-700 p-4 rounded-lg">
-                      <div className="text-sm text-gray-300 mb-2">
-                        <span className="font-medium text-white">{baseTag.name}</span> has the following corresponding tags:
-                      </div>
-                      <div className="space-y-2">
-                        {correspondingTags.map(tag => (
-                          <div key={tag.id} className="flex items-center justify-between bg-gray-600 px-3 py-2 rounded">
-                            <span className="text-sm text-gray-200">- {tag.name}</span>
+        <div className="space-y-6">
+          {/* Parent Tag Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Marker Group Parent Tag
+            </label>
+            <div className="flex gap-2">
+              <TagAutocomplete
+                value={formData.markerGroupParent || ""}
+                onChange={handleParentChange}
+                availableTags={availableTags}
+                placeholder="Type to search for a parent tag..."
+                className="flex-1"
+              />
+              {formData.markerGroupParent && (
+                <button
+                  onClick={handleClearParent}
+                  className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-sm text-sm font-medium transition-colors"
+                  title="Clear selected parent tag"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {isLoadingTags && (
+              <p className="text-sm text-gray-400 mt-1">Loading available tags...</p>
+            )}
+          </div>
+
+          {/* Marker Groups Display */}
+          {formData.markerGroupParent && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Child Marker Groups ({reduxMarkerGroups.length})
+              </label>
+              <p>Note: Editing or ordering of child marker groups doesn&quot;t require Save Configuration as these are saved directly to Stashapp.</p>
+              {isLoadingGroups ? (
+                <div className="p-3 bg-gray-700 rounded-md">
+                  <p className="text-gray-400">Loading marker groups...</p>
+                </div>
+              ) : groupsError ? (
+                <div className="p-3 bg-red-900/20 border border-red-500 rounded-md">
+                  <p className="text-red-400">Error: {groupsError}</p>
+                </div>
+              ) : reduxMarkerGroups.length > 0 ? (
+                <div className="grid gap-2">
+                  {reduxMarkerGroups.map(group => (
+                    <div 
+                      key={group.id} 
+                      className={`p-3 bg-gray-700 rounded-md border-l-4 transition-all duration-200 ${
+                        draggedItem === group.id ? "opacity-50 border-yellow-500" : 
+                        dragOverItem === group.id ? "border-green-500 bg-gray-600" : "border-blue-500"
+                      } ${editingGroupId !== group.id ? "cursor-move" : ""}`}
+                      draggable={editingGroupId !== group.id}
+                      onDragStart={(e) => handleDragStart(e, group.id)}
+                      onDragOver={(e) => handleDragOver(e, group.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, group.id)}
+                    >
+                      {editingGroupId === group.id ? (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              value={editingGroupName}
+                              onChange={(e) => setEditingGroupName(e.target.value)}
+                              className="w-full p-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Enter marker group name"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleUpdateMarkerGroup(group.id, group.name);
+                                } else if (e.key === 'Escape') {
+                                  cancelEditingGroup();
+                                }
+                              }}
+                            />
+                            <p className="text-xs text-gray-400 mt-1">
+                              Will be: &ldquo;Marker Group: {group.orderNumber}. {editingGroupName || '[name]'}&rdquo;
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleUpdateMarkerGroup(group.id, group.name)}
+                            disabled={!editingGroupName.trim()}
+                            className="px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-sm text-sm font-medium transition-colors"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEditingGroup}
+                            className="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-sm text-sm font-medium transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="text-gray-400 cursor-move" title="Drag to reorder">
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-white font-medium">{group.name}</p>
+                              <p className="text-sm text-gray-400">Order: {group.orderNumber}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
                             <button
-                              onClick={() => removeCorrespondingTag(tag.id)}
-                              className="text-xs bg-red-600 hover:bg-red-700 px-2 py-1 rounded transition-colors"
-                              disabled={isLoading}
+                              onClick={() => startEditingGroup(group)}
+                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-sm text-sm font-medium transition-colors"
+                              title={`Edit ${group.name}`}
                             >
-                              Remove
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMarkerGroup(group.id, group.name)}
+                              disabled={deletingGroupId === group.id}
+                              className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded-sm text-sm font-medium transition-colors"
+                              title={`Delete ${group.name}`}
+                            >
+                              {deletingGroupId === group.id ? "Deleting..." : "Delete"}
                             </button>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-              )}
-
-              {/* Show tags that can have corresponding tags set */}
-              {availableForCorrespondingTags.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Set Corresponding Tags</h3>
-                  <p className="text-sm text-gray-400">
-                    These tags don&apos;t have corresponding tag relationships. You can set a corresponding tag for any of them.
+              ) : (
+                <div className="p-3 bg-gray-700 rounded-md border border-gray-600">
+                  <p className="text-gray-400">No marker groups found for this parent tag.</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Use the form below to create your first marker group.
                   </p>
-                  {availableForCorrespondingTags.map(tag => (
-                    <CorrespondingTagSetter
-                      key={tag.id}
-                      tag={tag}
-                      availableTags={availableTags.filter(t => 
-                        t.id !== tag.id && 
-                        !availableForCorrespondingTags.some(at => at.id === t.id)
-                      )}
-                      onSet={(baseTagId) => setCorrespondingTag(baseTagId, tag.id)}
-                      isLoading={isLoading}
+                </div>
+              )}
+
+              {/* Create New Marker Group */}
+              <div className="mt-4 p-4 bg-gray-700 rounded-md border border-gray-600">
+                <h3 className="text-lg font-medium text-white mb-3">Create New Marker Group</h3>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      placeholder="Enter marker group name (e.g., 'Intro', 'Main Action', 'Outro')"
+                      className="w-full p-3 bg-gray-600 border border-gray-500 rounded-md text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      disabled={isCreating}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !isCreating) {
+                          handleCreateMarkerGroup();
+                        }
+                      }}
                     />
-                  ))}
+                    <p className="text-xs text-gray-400 mt-1">
+                      Will be created as: &ldquo;Marker Group: {getNextMarkerGroupNumber()}. {newGroupName || '[name]'}&rdquo;
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleCreateMarkerGroup}
+                    disabled={isCreating || !newGroupName.trim()}
+                    className="px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-md transition-colors font-medium"
+                  >
+                    {isCreating ? "Creating..." : "Create"}
+                  </button>
                 </div>
-              )}
-
-              {relationships.length === 0 && availableForCorrespondingTags.length === 0 && (
-                <div className="text-center py-8 text-gray-400">
-                  All tags have corresponding tag relationships defined.
-                </div>
-              )}
-            </div>
-          );
-        })()}
-      </div>
-    </div>
-  );
-}
-
-interface CorrespondingTagSetterProps {
-  tag: Tag;
-  availableTags: Tag[];
-  onSet: (baseTagId: string) => void;
-  isLoading: boolean;
-}
-
-function CorrespondingTagSetter({ tag, availableTags, onSet, isLoading }: CorrespondingTagSetterProps) {
-  const [selectedBaseTagId, setSelectedBaseTagId] = useState("");
-
-  return (
-    <div className="bg-gray-700 p-4 rounded-lg">
-      <div className="space-y-3">
-        <div className="text-sm">
-          <span className="font-medium text-white">{tag.name}</span>
-          <span className="text-gray-400"> corresponds to:</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex-1">
-            <TagAutocomplete
-              value={selectedBaseTagId}
-              onChange={setSelectedBaseTagId}
-              availableTags={availableTags}
-              placeholder="Search for base tag..."
-            />
-          </div>
-          <button
-            onClick={() => {
-              if (selectedBaseTagId) {
-                onSet(selectedBaseTagId);
-                setSelectedBaseTagId("");
-              }
-            }}
-            disabled={!selectedBaseTagId || isLoading}
-            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
-          >
-            Set
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface NewMarkerGroupItemProps {
-  onSave: (groupName: string) => void;
-  onCancel: () => void;
-  nextOrderNumber: number;
-}
-
-function NewMarkerGroupItem({ onSave, onCancel, nextOrderNumber }: NewMarkerGroupItemProps) {
-  const [groupName, setGroupName] = useState("");
-
-  const handleSave = () => {
-    if (groupName.trim()) {
-      onSave(groupName.trim());
-    }
-  };
-
-  const handleCancel = () => {
-    setGroupName("");
-    onCancel();
-  };
-
-  return (
-    <div className="flex items-center justify-between p-4 bg-gray-700 rounded-lg border-2 border-green-500">
-      <div className="flex-1">
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2">
-            <div className="text-gray-400 select-none">
-              ⋮⋮
-            </div>
-            <span className="text-sm text-gray-400 font-mono">
-              {nextOrderNumber}.
-            </span>
-          </div>
-          <div className="flex items-center space-x-2 flex-1">
-            <input
-              type="text"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSave();
-                if (e.key === 'Escape') handleCancel();
-              }}
-              className="flex-1 p-2 bg-gray-600 border border-gray-500 rounded text-sm focus:border-blue-500 focus:outline-none"
-              placeholder="Enter group name..."
-              autoFocus
-            />
-            <button
-              onClick={handleSave}
-              disabled={!groupName.trim()}
-              className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
-            >
-              Create
-            </button>
-            <button
-              onClick={handleCancel}
-              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface MarkerGroupTagItemProps {
-  tag: MarkerGroupTag;
-  isDragging: boolean;
-  onRename: (newDisplayName: string) => void;
-  onRemove: () => void;
-  onDragStart: (e: React.DragEvent) => void;
-  onDragOver: (e: React.DragEvent) => void;
-  onDrop: (e: React.DragEvent) => void;
-}
-
-function MarkerGroupTagItem({ 
-  tag, 
-  isDragging, 
-  onRename, 
-  onRemove, 
-  onDragStart, 
-  onDragOver, 
-  onDrop 
-}: MarkerGroupTagItemProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingName, setEditingName] = useState("");
-
-  // Extract display name from full tag name
-  const displayName = tag.name.replace(/^Marker Group: \d+\.\s*/, "");
-
-  const startEditing = () => {
-    setEditingName(displayName);
-    setIsEditing(true);
-  };
-
-  const saveEdit = () => {
-    if (editingName.trim() && editingName !== displayName) {
-      onRename(editingName.trim());
-    }
-    setIsEditing(false);
-  };
-
-  const cancelEdit = () => {
-    setIsEditing(false);
-    setEditingName("");
-  };
-
-  return (
-    <div 
-      className={`flex items-center justify-between p-4 bg-gray-700 rounded-lg cursor-move transition-opacity ${
-        isDragging ? 'opacity-50' : 'opacity-100'
-      } hover:bg-gray-600`}
-      draggable={!isEditing}
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-    >
-      <div className="flex-1">
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2">
-            <div className="text-gray-400 cursor-move select-none" title="Drag to reorder">
-              ⋮⋮
-            </div>
-            <span className="text-sm text-gray-400 font-mono">
-              {tag.orderNumber}.
-            </span>
-          </div>
-          {isEditing ? (
-            <div className="flex items-center space-x-2 flex-1">
-              <input
-                type="text"
-                value={editingName}
-                onChange={(e) => setEditingName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveEdit();
-                  if (e.key === 'Escape') cancelEdit();
-                }}
-                className="flex-1 p-2 bg-gray-600 border border-gray-500 rounded text-sm focus:border-blue-500 focus:outline-none"
-                autoFocus
-              />
-              <button
-                onClick={saveEdit}
-                className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm transition-colors"
-              >
-                Save
-              </button>
-              <button
-                onClick={cancelEdit}
-                className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <div className="flex-1">
-              <span className="font-medium">{displayName}</span>
+              </div>
             </div>
           )}
         </div>
       </div>
-      
-      {!isEditing && (
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={startEditing}
-            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors"
-          >
-            Rename
-          </button>
-          <button
-            onClick={onRemove}
-            className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm transition-colors"
-          >
-            Delete
-          </button>
-        </div>
-      )}
     </div>
   );
 }
