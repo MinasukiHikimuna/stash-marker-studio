@@ -31,8 +31,8 @@ The application requires configuration to connect to the Stashapp backend and de
 
 ### Configuration Requirements
 
-- All tag IDs must correspond to existing tags in the Stashapp database
-- The marker group parent tag must exist before creating marker group child tags
+- All tag IDs must correspond to existing tags in the Stashapp database. If no suitable tags not available, those can be created from the settings views.
+- The marker group parent tag must exist before creating marker group child tags, but can be created within Stash Marker Studio if needed
 - Configuration is loaded at runtime and must be accessible via the application's API endpoint
 - Changes to configuration require application restart to take effect
 
@@ -746,7 +746,6 @@ The AI feedback collection system provides tools for collecting feedback on AI-g
   - **When marker is NOT in AI feedback collection**:
     - Adds marker to AI feedback collection storage
     - Automatically rejects the marker (adds MARKER_STATUS_REJECTED tag)
-    - Triggers screengrab capture of current video frame
     - Persists feedback data independently of marker state
   - **When marker IS in AI feedback collection**:
     - Removes marker from AI feedback collection storage
@@ -778,9 +777,9 @@ The AI feedback collection system provides tools for collecting feedback on AI-g
 
 ##### Screengrab Capture
 
-- Automatically captures current video frame when marker is added to collection
+- Screengrabs are captured during the export process for each collected marker
 - Screengrabs are organized by marker for easy review
-- Images stored locally until exported
+- Images are generated and included in the exported zip file
 - Supports various video formats and resolutions
 
 ##### Export Functionality
@@ -795,7 +794,7 @@ The AI feedback collection system provides tools for collecting feedback on AI-g
 1. Users can quickly flag problematic AI markers for training feedback using C
 2. Users can access comprehensive feedback management interface using Shift+C
 3. Users can export organized feedback packages for AI model improvement
-4. System automatically captures relevant visual context for each flagged marker
+4. System captures relevant visual context when exporting feedback data
 5. Feedback collection operates independently of normal marker workflow
 6. Users can safely delete markers knowing feedback data is preserved
 
