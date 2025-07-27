@@ -2,6 +2,40 @@
 
 This should not deal with the details of the code. It should document high-level requirements.
 
+## Configuration
+
+The application requires configuration to connect to the Stashapp backend and define specific tag IDs for various system functions. Configuration is provided via a JSON file with the following structure:
+
+### Server Configuration
+
+- **url**: The complete URL to the Stashapp GraphQL endpoint (e.g., "http://localhost:9999/graphql")
+- **apiKey**: Authentication key for accessing the Stashapp API (leave empty if no authentication required)
+
+### Marker Configuration
+
+- **statusConfirmed**: Tag ID for markers that have been approved/confirmed by the user
+- **statusRejected**: Tag ID for markers that have been rejected by the user
+- **sourceManual**: Tag ID indicating markers were created manually within the application
+- **aiReviewed**: Tag ID for tracking scenes that have been reviewed for AI feedback collection
+
+### Marker Grouping Configuration
+
+- **markerGroupParent**: Tag ID that serves as the parent tag for all marker group organization tags
+
+### Shot Boundary Configuration
+
+- **aiTagged**: Tag ID for scenes that have been processed by AI tagging systems
+- **shotBoundary**: Tag ID for markers that represent scene transitions or shot boundaries
+- **sourceShotBoundaryAnalysis**: Tag ID indicating markers were created via automated shot boundary detection
+- **shotBoundaryProcessed**: Tag ID for scenes that have been processed/reviewed by shot boundary analysis
+
+### Configuration Requirements
+
+- All tag IDs must correspond to existing tags in the Stashapp database
+- The marker group parent tag must exist before creating marker group child tags
+- Configuration is loaded at runtime and must be accessible via the application's API endpoint
+- Changes to configuration require application restart to take effect
+
 ## Terminology
 
 ### Corresponding Tags vs AI Feedback
@@ -196,7 +230,6 @@ Marker groups provide hierarchical organization of multiple swimlanes into visua
 - **Selection Context**: Selected marker highlights its containing swimlane and group
 - **Auto-Scroll**: Timeline automatically scrolls to show selected marker's group and swimlane
 
-
 #### Behavior Specifications
 
 ##### Organization Hierarchy
@@ -229,7 +262,6 @@ Marker groups provide hierarchical organization of multiple swimlanes into visua
 4. Users can visually distinguish between different marker categories through group separation
 5. System automatically handles overlapping markers within swimlanes using multi-track layout
 6. Configuration persists across sessions and synchronizes with server storage
-
 
 ### Video Playback Controls
 
