@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
+const ZOOM_LEVELS = [1.0, 1.5, 3.0, 5.0];
+
 export interface UseTimelineZoomReturn {
   zoom: number;
   setZoom: (zoom: number) => void;
@@ -80,20 +82,36 @@ export function useTimelineZoom(videoDuration: number | null): UseTimelineZoomRe
     return Math.max(0.01, calculateFitZoom(uniformTagLabelWidth)); // Very low minimum
   }, [calculateFitZoom]);
 
-  const zoomFactor = 2.25;
+  // Find closest zoom level to current zoom
+  const findClosestZoomLevel = useCallback((currentZoom: number) => {
+    return ZOOM_LEVELS.reduce((prev, curr) => 
+      Math.abs(curr - currentZoom) < Math.abs(prev - currentZoom) ? curr : prev
+    );
+  }, []);
 
   // Zoom control functions
   const zoomIn = useCallback(() => {
     setZoom((prevZoom) => {
-      const newZoom = Math.min(10, prevZoom * zoomFactor);
-      return newZoom;
+      const closestLevel = findClosestZoomLevel(prevZoom);
+      const currentIndex = ZOOM_LEVELS.indexOf(closestLevel);
+      if (currentIndex === -1 || currentIndex === ZOOM_LEVELS.length - 1) {
+        return ZOOM_LEVELS[ZOOM_LEVELS.length - 1]; // Max zoom
+      }
+      return ZOOM_LEVELS[currentIndex + 1];
     });
-  }, []);
+  }, [findClosestZoomLevel]);
 
   const zoomOut = useCallback((uniformTagLabelWidth?: number) => {
     const minZoom = getMinZoom(uniformTagLabelWidth);
-    setZoom((prevZoom) => Math.max(minZoom, prevZoom / zoomFactor));
-  }, [getMinZoom]);
+    setZoom((prevZoom) => {
+      const closestLevel = findClosestZoomLevel(prevZoom);
+      const currentIndex = ZOOM_LEVELS.indexOf(closestLevel);
+      if (currentIndex <= 0) {
+        return Math.max(minZoom, ZOOM_LEVELS[0]); // Respect minimum zoom (fit-to-window)
+      }
+      return Math.max(minZoom, ZOOM_LEVELS[currentIndex - 1]);
+    });
+  }, [getMinZoom, findClosestZoomLevel]);
 
   const resetZoom = useCallback((uniformTagLabelWidth?: number) => {
     const fitZoom = calculateFitZoom(uniformTagLabelWidth);
