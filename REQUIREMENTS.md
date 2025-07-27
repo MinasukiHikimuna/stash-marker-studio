@@ -6,6 +6,16 @@ This should not deal with the details of the code. It should document high-level
 
 The application requires configuration to connect to the Stashapp backend and define specific tag IDs for various system functions. Configuration is provided via a JSON file with the following structure:
 
+```json
+{
+  "serverConfig": { ... },
+  "markerConfig": { ... },
+  "markerGroupingConfig": { ... },
+  "shotBoundaryConfig": { ... },
+  "videoPlaybackConfig": { ... }
+}
+```
+
 ### Server Configuration
 
 - **url**: The complete URL to the Stashapp GraphQL endpoint (e.g., "http://localhost:9999/graphql")
@@ -29,12 +39,22 @@ The application requires configuration to connect to the Stashapp backend and de
 - **sourceShotBoundaryAnalysis**: Tag ID indicating markers were created via automated shot boundary detection
 - **shotBoundaryProcessed**: Tag ID for scenes that have been processed/reviewed by shot boundary analysis
 
+### Video Playback Configuration
+
+- **smallSeekTime**: Time interval in seconds for small seeks (default: 5)
+- **mediumSeekTime**: Time interval in seconds for medium seeks (default: 10)
+- **longSeekTime**: Time interval in seconds for long seeks (default: 30)
+- **smallFrameStep**: Frame count for small frame steps (default: 1)
+- **mediumFrameStep**: Frame count for medium frame steps (default: 10)
+- **longFrameStep**: Frame count for long frame steps (default: 30)
+
 ### Configuration Requirements
 
 - All tag IDs must correspond to existing tags in the Stashapp database. If no suitable tags not available, those can be created from the settings views.
 - The marker group parent tag must exist before creating marker group child tags, but can be created within Stash Marker Studio if needed
 - Configuration is loaded at runtime and must be accessible via the application's API endpoint
 - Changes to configuration require application restart to take effect
+- Video playback settings should be configurable through the application settings interface
 
 ## Terminology
 
@@ -280,47 +300,34 @@ The video playback control system provides comprehensive keyboard shortcuts for 
 
 ##### Play/Pause Toggle
 
-- **Default keys**: `Space` or `K`
 - **Function**: Toggle between play and pause states
 - **Behavior**: Immediate response without video buffering delays
 - **Context**: Works regardless of current timeline focus
+- **Configuration**: Should have configurable keyboard shortcuts
 
-##### Seek Backward/Forward
+##### Time-Based Seeking
 
-- **Default key**: `J` (Backward)
-- **Function**: Seek backward 5 seconds from current position
+- **Small Seek Backward/Forward**: Seek backward/forward by configurable time interval (default: 5 seconds)
+- **Medium Seek Backward/Forward**: Seek backward/forward by configurable time interval (default: 10 seconds)  
+- **Long Seek Backward/Forward**: Seek backward/forward by configurable time interval (default: 30 seconds)
 - **Precision**: Accurate timing based on video frame rate
+- **Configuration**: All seek actions should have configurable keyboard shortcuts and time values
 
-- **Default key**: `L` (Forward)
-- **Function**: Seek forward 5 seconds from current position
-- **Precision**: Accurate timing based on video frame rate
+##### Frame-Based Stepping
 
-##### Frame Stepping
-
-- **Default key**: `,` (Comma)
-- **Function**: Step backward one frame
-- **Precision**: Single frame accuracy for detailed work
-
-- **Default key**: `.` (Period)
-- **Function**: Step forward one frame
-- **Precision**: Single frame accuracy for detailed work
-
-##### Multi-Frame Stepping
-
-- **Default key**: `Shift+,` (Shift+Comma)
-- **Function**: Step backward 10 frames
-- **Purpose**: Faster navigation while maintaining frame precision
-
-- **Default key**: `Shift+.` (Shift+Period)
-- **Function**: Step forward 10 frames
-- **Purpose**: Faster navigation while maintaining frame precision
+- **Small Frame Step Backward/Forward**: Step backward/forward by configurable frame count (default: 1 frame)
+- **Medium Frame Step Backward/Forward**: Step backward/forward by configurable frame count (default: 10 frames)
+- **Long Frame Step Backward/Forward**: Step backward/forward by configurable frame count (default: 30 frames)
+- **Precision**: Frame-accurate navigation for detailed work
+- **Purpose**: Provides multiple levels of frame navigation granularity
+- **Configuration**: All frame step actions should have configurable keyboard shortcuts and frame counts
 
 ##### Play from Marker
 
-- **Default key**: `Enter`
 - **Function**: Start video playback from selected marker's start time
 - **Behavior**: Automatically seeks to marker position and begins playback
 - **Context**: Only active when a marker is selected
+- **Configuration**: Should have configurable keyboard shortcuts
 
 #### Behavior Specifications
 
@@ -344,12 +351,14 @@ The video playback control system provides comprehensive keyboard shortcuts for 
 
 ##### Expected User Experience
 
-1. Users can control video playback without mouse interaction using Space/K
-2. Users can quickly navigate video content using J/L for 5-second jumps
-3. Users can perform frame-accurate work using comma/period keys
-4. Users can efficiently move through longer sequences using Shift+comma/period
-5. Users can start playback from specific markers using Enter
+1. Users can control video playback without mouse interaction using configurable shortcuts
+2. Users can navigate video content with configurable time granularities (customizable seek intervals)
+3. Users can perform frame-accurate work with configurable frame step sizes (customizable frame counts)
+4. Users can efficiently move through content using appropriate granularity for their task
+5. Users can start playback from specific markers using configurable shortcuts
 6. Video controls feel responsive and provide immediate feedback
+7. All video control actions are bindable to preferred keyboard shortcuts
+8. Users can customize seek and frame step values to match their workflow preferences
 
 ### Unprocessed Marker Navigation
 

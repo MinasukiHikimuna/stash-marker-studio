@@ -36,6 +36,14 @@ const initialState: ConfigState = {
     sourceShotBoundaryAnalysis: '',
     shotBoundaryProcessed: '',
   },
+  videoPlaybackConfig: {
+    smallSeekTime: 5,
+    mediumSeekTime: 10,
+    longSeekTime: 30,
+    smallFrameStep: 1,
+    mediumFrameStep: 10,
+    longFrameStep: 30,
+  },
   isLoaded: false,
   markerGroups: {
     tags: [],
@@ -133,6 +141,7 @@ export const selectServerConfig = (state: { config: ConfigState }) => state.conf
 export const selectMarkerConfig = (state: { config: ConfigState }) => state.config.markerConfig;
 export const selectMarkerGroupingConfig = (state: { config: ConfigState }) => state.config.markerGroupingConfig;
 export const selectShotBoundaryConfig = (state: { config: ConfigState }) => state.config.shotBoundaryConfig;
+export const selectVideoPlaybackConfig = (state: { config: ConfigState }) => state.config.videoPlaybackConfig;
 
 // Marker groups selectors
 export const selectMarkerGroups = (state: { config: ConfigState }) => state.config.markerGroups.tags;

@@ -17,5 +17,13 @@
     "shotBoundary": "",
     "sourceShotBoundaryAnalysis": "",
     "shotBoundaryProcessed": ""
+  },
+  "videoPlaybackConfig": {
+    "smallSeekTime": 5,
+    "mediumSeekTime": 10,
+    "longSeekTime": 30,
+    "smallFrameStep": 1,
+    "mediumFrameStep": 10,
+    "longFrameStep": 30
   }
 }

@@ -9,6 +9,7 @@ const CONFIG_TABS = [
   { id: "server", label: "Basic", path: "/config/basic" },
   { id: "markers", label: "Marker Groups", path: "/config/markers" },
   { id: "shot-boundary", label: "Shot Boundary", path: "/config/shot-boundary" },
+  { id: "video-playback", label: "Video Playback", path: "/config/video-playback" },
   { id: "keyboard", label: "Keyboard Shortcuts", path: "/config/keyboard" },
 ];
 
