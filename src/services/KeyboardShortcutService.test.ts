@@ -2,7 +2,7 @@ import { keyboardShortcutService } from './KeyboardShortcutService';
 import { KeyBinding, KeyboardShortcutConfig } from '../types/keyboard';
 
 // Use the singleton instance
-let service = keyboardShortcutService;
+const service = keyboardShortcutService;
 
 beforeEach(() => {
   // Reset the service for each test
