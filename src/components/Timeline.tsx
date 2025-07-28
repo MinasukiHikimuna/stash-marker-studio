@@ -423,7 +423,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({
     >
       {/* Header row - fixed position */}
       <div 
-        className="overflow-x-auto [&::-webkit-scrollbar]:hidden" 
+        className="[&::-webkit-scrollbar]:hidden" 
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         ref={headerScrollRef}
       >
