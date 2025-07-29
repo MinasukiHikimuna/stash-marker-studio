@@ -921,7 +921,7 @@ export class StashappService {
     return updateResult.data.sceneMarkerUpdate;
   }
 
-  async generateMarkers(actionMarkerIds?: string[]): Promise<string> {
+  async generateMarkers(sceneId: string): Promise<string> {
     const mutation = `
       mutation MetadataGenerate($input: GenerateMetadataInput!) {
         metadataGenerate(input: $input)
@@ -930,7 +930,7 @@ export class StashappService {
 
     const variables = {
       input: {
-        markerIDs: actionMarkerIds || [],
+        sceneIDs: [sceneId],
         markers: true,
         markerImagePreviews: true,
         markerScreenshots: true,

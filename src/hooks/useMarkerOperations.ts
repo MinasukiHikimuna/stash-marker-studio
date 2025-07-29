@@ -439,10 +439,9 @@ export const useMarkerOperations = (
   ) => {
     const actionMarkers = getActionMarkers();
     if (!actionMarkers || actionMarkers.length === 0) return;
+    if (!scene) return;
 
     try {
-      // Loading state is managed by async thunks
-
       // Step 1: Delete Video Cut markers (if selected)
       if (selectedActions.deleteVideoCutMarkers && videoCutMarkersToDelete.length > 0) {
         console.log("=== Deleting Video Cut Markers ===");
@@ -459,8 +458,7 @@ export const useMarkerOperations = (
 
       // Step 2: Generate markers for action markers (if selected)
       if (selectedActions.generateMarkers) {
-        const actionMarkerIds = actionMarkers.map((marker) => marker.id);
-        await stashappService.generateMarkers(actionMarkerIds);
+        await stashappService.generateMarkers(scene.id);
       }
 
       // Step 3: Update scene tags (if any tag operations are selected)
