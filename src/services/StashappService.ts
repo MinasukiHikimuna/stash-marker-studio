@@ -932,8 +932,8 @@ export class StashappService {
       input: {
         sceneIDs: [sceneId],
         markers: true,
-        markerImagePreviews: true,
-        markerScreenshots: true,
+        markerImagePreviews: false,
+        markerScreenshots: false,
         overwrite: true,
       },
     };
