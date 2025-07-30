@@ -265,27 +265,49 @@ export class StashappService {
       }
     `;
 
-    const variables = {
-      filter: {
-        q: "",
-        page: 1,
-        per_page: 250,
-        sort: "created_at",
-        direction: "ASC",
-      },
-      scene_marker_filter: {
-        scenes: {
-          value: [sceneId],
-          modifier: "INCLUDES",
+    const allMarkers: SceneMarker[] = [];
+    let page = 1;
+    const perPage = 250;
+    let totalCount = 0;
+
+    do {
+      const variables = {
+        filter: {
+          q: "",
+          page,
+          per_page: perPage,
+          sort: "created_at",
+          direction: "ASC",
         },
+        scene_marker_filter: {
+          scenes: {
+            value: [sceneId],
+            modifier: "INCLUDES",
+          },
+        },
+      };
+
+      const result = await this.fetchGraphQL<{ data: SceneMarkersResponse }>(
+        query,
+        variables
+      );
+
+      if (page === 1) {
+        totalCount = result.data.findSceneMarkers.count;
+      }
+
+      allMarkers.push(...result.data.findSceneMarkers.scene_markers);
+      page++;
+    } while (allMarkers.length < totalCount);
+
+    const response: SceneMarkersResponse = {
+      findSceneMarkers: {
+        count: totalCount,
+        scene_markers: allMarkers,
       },
     };
 
-    const result = await this.fetchGraphQL<{ data: SceneMarkersResponse }>(
-      query,
-      variables
-    );
-    return this.transformUrls(result.data);
+    return this.transformUrls(response);
   }
 
   async confirmMarker(markerId: string, sceneId: string): Promise<SceneMarker> {
