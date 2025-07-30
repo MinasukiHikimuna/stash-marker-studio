@@ -98,6 +98,15 @@ export const defaultShortcuts: KeyboardShortcut[] = [
     enabled: true,
     editable: true,
   },
+  {
+    id: "marker.removeShotBoundary",
+    bindings: [{ key: "v", modifiers: { shift: true } }],
+    description: "Remove shot boundary marker at playhead and merge with previous",
+    category: "marker.create",
+    action: { type: "function", functionName: "removeShotBoundaryMarker" },
+    enabled: true,
+    editable: true,
+  },
 
   // Marker Editing
   {

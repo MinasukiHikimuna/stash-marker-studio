@@ -719,6 +719,81 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     showToast,
   ]);
 
+  // Remove shot boundary marker at playhead position and merge with previous shot
+  const removeShotBoundaryMarker = useCallback(async () => {
+    if (!scene) {
+      showToast("No scene data available", "error");
+      return;
+    }
+
+    const shotBoundaries = getShotBoundaries();
+    if (shotBoundaries.length === 0) {
+      showToast("No shot boundaries found", "error");
+      return;
+    }
+
+    // Find the shot boundary marker that starts at or near the current playhead position
+    // Allow for small tolerance (0.5 seconds) to account for precision issues
+    const currentShotBoundary = shotBoundaries.find(
+      (shot) => Math.abs(shot.seconds - currentVideoTime) <= 0.5
+    );
+
+    if (!currentShotBoundary) {
+      showToast("No shot boundary marker found at current playhead position", "error");
+      return;
+    }
+
+    // Find the previous shot boundary marker (the one that should be extended)
+    const previousShotBoundary = [...shotBoundaries]
+      .reverse()
+      .find((shot) => shot.seconds < currentShotBoundary.seconds);
+
+    if (!previousShotBoundary) {
+      showToast("No previous shot boundary found to extend", "error");
+      return;
+    }
+
+    // The new end time for the previous shot boundary should be the end time of the marker being deleted
+    const newEndTime = currentShotBoundary.end_seconds || videoDuration || (currentVideoTime + 20);
+
+    try {
+      console.log("Removing shot boundary marker:", {
+        currentShotId: currentShotBoundary.id,
+        currentShotStart: currentShotBoundary.seconds,
+        previousShotId: previousShotBoundary.id,
+        previousShotStart: previousShotBoundary.seconds,
+        previousShotOldEnd: previousShotBoundary.end_seconds,
+        newEndTime,
+      });
+
+      // First, extend the previous shot boundary to cover both segments
+      await dispatch(updateMarkerTimes({
+        sceneId: scene.id,
+        markerId: previousShotBoundary.id,
+        startTime: previousShotBoundary.seconds,
+        endTime: newEndTime
+      })).unwrap();
+
+      // Then, delete the current shot boundary marker
+      await dispatch(deleteMarker({
+        sceneId: scene.id,
+        markerId: currentShotBoundary.id
+      })).unwrap();
+
+      showToast(`Merged shot boundaries: ${formatSeconds(previousShotBoundary.seconds)} - ${formatSeconds(newEndTime)}`, "success");
+    } catch (error) {
+      console.error("Error removing shot boundary marker:", error);
+      showToast("Failed to remove shot boundary marker", "error");
+    }
+  }, [
+    scene,
+    getShotBoundaries,
+    currentVideoTime,
+    videoDuration,
+    dispatch,
+    showToast,
+  ]);
+
   // Use navigation hook
   const {
     findNextUnprocessedMarker,
@@ -763,6 +838,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     splitVideoCutMarker,
     createOrDuplicateMarker,
     createShotBoundaryMarker,
+    removeShotBoundaryMarker,
     copyMarkerTimes,
     pasteMarkerTimes,
     copyMarkerForMerge,
