@@ -29,6 +29,60 @@ function getCorrespondingTagName(tag: Tag): string | null {
 }
 
 /**
+ * Parse sort order from marker group tag description
+ * Expected format: "Sort Order: 123, 456, 789"
+ */
+export function parseSortOrder(description: string | null | undefined): string[] {
+  console.log("🔍 [PARSE] Parsing sort order from description:", description);
+  
+  if (!description?.includes("Sort Order: ")) {
+    console.log("🚫 [PARSE] No 'Sort Order:' found in description");
+    return [];
+  }
+  
+  const sortOrderPart = description
+    .split("Sort Order: ")[1]
+    .split("\n")[0] // Take only the first line after "Sort Order: "
+    .trim();
+    
+  console.log("📝 [PARSE] Extracted sort order part:", sortOrderPart);
+    
+  if (!sortOrderPart) {
+    console.log("🚫 [PARSE] Sort order part is empty");
+    return [];
+  }
+  
+  const result = sortOrderPart
+    .split(",")
+    .map(id => id.trim())
+    .filter(id => id.length > 0);
+    
+  console.log("✅ [PARSE] Final parsed sort order:", result);
+  return result;
+}
+
+/**
+ * Create sort order description string from tag IDs
+ */
+export function createSortOrderDescription(tagIds: string[], existingDescription?: string | null): string {
+  const sortOrderLine = `Sort Order: ${tagIds.join(", ")}`;
+  
+  if (!existingDescription) {
+    return sortOrderLine;
+  }
+  
+  // Replace existing sort order or append if none exists
+  if (existingDescription.includes("Sort Order: ")) {
+    return existingDescription.replace(
+      /Sort Order: [^\n]*/,
+      sortOrderLine
+    );
+  } else {
+    return existingDescription + "\n" + sortOrderLine;
+  }
+}
+
+/**
  * Extract marker group name from tag parents
  */
 export function getMarkerGroupName(marker: SceneMarker, markerGroupParentId: string): MarkerGroupInfo {
@@ -63,7 +117,19 @@ export function getMarkerGroupName(marker: SceneMarker, markerGroupParentId: str
  * Group markers by tags with proper marker group ordering and corresponding tag support
  * This is the shared algorithm used by both Timeline display and keyboard navigation
  */
-export function groupMarkersByTags(markers: SceneMarker[], markerGroupParentId: string): TagGroup[] {
+export function groupMarkersByTags(
+  markers: SceneMarker[], 
+  markerGroupParentId: string, 
+  markerGroups?: Array<{ id: string; name: string; description?: string | null }>,
+  tagSorting?: { [markerGroupId: string]: string[] }
+): TagGroup[] {
+  console.log("🎯 [GROUPING] Starting groupMarkersByTags with:", {
+    markersCount: markers.length,
+    markerGroupParentId,
+    markerGroupsCount: markerGroups?.length || 0,
+    hasTagSorting: !!tagSorting,
+    tagSortingKeys: Object.keys(tagSorting || {})
+  });
 
   // Group all markers by tag name (with corresponding tag support)
   const tagGroupMap = new Map<string, SceneMarker[]>();
@@ -123,6 +189,72 @@ export function groupMarkersByTags(markers: SceneMarker[], markerGroupParentId: 
             sensitivity: 'base' 
           });
         }
+        
+        // Within the same marker group, use sort order from app config if available
+        console.log("🔍 [SORT] Within same marker group:", {
+          aGroup: aMarkerGroup.fullName,
+          bGroup: bMarkerGroup.fullName,
+          aName: a.name,
+          bName: b.name,
+          hasMarkerGroups: !!markerGroups,
+          hasTagSorting: !!tagSorting
+        });
+        
+        if (markerGroups && tagSorting) {
+          const markerGroupTag = markerGroups.find(mg => mg.name === aMarkerGroup.fullName);
+          console.log("🏷️ [SORT] Marker group lookup:", {
+            searchingFor: aMarkerGroup.fullName,
+            found: !!markerGroupTag,
+            markerGroupId: markerGroupTag?.id
+          });
+          
+          if (markerGroupTag) {
+            const sortOrder = tagSorting[markerGroupTag.id] || [];
+            console.log("📋 [SORT] Sort order from config:", {
+              markerGroupId: markerGroupTag.id,
+              sortOrder,
+              sortOrderLength: sortOrder.length
+            });
+            
+            if (sortOrder.length > 0) {
+              const aTagId = a.tags[0]?.id;
+              const bTagId = b.tags[0]?.id;
+              const aIndex = aTagId ? sortOrder.indexOf(aTagId) : -1;
+              const bIndex = bTagId ? sortOrder.indexOf(bTagId) : -1;
+              
+              console.log("📍 [SORT] Tag position lookup:", {
+                aTagId,
+                bTagId,
+                aIndex,
+                bIndex,
+                aTagName: a.name,
+                bTagName: b.name
+              });
+              
+              // If both tags are in sort order, use that order
+              if (aIndex !== -1 && bIndex !== -1) {
+                console.log("✅ [SORT] Both in sort order, returning:", aIndex - bIndex);
+                return aIndex - bIndex;
+              }
+              // If only one is in sort order, put it first
+              if (aIndex !== -1 && bIndex === -1) {
+                console.log("✅ [SORT] Only A in sort order, A first");
+                return -1;
+              }
+              if (aIndex === -1 && bIndex !== -1) {
+                console.log("✅ [SORT] Only B in sort order, B first");
+                return 1;
+              }
+            }
+          }
+        }
+        
+        // Fallback to alphabetical sorting within same marker group
+        console.log("🔤 [SORT] Falling back to alphabetical sort:", {
+          aName: a.name,
+          bName: b.name,
+          result: a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+        });
         return a.name.localeCompare(b.name, undefined, { 
           numeric: true, 
           sensitivity: 'base' 

@@ -7,8 +7,11 @@ import {
   selectMarkerGroups,
   selectMarkerGroupsLoading,
   selectMarkerGroupsError,
+  selectMarkerGroupTagSorting,
   loadMarkerGroups,
+  loadChildTags,
   setMarkerGroupingConfig,
+  setMarkerGroupTagSorting,
   setFullConfig,
   type MarkerGroupTag
 } from "@/store/slices/configSlice";
@@ -24,6 +27,7 @@ export default function MarkerGroupSettings() {
   const reduxMarkerGroups = useAppSelector(selectMarkerGroups);
   const isLoadingGroups = useAppSelector(selectMarkerGroupsLoading);
   const groupsError = useAppSelector(selectMarkerGroupsError);
+  const tagSorting = useAppSelector(selectMarkerGroupTagSorting);
   const [isLoadingTags, setIsLoadingTags] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -37,6 +41,9 @@ export default function MarkerGroupSettings() {
   const [editingGroupName, setEditingGroupName] = useState("");
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverItem, setDragOverItem] = useState<string | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [draggedChildTag, setDraggedChildTag] = useState<string | null>(null);
+  const [dragOverChildTag, setDragOverChildTag] = useState<string | null>(null);
 
   // Sync form data with Redux state
   useEffect(() => {
@@ -313,6 +320,150 @@ export default function MarkerGroupSettings() {
     }
   };
 
+  const toggleGroupExpansion = async (groupId: string) => {
+    const newExpanded = new Set(expandedGroups);
+    if (newExpanded.has(groupId)) {
+      newExpanded.delete(groupId);
+    } else {
+      newExpanded.add(groupId);
+      // Load child tags if not already loaded
+      const group = reduxMarkerGroups.find(g => g.id === groupId);
+      if (group && !group.childTags) {
+        await dispatch(loadChildTags(groupId));
+      }
+    }
+    setExpandedGroups(newExpanded);
+  };
+
+  const handleChildTagDragStart = (e: React.DragEvent, childTagId: string) => {
+    console.log("🔄 [DRAG] Starting drag for child tag:", childTagId);
+    setDraggedChildTag(childTagId);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleChildTagDragOver = (e: React.DragEvent, childTagId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverChildTag !== childTagId) {
+      console.log("🎯 [DRAG] Drag over child tag:", childTagId);
+      setDragOverChildTag(childTagId);
+    }
+  };
+
+  const handleChildTagDragLeave = () => {
+    console.log("🚫 [DRAG] Drag leave");
+    setDragOverChildTag(null);
+  };
+
+  const handleChildTagDrop = async (e: React.DragEvent, targetTagId: string, markerGroupId: string) => {
+    e.preventDefault();
+    
+    console.log("🎯 [DROP] Drop attempted - dragged:", draggedChildTag, "target:", targetTagId);
+    
+    if (!draggedChildTag || draggedChildTag === targetTagId) {
+      console.log("🚫 [DROP] Cancelled - same tag or no dragged tag");
+      setDraggedChildTag(null);
+      setDragOverChildTag(null);
+      return;
+    }
+
+    setMessage("");
+
+    try {
+      const markerGroup = reduxMarkerGroups.find(g => g.id === markerGroupId);
+      if (!markerGroup?.childTags) {
+        throw new Error("Child tags not loaded");
+      }
+
+      console.log("📋 [DROP] Current child tags:", markerGroup.childTags.map(t => ({ id: t.id, name: t.name })));
+
+      // Use the DISPLAYED order (which includes current sort order) instead of raw childTags
+      const currentDisplayOrder = markerGroup.childTags
+        .slice() // Create a copy to avoid mutating the original
+        .sort((a, b) => {
+          // Sort using the sort order from app config
+          const sortOrder = tagSorting[markerGroupId] || [];
+          if (sortOrder.length > 0) {
+            const aIndex = sortOrder.indexOf(a.id);
+            const bIndex = sortOrder.indexOf(b.id);
+            
+            // If both are in sort order, use that order
+            if (aIndex !== -1 && bIndex !== -1) {
+              return aIndex - bIndex;
+            }
+            // If only one is in sort order, put it first
+            if (aIndex !== -1 && bIndex === -1) {
+              return -1;
+            }
+            if (aIndex === -1 && bIndex !== -1) {
+              return 1;
+            }
+          }
+          // Fallback to alphabetical
+          return a.name.localeCompare(b.name);
+        });
+
+      console.log("📋 [DROP] Current display order:", currentDisplayOrder.map(t => ({ id: t.id, name: t.name })));
+
+      const draggedIndex = currentDisplayOrder.findIndex(tag => tag.id === draggedChildTag);
+      const targetIndex = currentDisplayOrder.findIndex(tag => tag.id === targetTagId);
+
+      console.log("📍 [DROP] Indices - dragged:", draggedIndex, "target:", targetIndex);
+
+      if (draggedIndex === -1 || targetIndex === -1) {
+        throw new Error("Could not find tags to reorder");
+      }
+
+      // Remove dragged item and insert at target position
+      const [removed] = currentDisplayOrder.splice(draggedIndex, 1);
+      currentDisplayOrder.splice(targetIndex, 0, removed);
+
+      console.log("📋 [DROP] New order:", currentDisplayOrder.map(t => ({ id: t.id, name: t.name })));
+
+      // Create complete sort order from all child tags
+      const sortOrderIds = currentDisplayOrder.map(tag => tag.id);
+
+      console.log("💾 [DROP] New sort order:", sortOrderIds);
+
+      // Update the sort order in Redux state
+      dispatch(setMarkerGroupTagSorting({ markerGroupId, sortOrder: sortOrderIds }));
+
+      // Save the updated configuration to app-config.json
+      const configResponse = await fetch('/api/config');
+      let existingConfig = {};
+      if (configResponse.ok) {
+        existingConfig = await configResponse.json();
+      }
+
+      const updatedConfig = {
+        ...existingConfig,
+        markerGroupTagSorting: {
+          ...(existingConfig as AppConfig).markerGroupTagSorting,
+          [markerGroupId]: sortOrderIds
+        }
+      };
+
+      const saveResponse = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedConfig)
+      });
+
+      if (!saveResponse.ok) {
+        throw new Error('Failed to save configuration');
+      }
+
+      console.log("✅ [DROP] Drop completed successfully");
+      setMessage("Child tags reordered successfully!");
+    } catch (error) {
+      console.error("❌ [DROP] Drop failed:", error);
+      setMessage("Error reordering child tags: " + (error as Error).message);
+    } finally {
+      setDraggedChildTag(null);
+      setDragOverChildTag(null);
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Save Button */}
@@ -455,6 +606,13 @@ export default function MarkerGroupSettings() {
                           </div>
                           <div className="flex gap-2">
                             <button
+                              onClick={() => toggleGroupExpansion(group.id)}
+                              className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-sm text-sm font-medium transition-colors"
+                              title={`${expandedGroups.has(group.id) ? 'Hide' : 'Show'} child tags`}
+                            >
+                              {expandedGroups.has(group.id) ? '▼' : '▶'} Tags
+                            </button>
+                            <button
                               onClick={() => startEditingGroup(group)}
                               className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-sm text-sm font-medium transition-colors"
                               title={`Edit ${group.name}`}
@@ -470,6 +628,80 @@ export default function MarkerGroupSettings() {
                               {deletingGroupId === group.id ? "Deleting..." : "Delete"}
                             </button>
                           </div>
+                        </div>
+                      )}
+                      
+                      {/* Child Tags Display */}
+                      {expandedGroups.has(group.id) && (
+                        <div className="mt-3 ml-4 pl-4 border-l-2 border-gray-600">
+                          <h4 className="text-sm font-medium text-gray-300 mb-2">
+                            Child Tags ({group.childTags?.length || 0})
+                          </h4>
+                          {group.childTags ? (
+                            group.childTags.length > 0 ? (
+                              <div className="space-y-1">
+                                {group.childTags
+                                  .slice() // Create a copy to avoid mutating the original
+                                  .sort((a, b) => {
+                                    // Sort using the sort order from app config
+                                    const sortOrder = tagSorting[group.id] || [];
+                                    if (sortOrder.length > 0) {
+                                      const aIndex = sortOrder.indexOf(a.id);
+                                      const bIndex = sortOrder.indexOf(b.id);
+                                      
+                                      // If both are in sort order, use that order
+                                      if (aIndex !== -1 && bIndex !== -1) {
+                                        return aIndex - bIndex;
+                                      }
+                                      // If only one is in sort order, put it first
+                                      if (aIndex !== -1 && bIndex === -1) {
+                                        return -1;
+                                      }
+                                      if (aIndex === -1 && bIndex !== -1) {
+                                        return 1;
+                                      }
+                                    }
+                                    // Fallback to alphabetical
+                                    return a.name.localeCompare(b.name);
+                                  })
+                                  .map((childTag, index) => (
+                                  <div key={childTag.id} className="relative">
+                                    {/* Drop indicator above */}
+                                    {dragOverChildTag === childTag.id && draggedChildTag !== childTag.id && (
+                                      <div className="absolute -top-1 left-0 right-0 h-0.5 bg-green-400 z-10 rounded-full"></div>
+                                    )}
+                                    
+                                    <div 
+                                      className={`p-2 bg-gray-600 rounded transition-all duration-200 ${
+                                        draggedChildTag === childTag.id ? "opacity-50" : ""
+                                      } cursor-move`}
+                                      draggable
+                                      onDragStart={(e) => handleChildTagDragStart(e, childTag.id)}
+                                      onDragOver={(e) => handleChildTagDragOver(e, childTag.id)}
+                                      onDragLeave={handleChildTagDragLeave}
+                                      onDrop={(e) => handleChildTagDrop(e, childTag.id, group.id)}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <div className="text-gray-400 cursor-move" title="Drag to reorder">
+                                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
+                                          </svg>
+                                        </div>
+                                        <div className="flex-1">
+                                          <p className="text-white text-sm font-medium">{childTag.name}</p>
+                                          <p className="text-xs text-gray-400">Position: {index + 1}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-400">No child tags found for this marker group.</p>
+                            )
+                          ) : (
+                            <p className="text-sm text-gray-400">Loading child tags...</p>
+                          )}
                         </div>
                       )}
                     </div>

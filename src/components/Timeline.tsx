@@ -6,7 +6,7 @@ import { TagGroup, MarkerWithTrack } from "../core/marker/types";
 import TimelineHeader from "./timeline/TimelineHeader";
 import TimelineSwimlanes from "./timeline/TimelineSwimlanes";
 import { useAppSelector } from "../store/hooks";
-import { selectMarkerGroupParentId } from "../store/slices/configSlice";
+import { selectMarkerGroupParentId, selectMarkerGroups, selectMarkerGroupTagSorting } from "../store/slices/configSlice";
 import {
   groupMarkersByTags,
   createMarkersWithTracks,
@@ -48,6 +48,8 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({
   onAvailableWidthUpdate,
 }, ref) => {
   const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
+  const markerGroups = useAppSelector(selectMarkerGroups);
+  const tagSorting = useAppSelector(selectMarkerGroupTagSorting);
   
   // Swimlane resize state
   const [swimlaneMaxHeight, setSwimlaneMaxHeight] = useState<number | null>(null);
@@ -61,25 +63,32 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const [windowHeight, setWindowHeight] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
+
   
   // Group markers by tag name with proper marker group ordering using shared algorithm
-  const markerGroups = useMemo(() => {
-    return groupMarkersByTags(actionMarkers, markerGroupParentId);
-  }, [actionMarkers, markerGroupParentId]);
+  const tagGroups = useMemo(() => {
+    console.log("🎬 [TIMELINE] Grouping markers with data:", {
+      actionMarkersCount: actionMarkers.length,
+      markerGroupParentId,
+      markerGroupsCount: markerGroups.length,
+      markerGroups: markerGroups.map(mg => ({ id: mg.id, name: mg.name, hasDescription: !!mg.description }))
+    });
+    return groupMarkersByTags(actionMarkers, markerGroupParentId, markerGroups, tagSorting);
+  }, [actionMarkers, markerGroupParentId, markerGroups, tagSorting]);
   
   // Create markers with track data for keyboard navigation
   const markersWithTracks = useMemo(() => {
-    return createMarkersWithTracks(markerGroups);
-  }, [markerGroups]);
+    return createMarkersWithTracks(tagGroups);
+  }, [tagGroups]);
 
   // Calculate uniform width for all tag labels based on the longest content
   const uniformTagLabelWidth = useMemo(() => {
-    if (markerGroups.length === 0) return 192; // Default minimum width
+    if (tagGroups.length === 0) return 192; // Default minimum width
     
-    const trackCountsByGroup = getTrackCountsByGroup(markerGroups);
+    const trackCountsByGroup = getTrackCountsByGroup(tagGroups);
     let maxWidth = 192; // Minimum width (original w-48)
     
-    markerGroups.forEach(group => {
+    tagGroups.forEach(group => {
       const markerGroup = getMarkerGroupName(group.markers[0], markerGroupParentId);
       const trackCount = trackCountsByGroup[group.name] || 1;
       
@@ -107,14 +116,14 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({
     // Cap at reasonable maximum (480px = w-120) and add small buffer to prevent overflow
     const finalWidth = Math.min(470, maxWidth + 10); // Reduced max by 10px and add 10px buffer
     return finalWidth;
-  }, [markerGroups, markerGroupParentId]);
+  }, [tagGroups, markerGroupParentId]);
   
   // Update parent component with swimlane data for keyboard navigation
   useEffect(() => {
     if (onSwimlaneDataUpdate) {
-      onSwimlaneDataUpdate(markerGroups, markersWithTracks);
+      onSwimlaneDataUpdate(tagGroups, markersWithTracks);
     }
-  }, [markerGroups, markersWithTracks, onSwimlaneDataUpdate]);
+  }, [tagGroups, markersWithTracks, onSwimlaneDataUpdate]);
   
   // Update parent component with available timeline width
   useEffect(() => {
@@ -451,7 +460,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({
         ref={swimlaneContainerRef}
       >
         <TimelineSwimlanes
-          markerGroups={markerGroups}
+          markerGroups={tagGroups}
           videoDuration={videoDuration}
           currentTime={currentTime}
           selectedMarkerId={selectedMarkerId}

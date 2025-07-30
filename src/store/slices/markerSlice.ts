@@ -6,6 +6,7 @@ import {
   stashappService,
 } from "@/services/StashappService";
 import type { IncorrectMarker } from "@/utils/incorrectMarkerStorage";
+import { loadMarkerGroups } from "./configSlice";
 
 // Modal state types
 export type CompletionModalData = {
@@ -175,7 +176,7 @@ const initialState: MarkerState = {
 // Initialize the marker page with scene, markers, and tags
 export const initializeMarkerPage = createAsyncThunk(
   "marker/initializeMarkerPage",
-  async (sceneId: string, { rejectWithValue }) => {
+  async (sceneId: string, { rejectWithValue, dispatch }) => {
     try {
       // Load scene data
       const scene = await stashappService.getScene(sceneId);
@@ -193,6 +194,10 @@ export const initializeMarkerPage = createAsyncThunk(
       // Load available tags
       const tagsResult = await stashappService.getAllTags();
       const availableTags = tagsResult.findTags.tags;
+
+      // Load marker groups (if marker group parent is configured)
+      console.log("🎯 [INIT] Loading marker groups during marker page initialization");
+      await dispatch(loadMarkerGroups());
 
       return {
         scene,

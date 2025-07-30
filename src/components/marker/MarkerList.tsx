@@ -6,7 +6,7 @@ import { MarkerListItem } from "./MarkerListItem";
 import { type Tag } from "../../services/StashappService";
 import { IncorrectMarker } from "../../utils/incorrectMarkerStorage";
 import { useAppSelector } from "../../store/hooks";
-import { selectMarkerGroupParentId } from "../../store/slices/configSlice";
+import { selectMarkerGroupParentId, selectMarkerGroups, selectMarkerGroupTagSorting } from "../../store/slices/configSlice";
 import { groupMarkersByTags, getMarkerGroupName } from "../../core/marker/markerGrouping";
 
 interface MarkerListProps {
@@ -41,12 +41,15 @@ export function MarkerList({
   setEditingTagId,
 }: MarkerListProps) {
   const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
+  const markerGroups = useAppSelector(selectMarkerGroups);
+  const tagSorting = useAppSelector(selectMarkerGroupTagSorting);
+
   
-  // Memoize markerGroups to prevent unnecessary re-sorting
-  const markerGroups = useMemo(() => {
+  // Memoize tagGroups to prevent unnecessary re-sorting
+  const tagGroups = useMemo(() => {
     if (actionMarkers.length === 0) return [];
-    return groupMarkersByTags(actionMarkers, markerGroupParentId);
-  }, [actionMarkers, markerGroupParentId]);
+    return groupMarkersByTags(actionMarkers, markerGroupParentId, markerGroups, tagSorting);
+  }, [actionMarkers, markerGroupParentId, markerGroups, tagSorting]);
   
   if (actionMarkers.length === 0) {
     return (
@@ -58,7 +61,7 @@ export function MarkerList({
 
   return (
     <>
-      {markerGroups.map((group) => {
+      {tagGroups.map((group) => {
         const markerGroup = getMarkerGroupName(group.markers[0], markerGroupParentId);
 
         return (

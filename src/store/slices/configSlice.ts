@@ -5,6 +5,14 @@ export type MarkerGroupTag = {
   id: string;
   name: string;
   orderNumber: number;
+  description?: string | null;
+  childTags?: ChildTag[];
+};
+
+export type ChildTag = {
+  id: string;
+  name: string;
+  description?: string | null;
 };
 
 export interface ConfigState extends AppConfig {
@@ -36,6 +44,7 @@ const initialState: ConfigState = {
     sourceShotBoundaryAnalysis: '',
     shotBoundaryProcessed: '',
   },
+  markerGroupTagSorting: {},
   videoPlaybackConfig: {
     smallSeekTime: 5,
     mediumSeekTime: 10,
@@ -56,7 +65,7 @@ const initialState: ConfigState = {
 export const loadMarkerGroups = createAsyncThunk(
   'config/loadMarkerGroups',
   async (_, { getState }) => {
-    const state = getState() as { config: ConfigState; marker: { availableTags: Array<{ id: string; name: string; parents?: Array<{ id: string }> }> } };
+    const state = getState() as { config: ConfigState; marker: { availableTags: Array<{ id: string; name: string; description?: string | null; parents?: Array<{ id: string }> }> } };
     const markerGroupParent = state.config.markerGroupingConfig.markerGroupParent;
     const availableTags = state.marker.availableTags;
     
@@ -78,6 +87,7 @@ export const loadMarkerGroups = createAsyncThunk(
           id: tag.id,
           name: tag.name,
           orderNumber,
+          description: tag.description,
         };
       })
       .sort((a, b) => {
@@ -88,6 +98,34 @@ export const loadMarkerGroups = createAsyncThunk(
       });
 
     return groupTags;
+  }
+);
+
+// Async thunk to load child tags for a specific marker group
+export const loadChildTags = createAsyncThunk(
+  'config/loadChildTags',
+  async (markerGroupId: string, { getState }) => {
+    const state = getState() as { config: ConfigState; marker: { availableTags: Array<{ id: string; name: string; description?: string | null; parents?: Array<{ id: string }> }> } };
+    const availableTags = state.marker.availableTags;
+    
+    if (!availableTags.length) {
+      return { markerGroupId, childTags: [] };
+    }
+
+    // Filter child tags that have this marker group as parent
+    const childTags = availableTags
+      .filter(tag => 
+        tag.parents?.some(parent => parent.id === markerGroupId) &&
+        !tag.name.startsWith("Marker Group: ") // Exclude other marker groups
+      )
+      .map(tag => ({
+        id: tag.id,
+        name: tag.name,
+        description: tag.description,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return { markerGroupId, childTags };
   }
 );
 
@@ -116,6 +154,13 @@ const configSlice = createSlice({
       state.markerGroups.tags = [];
       state.markerGroups.error = null;
     },
+    setMarkerGroupTagSorting: (state, action: PayloadAction<{ markerGroupId: string; sortOrder: string[] }>) => {
+      const { markerGroupId, sortOrder } = action.payload;
+      if (!state.markerGroupTagSorting) {
+        state.markerGroupTagSorting = {};
+      }
+      state.markerGroupTagSorting[markerGroupId] = sortOrder;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -130,11 +175,18 @@ const configSlice = createSlice({
       .addCase(loadMarkerGroups.rejected, (state, action) => {
         state.markerGroups.isLoading = false;
         state.markerGroups.error = action.payload as string;
+      })
+      .addCase(loadChildTags.fulfilled, (state, action) => {
+        const { markerGroupId, childTags } = action.payload;
+        const markerGroup = state.markerGroups.tags.find(group => group.id === markerGroupId);
+        if (markerGroup) {
+          markerGroup.childTags = childTags;
+        }
       });
   },
 });
 
-export const { setFullConfig, setMarkerGroupingConfig, setShotBoundaryConfig, clearMarkerGroups } = configSlice.actions;
+export const { setFullConfig, setMarkerGroupingConfig, setShotBoundaryConfig, clearMarkerGroups, setMarkerGroupTagSorting } = configSlice.actions;
 
 // Selectors for each group
 export const selectServerConfig = (state: { config: ConfigState }) => state.config.serverConfig;
@@ -157,5 +209,6 @@ export const selectMarkerStatusRejected = (state: { config: ConfigState }) => st
 export const selectMarkerSourceManual = (state: { config: ConfigState }) => state.config.markerConfig.sourceManual;
 export const selectMarkerAiReviewed = (state: { config: ConfigState }) => state.config.markerConfig.aiReviewed;
 export const selectMarkerShotBoundary = (state: { config: ConfigState }) => state.config.shotBoundaryConfig.shotBoundary;
+export const selectMarkerGroupTagSorting = (state: { config: ConfigState }) => state.config.markerGroupTagSorting || {};
 
 export default configSlice.reducer;

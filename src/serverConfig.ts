@@ -8,6 +8,7 @@ export interface AppConfig {
   markerConfig: MarkerConfig;
   markerGroupingConfig: MarkerGroupingConfig;
   shotBoundaryConfig: ShotBoundaryConfig;
+  markerGroupTagSorting?: MarkerGroupTagSorting;
   videoPlaybackConfig?: VideoPlaybackConfig;
   keyboardShortcuts?: KeyboardShortcutConfig;
   completionDefaults?: CompletionDefaults;
@@ -46,6 +47,11 @@ export interface MarkerConfig {
 export interface MarkerGroupingConfig {
   // Parent tag for marker group tags.
   markerGroupParent: string;
+}
+
+export interface MarkerGroupTagSorting {
+  // Map of marker group tag IDs to arrays of child tag IDs in desired sort order
+  [markerGroupId: string]: string[];
 }
 
 export interface ShotBoundaryConfig {
