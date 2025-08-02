@@ -29,6 +29,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Install ffmpeg and PySceneDetect
+RUN apk add --no-cache alpine-sdk python3 python3-dev py3-pip ffmpeg linux-headers \
+  && pip install --break-system-packages --root-user-action=ignore scenedetect[opencv] \
+  && pip cache purge \
+  && apk del alpine-sdk python3-dev linux-headers \
+  && rm -rf /var/cache/apk/* /root/.cache/pip
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
