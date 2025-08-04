@@ -33,6 +33,7 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [isConfigured, setIsConfigured] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [configError, setConfigError] = useState<string | null>(null);
   const dispatch = useAppDispatch();
   const router = useRouter();
   const pathname = usePathname();
@@ -48,6 +49,17 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
         if (pathname !== "/config") {
           router.push("/config");
         }
+        return;
+      }
+      
+      if (res.status === 500) {
+        // Server error (corrupted config) - show error and don't retry
+        const errorData = await res.json();
+        console.error("Configuration error:", errorData.error);
+        setConfigError(errorData.error || "Configuration file is corrupted");
+        setIsConfigured(false);
+        setIsLoading(false);
+        // Don't redirect - show error state
         return;
       }
       
@@ -83,6 +95,27 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
         <div>Loading configuration...</div>
+      </div>
+    );
+  }
+
+  // Show error state for corrupted config
+  if (configError) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center max-w-2xl mx-auto p-8">
+          <h1 className="text-2xl font-bold mb-4 text-red-400">Configuration Error</h1>
+          <p className="mb-4 text-gray-300">{configError}</p>
+          <div className="bg-gray-800 p-4 rounded-lg text-left text-sm">
+            <p className="font-semibold mb-2">To fix this issue:</p>
+            <ol className="list-decimal list-inside space-y-1 text-gray-400">
+              <li>Stop the server</li>
+              <li>Delete the corrupted app-config.json file</li>
+              <li>Copy app-config.sample.json to app-config.json</li>
+              <li>Restart the server and configure through the UI</li>
+            </ol>
+          </div>
+        </div>
       </div>
     );
   }

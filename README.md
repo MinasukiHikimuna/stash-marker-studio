@@ -171,6 +171,9 @@ docker run -p 3000:3000 -v ./app-config.json:/app/app-config.json stash-marker-s
 # Install dependencies
 npm install
 
+# Copy sample configuration (required)
+cp app-config.sample.json app-config.json
+
 # Start development server
 npm run dev
 ```
