@@ -34,11 +34,19 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
   const [isConfigured, setIsConfigured] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [configError, setConfigError] = useState<string | null>(null);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const dispatch = useAppDispatch();
   const router = useRouter();
   const pathname = usePathname();
 
   const loadConfig = useCallback(async () => {
+    // Prevent repeated config loads
+    if (hasAttemptedLoad) {
+      return;
+    }
+    
+    setHasAttemptedLoad(true);
+    
     try {
       const res = await fetch("/api/config");
       
@@ -46,7 +54,7 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
         // No configuration found - redirect to config page unless already there
         setIsConfigured(false);
         setIsLoading(false);
-        if (pathname !== "/config") {
+        if (pathname !== "/config" && !pathname.startsWith("/config/")) {
           router.push("/config");
         }
         return;
@@ -84,11 +92,11 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [dispatch, router, pathname]);
+  }, [dispatch, router, pathname, hasAttemptedLoad]);
 
   useEffect(() => {
     loadConfig();
-  }, [dispatch, router, pathname, loadConfig]);
+  }, [loadConfig]);
 
   // Show loading state
   if (isLoading) {

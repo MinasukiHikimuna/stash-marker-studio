@@ -24,7 +24,8 @@
       "mcp__playwright__browser_hover",
       "Bash(npm run lint:*)",
       "mcp__playwright__browser_handle_dialog",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(chmod:*)"
     ],
     "deny": []
   }

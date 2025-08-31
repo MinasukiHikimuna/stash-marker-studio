@@ -7,9 +7,9 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "node scripts/dev.js",
+    "dev": "node scripts/check-config.js && node scripts/dev.js",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/check-config.js && next start",
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch"
