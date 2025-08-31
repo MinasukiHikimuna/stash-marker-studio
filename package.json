@@ -15,7 +15,6 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@apollo/client": "^3.13.8",
     "@headlessui/react": "^2.2.4",
     "@reduxjs/toolkit": "^2.8.2",
     "dotenv": "^17.2.0",
