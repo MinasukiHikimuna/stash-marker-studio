@@ -25,7 +25,9 @@
       "Bash(npm run lint:*)",
       "mcp__playwright__browser_handle_dialog",
       "Bash(grep:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(npm audit:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": []
   }
