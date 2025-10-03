@@ -596,10 +596,11 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
 
   // Helper function to find markers that touch the playhead
   const findMarkersAtPlayhead = useCallback((currentTime: number): SceneMarker[] => {
+    const WINDOW_SIZE = 15; // seconds
     return actionMarkers.filter(marker => {
       const startTime = marker.seconds;
       const endTime = marker.end_seconds || marker.seconds + 30; // Default duration if no end time
-      return currentTime >= startTime && currentTime <= endTime;
+      return (currentTime + WINDOW_SIZE >= startTime) && (currentTime - WINDOW_SIZE <= endTime);
     });
   }, [actionMarkers]);
 
