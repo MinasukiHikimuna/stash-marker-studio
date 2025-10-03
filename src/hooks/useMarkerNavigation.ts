@@ -10,6 +10,7 @@ interface UseMarkerNavigationParams {
   markersWithTracks: MarkerWithTrack[];
   tagGroups: { name: string; [key: string]: unknown }[];
   selectedMarkerId: string | null;
+  currentVideoTime: number;
 }
 
 export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
@@ -19,6 +20,7 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
     markersWithTracks,
     tagGroups,
     selectedMarkerId,
+    currentVideoTime,
   } = params;
 
   // Helper function to check if a marker is unprocessed
@@ -512,11 +514,11 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
 
       let bestMatch;
       if (useTemporalLocality) {
-        // Find the marker closest in time to the current marker
+        // Find the marker closest in time to the playhead position
         bestMatch = swimlaneMarkers.reduce((closest, marker) => {
           if (!closest) return marker;
-          const currentDiff = Math.abs(marker.seconds - currentMarker.seconds);
-          const closestDiff = Math.abs(closest.seconds - currentMarker.seconds);
+          const currentDiff = Math.abs(marker.seconds - currentVideoTime);
+          const closestDiff = Math.abs(closest.seconds - currentVideoTime);
           return currentDiff < closestDiff ? marker : closest;
         }, null as MarkerWithTrack | null);
       } else {
@@ -533,6 +535,7 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
       tagGroups,
       actionMarkers,
       selectedMarkerId,
+      currentVideoTime,
       dispatch
     ]
   );

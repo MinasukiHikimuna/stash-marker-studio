@@ -810,6 +810,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     markersWithTracks,
     tagGroups,
     selectedMarkerId,
+    currentVideoTime,
   });
 
   // Use dynamic keyboard shortcuts hook
