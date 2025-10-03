@@ -600,69 +600,77 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
     });
   }, [actionMarkers]);
 
-  // Helper function to cycle through markers at playhead (top-to-bottom)
-  const findNextMarkerAtPlayhead = useCallback((currentTime: number): string | null => {
+  // Helper function to navigate through markers at playhead, skipping current swimlane
+  const findMarkerAtPlayheadInDirection = useCallback((currentTime: number, direction: 'next' | 'previous'): string | null => {
     const markersAtPlayhead = findMarkersAtPlayhead(currentTime);
     if (markersAtPlayhead.length === 0) return null;
+
+    // Determine current swimlane
+    const currentMarker = actionMarkers.find(m => m.id === selectedMarkerId);
+    const currentSwimlaneIndex = currentMarker
+      ? markersWithTracks.find(m => m.id === currentMarker.id)?.swimlane ?? -1
+      : -1;
 
     // Sort by swimlane (if available) or by tag name for consistent ordering
     const sortedMarkers = markersAtPlayhead.sort((a, b) => {
       // Try to use swimlane data if available
       const aTrack = markersWithTracks.find(m => m.id === a.id);
       const bTrack = markersWithTracks.find(m => m.id === b.id);
-      
+
       if (aTrack && bTrack) {
         return aTrack.swimlane - bTrack.swimlane;
       }
-      
+
       // Fallback to tag name sorting
       return a.primary_tag.name.localeCompare(b.primary_tag.name);
     });
 
-    // Find current marker in sorted list
-    const currentIndex = sortedMarkers.findIndex(m => m.id === selectedMarkerId);
-    
-    if (currentIndex === -1) {
-      // No marker selected or selected marker not at playhead, return first
-      return sortedMarkers[0].id;
+    // Filter out markers from the current swimlane
+    const markersExcludingCurrent = sortedMarkers.filter(m => {
+      const track = markersWithTracks.find(t => t.id === m.id);
+      return !track || track.swimlane !== currentSwimlaneIndex;
+    });
+
+    if (markersExcludingCurrent.length === 0) {
+      // All markers are in current swimlane, wrap to first/last marker
+      return direction === 'next'
+        ? sortedMarkers[0].id
+        : sortedMarkers[sortedMarkers.length - 1].id;
     }
-    
-    // Return next marker, or wrap to first
-    const nextIndex = (currentIndex + 1) % sortedMarkers.length;
-    return sortedMarkers[nextIndex].id;
-  }, [findMarkersAtPlayhead, markersWithTracks, selectedMarkerId]);
+
+    if (direction === 'next') {
+      // Find first marker in a swimlane after the current one
+      for (const marker of markersExcludingCurrent) {
+        const track = markersWithTracks.find(t => t.id === marker.id);
+        if (track && track.swimlane > currentSwimlaneIndex) {
+          return marker.id;
+        }
+      }
+      // No marker found after current swimlane, wrap to first marker from excluded list
+      return markersExcludingCurrent[0].id;
+    } else {
+      // Find last marker in a swimlane before the current one (iterate backwards)
+      for (let i = markersExcludingCurrent.length - 1; i >= 0; i--) {
+        const marker = markersExcludingCurrent[i];
+        const track = markersWithTracks.find(t => t.id === marker.id);
+        if (track && track.swimlane < currentSwimlaneIndex) {
+          return marker.id;
+        }
+      }
+      // No marker found before current swimlane, wrap to last marker from excluded list
+      return markersExcludingCurrent[markersExcludingCurrent.length - 1].id;
+    }
+  }, [findMarkersAtPlayhead, markersWithTracks, selectedMarkerId, actionMarkers]);
+
+  // Helper function to cycle through markers at playhead (top-to-bottom)
+  const findNextMarkerAtPlayhead = useCallback((currentTime: number): string | null => {
+    return findMarkerAtPlayheadInDirection(currentTime, 'next');
+  }, [findMarkerAtPlayheadInDirection]);
 
   // Helper function to cycle through markers at playhead (bottom-to-top)
   const findPreviousMarkerAtPlayhead = useCallback((currentTime: number): string | null => {
-    const markersAtPlayhead = findMarkersAtPlayhead(currentTime);
-    if (markersAtPlayhead.length === 0) return null;
-
-    // Sort by swimlane (if available) or by tag name for consistent ordering
-    const sortedMarkers = markersAtPlayhead.sort((a, b) => {
-      // Try to use swimlane data if available
-      const aTrack = markersWithTracks.find(m => m.id === a.id);
-      const bTrack = markersWithTracks.find(m => m.id === b.id);
-      
-      if (aTrack && bTrack) {
-        return aTrack.swimlane - bTrack.swimlane;
-      }
-      
-      // Fallback to tag name sorting
-      return a.primary_tag.name.localeCompare(b.primary_tag.name);
-    });
-
-    // Find current marker in sorted list
-    const currentIndex = sortedMarkers.findIndex(m => m.id === selectedMarkerId);
-    
-    if (currentIndex === -1) {
-      // No marker selected or selected marker not at playhead, return last
-      return sortedMarkers[sortedMarkers.length - 1].id;
-    }
-    
-    // Return previous marker, or wrap to last
-    const prevIndex = currentIndex === 0 ? sortedMarkers.length - 1 : currentIndex - 1;
-    return sortedMarkers[prevIndex].id;
-  }, [findMarkersAtPlayhead, markersWithTracks, selectedMarkerId]);
+    return findMarkerAtPlayheadInDirection(currentTime, 'previous');
+  }, [findMarkerAtPlayheadInDirection]);
 
   return {
     findNextUnprocessedMarker,
