@@ -622,7 +622,14 @@ export const useMarkerNavigation = (params: UseMarkerNavigationParams) => {
       const bTrack = markersWithTracks.find(m => m.id === b.id);
 
       if (aTrack && bTrack) {
-        return aTrack.swimlane - bTrack.swimlane;
+        // Primary: sort by swimlane
+        if (aTrack.swimlane !== bTrack.swimlane) {
+          return aTrack.swimlane - bTrack.swimlane;
+        }
+        // Secondary: within same swimlane, sort by temporal proximity to playhead
+        const aDistance = Math.abs(a.seconds - currentTime);
+        const bDistance = Math.abs(b.seconds - currentTime);
+        return aDistance - bDistance;
       }
 
       // Fallback to tag name sorting
