@@ -1,0 +1,23 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ShotBoundary {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  stashappSceneId Int      @map("stashapp_scene_id")
+
+  startTime       Decimal  @map("start_time")
+  endTime         Decimal  @map("end_time")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([stashappSceneId, startTime])
+  @@map("shot_boundaries")
+}

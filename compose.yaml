@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: stash-marker-studio-db
+    environment:
+      POSTGRES_USER: stashmarker
+      POSTGRES_PASSWORD: stashmarker
+      POSTGRES_DB: stashmarker
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

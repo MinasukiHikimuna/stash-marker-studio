@@ -330,6 +330,71 @@ async function getTagName(tagId, config) {
   return result.data.findTag.name;
 }
 
+async function storeShotBoundaries(sceneId, csvPath) {
+  console.log(`Storing shot boundaries for scene ${sceneId} from ${csvPath}`);
+
+  try {
+    // Read CSV file with different encodings
+    const encodings = ["utf-8", "utf-8-sig", "utf-16", "cp1252", "iso-8859-1"];
+    let csvContent;
+
+    for (const encoding of encodings) {
+      try {
+        csvContent = await fs.readFile(csvPath, encoding);
+        console.log(`✅ Successfully read CSV with encoding: ${encoding}`);
+        break;
+      } catch (e) {
+        console.log(`❌ Failed with ${encoding}: ${e.message}`);
+        if (encoding === encodings[encodings.length - 1]) {
+          throw new Error("Could not read CSV file with any encoding");
+        }
+      }
+    }
+
+    // Parse CSV content
+    const rows = csvContent.split("\n").map((row) => row.split(","));
+
+    // Skip first row (timecode list), use second row as headers
+    const dataRows = rows.slice(2);
+
+    console.log(`📊 Found ${dataRows.length} shot boundaries to store`);
+
+    // Extract shot boundaries
+    const shotBoundaries = [];
+    for (const row of dataRows) {
+      if (row.length < 7) continue; // Skip invalid rows
+
+      const startTime = parseFloat(row[3]); // Start Time (seconds)
+      const endTime = parseFloat(row[6]); // End Time (seconds)
+
+      if (isNaN(startTime) || isNaN(endTime)) continue;
+
+      shotBoundaries.push({ startTime, endTime });
+    }
+
+    // Send to API
+    const response = await fetch("http://localhost:3000/api/shot-boundaries", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        stashappSceneId: parseInt(sceneId),
+        shotBoundaries,
+      }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(`API error: ${result.error}`);
+    }
+
+    console.log(`✅ Stored ${result.count} shot boundaries in database`);
+  } catch (error) {
+    console.error(`❌ Error storing shot boundaries:`, error.message);
+  }
+}
+
 async function createSceneMarkers(sceneId, csvPath, config) {
   console.log(`Creating scene markers for scene ${sceneId} from ${csvPath}`);
 
@@ -463,7 +528,14 @@ async function processVideo(videoPath, sceneId, config) {
   // Check if sidecar file exists
   const sidecarFile = await getSidecarFile(videoPath);
   if (sidecarFile) {
-    console.log(`${videoPath}\nSkipped - already processed.\n`);
+    console.log(`${videoPath}\nFound existing CSV file.`);
+
+    // Store shot boundaries from existing CSV file
+    if (sceneId) {
+      await storeShotBoundaries(sceneId, sidecarFile);
+    }
+
+    console.log("Done.\n");
     return;
   }
 
@@ -494,8 +566,9 @@ async function processVideo(videoPath, sceneId, config) {
     if (newCsvPath) {
       console.log("CSV file created at:", newCsvPath);
 
-      // Create scene markers from the CSV file
+      // Store shot boundaries in database and create scene markers
       if (sceneId) {
+        await storeShotBoundaries(sceneId, newCsvPath);
         await createSceneMarkers(sceneId, newCsvPath, config);
       }
 
