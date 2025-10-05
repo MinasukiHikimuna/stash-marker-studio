@@ -148,6 +148,13 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   // Add state for marker merging
   const [copiedMarkerForMerge, setCopiedMarkerForMerge] = useState<SceneMarker | null>(null);
 
+  // Center timeline on playhead function (defined early for use in useTimelineZoom)
+  const centerPlayhead = useCallback(() => {
+    if (timelineRef.current) {
+      timelineRef.current.centerOnPlayhead();
+    }
+  }, []);
+
   // Timeline zoom functionality
   const {
     zoom,
@@ -157,7 +164,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     zoomOut,
     resetZoom,
     setAvailableTimelineWidth,
-  } = useTimelineZoom(videoDuration);
+  } = useTimelineZoom(videoDuration, { onZoomChange: centerPlayhead });
 
   // Callback to receive swimlane data from Timeline component
   const handleSwimlaneDataUpdate = useCallback(
@@ -576,13 +583,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       dispatch(seekToTime(previousShot.seconds));
     }
   }, [getShotBoundaries, currentVideoTime, dispatch]);
-
-  // Center timeline on playhead
-  const centerPlayhead = useCallback(() => {
-    if (timelineRef.current) {
-      timelineRef.current.centerOnPlayhead();
-    }
-  }, []);
 
   // Copy marker properties for merging
   const copyMarkerForMerge = useCallback(() => {

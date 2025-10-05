@@ -15,7 +15,15 @@ export interface UseTimelineZoomReturn {
   setAvailableTimelineWidth: (width: number) => void;
 }
 
-export function useTimelineZoom(_videoDuration: number | null): UseTimelineZoomReturn {
+export interface UseTimelineZoomOptions {
+  onZoomChange?: () => void;
+}
+
+export function useTimelineZoom(
+  _videoDuration: number | null,
+  options?: UseTimelineZoomOptions
+): UseTimelineZoomReturn {
+  const { onZoomChange } = options || {};
   // Zoom state - now represents multiplier relative to fit-to-window
   const [zoom, setZoom] = useState(1);
   const [timelineContainerWidth, setTimelineContainerWidth] = useState(0);
@@ -73,7 +81,11 @@ export function useTimelineZoom(_videoDuration: number | null): UseTimelineZoomR
       }
       return ZOOM_LEVELS[currentIndex + 1];
     });
-  }, [findClosestZoomLevel]);
+    // Center on playhead after zoom change
+    if (onZoomChange) {
+      setTimeout(() => onZoomChange(), 0);
+    }
+  }, [findClosestZoomLevel, onZoomChange]);
 
   const zoomOut = useCallback(() => {
     setZoom((prevZoom) => {
@@ -84,11 +96,19 @@ export function useTimelineZoom(_videoDuration: number | null): UseTimelineZoomR
       }
       return ZOOM_LEVELS[currentIndex - 1];
     });
-  }, [findClosestZoomLevel]);
+    // Center on playhead after zoom change
+    if (onZoomChange) {
+      setTimeout(() => onZoomChange(), 0);
+    }
+  }, [findClosestZoomLevel, onZoomChange]);
 
   const resetZoom = useCallback(() => {
     setZoom(1); // Reset to fit-to-window (1x)
-  }, []);
+    // Center on playhead after zoom change
+    if (onZoomChange) {
+      setTimeout(() => onZoomChange(), 0);
+    }
+  }, [onZoomChange]);
 
   // Zoom is always initialized to 1 (fit-to-window) and maintained by user actions
 
