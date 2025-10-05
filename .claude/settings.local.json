@@ -27,7 +27,10 @@
       "Bash(grep:*)",
       "Bash(chmod:*)",
       "Bash(npm audit:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(npm test)",
+      "Bash(npm test:*)",
+      "Bash(git log:*)"
     ],
     "deny": []
   }
