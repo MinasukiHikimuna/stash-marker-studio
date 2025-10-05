@@ -83,11 +83,17 @@ describe('KeyboardShortcutService', () => {
     });
 
     it('should prevent conflicting shortcuts', () => {
+      // Suppress expected warning
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
       // Try to set marker.confirm to use 'x' (already used by marker.reject)
       const conflictingBindings: KeyBinding[] = [{ key: 'x' }];
       const success = service.updateShortcut('marker.confirm', conflictingBindings);
-      
+
       expect(success).toBe(false);
+      expect(warnSpy).toHaveBeenCalled();
+
+      warnSpy.mockRestore();
     });
 
     it('should reset shortcut to default', () => {
