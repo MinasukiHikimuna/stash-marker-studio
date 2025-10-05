@@ -73,7 +73,13 @@ Stash Marker Studio is a companion app for Stashapp that makes working with vide
 
 ### Git commit messages
 
-Keep the git commit messages as brief as possible while still giving enough details. Tell what the state would have been without this change and how does this change make it better. Avoid repetition in the commit message.
+Use Conventional Commit messages styling.
+
+Keep the git commit messages as brief as possible while still giving enough details. First descripbe why the change was done. If necessary, what was done can be described after the why has been dealth with. Tell what the state would have been without this change and how does this change make it better. Avoid repetition in the commit message.
+
+Do not limit line width to 80 characters for body or footer paragraphs.
+
+Sometimes commits are not ready for permanent version history. These are temporary commits and should be prefixed with "temp:". These do not need to follow Conventional Commit messages styling.
 
 ### Planning and Architecture
 
@@ -87,8 +93,11 @@ The app requires runtime configuration injection for Stashapp connection and tag
 
 ### Testing
 
-- Use linting: npm run lint
-- Use Jest for unit tests: npm run test
+- **Pre-commit checks**: Always run both `npm run lint` and `npx tsc --noEmit` before committing
+  - ESLint catches code style issues but doesn't do full type checking
+  - TypeScript compiler (`tsc --noEmit`) catches all type errors including structural type mismatches
+  - Fix all errors from both tools before committing
+- Use Jest for unit tests: `npm run test`
 - Test files: `*.test.ts` pattern
 - Mocks available in `__mocks__/` directories
 
