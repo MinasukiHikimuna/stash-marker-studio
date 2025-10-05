@@ -164,7 +164,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     zoomOut,
     resetZoom,
     setAvailableTimelineWidth,
-  } = useTimelineZoom(videoDuration, { onZoomChange: centerPlayhead });
+  } = useTimelineZoom({ onZoomChange: centerPlayhead });
 
   // Callback to receive swimlane data from Timeline component
   const handleSwimlaneDataUpdate = useCallback(

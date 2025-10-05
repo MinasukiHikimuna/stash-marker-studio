@@ -20,7 +20,6 @@ export interface UseTimelineZoomOptions {
 }
 
 export function useTimelineZoom(
-  _videoDuration: number | null,
   options?: UseTimelineZoomOptions
 ): UseTimelineZoomReturn {
   const { onZoomChange } = options || {};
