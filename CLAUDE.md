@@ -23,6 +23,7 @@ Stash Marker Studio is a companion app for Stashapp that makes working with vide
 - TypeScript for type safety
 - Tailwind CSS for styling
 - GraphQL for API communication with Stashapp
+- PostgreSQL 18+ with Prisma ORM for local data storage
 - Jest for testing
 
 ### Core Architecture Patterns
@@ -34,8 +35,15 @@ Stash Marker Studio is a companion app for Stashapp that makes working with vide
 **Marker Logic**: Core business logic in `src/core/marker/markerLogic.ts` handles marker status tracking (confirmed/rejected/unprocessed), filtering, and calculations. Key concepts:
 
 - Markers have status tags: CONFIRMED, REJECTED, or unprocessed
-- Shot boundary markers (from PySceneDetect) are filtered out of action markers
 - Tags with corresponding tag metadata can be converted to their corresponding real tags
+
+**Shot Boundaries**: Shot boundaries are stored in a separate PostgreSQL database (`shot_boundaries` table) and are completely independent from Stashapp markers. They represent video cut points detected by PySceneDetect or manually created. Shot boundaries:
+
+- Are NOT Stashapp markers (separate entity type)
+- Are displayed in their own timeline header row
+- Are managed via dedicated API endpoints (`/api/shot-boundaries`)
+- Never interact with Stashapp's marker system
+- Have their own keyboard shortcuts (V to add/split, Shift+V to remove)
 
 ### Key Domain Concepts
 
@@ -49,7 +57,6 @@ Stash Marker Studio is a companion app for Stashapp that makes working with vide
 
 - Manual: Created in app (MARKER_SOURCE_MANUAL tag)
 - AI-generated: From external AI models
-- PySceneDetect: Shot boundary detection (MARKER_SHOT_BOUNDARY tag)
 
 **Tag Conversion**: Tags with corresponding tag metadata can be converted to their corresponding real tags via description field "Corresponding Tag: {TagName}"
 
@@ -64,9 +71,11 @@ Stash Marker Studio is a companion app for Stashapp that makes working with vide
 ### Important Files
 
 - `src/core/marker/types.ts` - Core TypeScript types for markers and state
+- `src/core/shotBoundary/types.ts` - Shot boundary types (separate from markers)
 - `src/hooks/useDynamicKeyboardShortcuts.ts` - Dynamic keyboard shortcut handling
 - `src/components/Timeline.tsx` - Main timeline visualization component
 - `src/serverConfig.ts` - Runtime configuration structure
+- `prisma/schema.prisma` - Database schema for local PostgreSQL storage
 - `.plan.md` - Current refactoring/development plan (keep this in mind when making changes)
 
 ## Development Notes
@@ -90,6 +99,25 @@ Sometimes commits are not ready for permanent version history. These are tempora
 ### Configuration
 
 The app requires runtime configuration injection for Stashapp connection and tag IDs. Environment variables are loaded via `/api/config` route and injected into `StashappService`.
+
+### Database
+
+**Local PostgreSQL Database**: The app uses a local PostgreSQL database (via Docker Compose) for storing shot boundaries and other metadata that doesn't belong in Stashapp.
+
+- **Schema**: Defined in `prisma/schema.prisma`
+- **Migrations**: `prisma/migrations/` directory
+- **ORM**: Prisma for type-safe database access
+- **Connection**: `src/lib/prisma.ts` provides singleton Prisma client
+
+**Shot Boundaries Table** (`shot_boundaries`):
+- Stores PySceneDetect video cut points
+- Prevents overloading Stashapp player with 100+ markers per scene
+- Simple schema: `id`, `stashappSceneId`, `startTime`, `endTime`, `createdAt`, `updatedAt`
+
+**Database Commands**:
+- `docker compose up -d` - Start PostgreSQL container
+- `npx prisma migrate dev` - Apply migrations in development
+- `npx prisma studio` - Open database GUI
 
 ### Testing
 
