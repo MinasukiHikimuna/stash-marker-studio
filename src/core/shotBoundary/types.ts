@@ -10,16 +10,16 @@ export type ShotBoundary = {
   id: string;           // UUID from database
   stashappSceneId: number;
   startTime: number;    // seconds
-  endTime: number;      // seconds
-  createdAt: Date;
-  updatedAt: Date;
+  endTime: number | null;      // seconds (null if open-ended)
+  createdAt: string;    // ISO date string for Redux serialization
+  updatedAt: string;    // ISO date string for Redux serialization
 };
 
 export type ShotBoundaryFromAPI = {
   id: string;
   stashappSceneId: number;
   startTime: string | number;  // May come as Decimal from Prisma
-  endTime: string | number;
+  endTime: string | number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -29,8 +29,13 @@ export function shotBoundaryFromAPI(data: ShotBoundaryFromAPI): ShotBoundary {
     id: data.id,
     stashappSceneId: data.stashappSceneId,
     startTime: typeof data.startTime === 'string' ? parseFloat(data.startTime) : data.startTime,
-    endTime: typeof data.endTime === 'string' ? parseFloat(data.endTime) : data.endTime,
-    createdAt: new Date(data.createdAt),
-    updatedAt: new Date(data.updatedAt),
+    endTime:
+      data.endTime == null
+        ? null
+        : typeof data.endTime === 'string'
+        ? parseFloat(data.endTime)
+        : data.endTime,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
   };
 }

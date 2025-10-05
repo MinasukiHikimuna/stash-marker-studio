@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { SceneMarker, Tag } from "../../services/StashappService";
+import { Tag } from "../../services/StashappService";
+import type { ShotBoundary } from "../../core/shotBoundary/types";
 import { CompletionDefaults } from "../../serverConfig";
 
 interface CompletionModalProps {
   isOpen: boolean;
   completionWarnings: string[];
-  videoCutMarkersToDelete: SceneMarker[];
+  videoCutMarkersToDelete: ShotBoundary[];
   hasAiReviewedTag: boolean;
   primaryTagsToAdd: Tag[];
   tagsToRemove: Tag[];
@@ -126,16 +127,12 @@ export function CompletionModal({
                 className="mt-1 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
               />
               <label htmlFor="deleteVideoCutMarkers" className="text-sm text-gray-300 flex-1">
-                <span className="font-medium">Delete Video Cut markers</span>
-                {videoCutMarkersToDelete.length > 0 ? (
-                  <span className="text-red-300">
-                    {" "}
-                    ({videoCutMarkersToDelete.length} marker
-                    {videoCutMarkersToDelete.length !== 1 ? "s" : ""})
-                  </span>
-                ) : (
-                  <span className="text-gray-500"> (none found)</span>
-                )}
+                <span className="font-medium">Finalize shot boundaries (local DB only)</span>
+                <span className="text-gray-400">
+                  {" "}
+                  ({videoCutMarkersToDelete.length} boundar
+                  {videoCutMarkersToDelete.length === 1 ? "y" : "ies"}; retained in local database)
+                </span>
               </label>
             </div>
 

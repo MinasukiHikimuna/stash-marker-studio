@@ -6,59 +6,31 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-// Import test constants first
-import {
-  MARKER_SHOT_BOUNDARY,
-} from "../../core/marker/testUtils";
+import { TimelineAxis, type TimelineAxisProps } from "./TimelineAxis";
+import type { ShotBoundary } from "../../core/shotBoundary/types";
 
-// Mock the stashappService
-jest.mock("../../services/StashappService", () => ({
-  ...jest.requireActual("../../services/StashappService"),
-  stashappService: {
-    markerStatusConfirmed: "100001",
-    markerStatusRejected: "100002",
-    markerShotBoundary: MARKER_SHOT_BOUNDARY,
-  },
-}));
-
-import { TimelineAxis } from "./TimelineAxis";
-import { SceneMarker } from "../../services/StashappService";
-import { createTestMarker } from "../../core/marker/testUtils";
-
-// Mock the TimelinePlayhead component
-jest.mock("./TimelinePlayhead", () => ({
-  __esModule: true,
-  default: ({ currentTime, pixelsPerSecond }: { currentTime: number; pixelsPerSecond: number }) => (
-    <div
-      data-testid="playhead"
-      data-current-time={currentTime}
-      data-pixels-per-second={pixelsPerSecond}
-    />
-  ),
-}));
-
-// Helper to create shot boundary marker
-function createShotBoundaryMarker(id: string, seconds: number): SceneMarker {
-  return createTestMarker({
+function createShotBoundary(
+  id: string,
+  startTime: number,
+  endTime: number | null = null
+): ShotBoundary {
+  return {
     id,
-    seconds,
-    primary_tag: {
-      id: MARKER_SHOT_BOUNDARY,
-      name: "Shot Boundary",
-      description: null,
-      parents: [],
-    },
-  });
+    stashappSceneId: 1,
+    startTime,
+    endTime,
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  };
 }
 
 describe("TimelineAxis", () => {
-  const defaultProps = {
+  const defaultProps: TimelineAxisProps = {
     videoDuration: 300, // 5 minutes
-    currentTime: 60,
     pixelsPerSecond: 10,
     timelineWidth: 3000,
     showShotBoundaries: false,
-    markers: [] as SceneMarker[],
+    shotBoundaries: [],
     onSeek: jest.fn(),
   };
 
@@ -149,87 +121,68 @@ describe("TimelineAxis", () => {
 
   describe("Shot Boundaries", () => {
     it("does not render shot boundaries when disabled", () => {
-      const markers = [
-        createShotBoundaryMarker("1", 30),
-        createShotBoundaryMarker("2", 60),
+      const shotBoundaries = [
+        createShotBoundary("1", 30),
+        createShotBoundary("2", 60),
       ];
 
       const { container } = render(
         <TimelineAxis
           {...defaultProps}
-          markers={markers}
+          shotBoundaries={shotBoundaries}
           showShotBoundaries={false}
         />
       );
 
-      const shotBoundaries = container.querySelectorAll('[title*="Shot boundary"]');
-      expect(shotBoundaries).toHaveLength(0);
+      const renderedBoundaries = container.querySelectorAll('[title*="Shot boundary"]');
+      expect(renderedBoundaries).toHaveLength(0);
     });
 
     it("renders shot boundaries when enabled", () => {
-      const markers = [
-        createShotBoundaryMarker("1", 30),
-        createShotBoundaryMarker("2", 60),
+      const shotBoundaries = [
+        createShotBoundary("1", 30),
+        createShotBoundary("2", 60),
       ];
 
       const { container } = render(
         <TimelineAxis
           {...defaultProps}
-          markers={markers}
+          shotBoundaries={shotBoundaries}
           showShotBoundaries={true}
         />
       );
 
-      const shotBoundaries = container.querySelectorAll('[title*="Shot boundary"]');
-      expect(shotBoundaries).toHaveLength(2);
+      const renderedBoundaries = container.querySelectorAll('[title*="Shot boundary"]');
+      expect(renderedBoundaries).toHaveLength(2);
     });
 
     it("positions shot boundaries at correct pixel locations", () => {
-      const markers = [
-        createShotBoundaryMarker("1", 30),
-        createShotBoundaryMarker("2", 90),
+      const shotBoundaries = [
+        createShotBoundary("1", 30),
+        createShotBoundary("2", 90),
       ];
 
       const { container } = render(
         <TimelineAxis
           {...defaultProps}
-          markers={markers}
+          shotBoundaries={shotBoundaries}
           showShotBoundaries={true}
           pixelsPerSecond={10}
         />
       );
 
-      const shotBoundaries = container.querySelectorAll('[title*="Shot boundary"]');
-      expect(shotBoundaries[0]).toHaveStyle({ left: "300px" }); // 30s * 10px/s
-      expect(shotBoundaries[1]).toHaveStyle({ left: "900px" }); // 90s * 10px/s
-    });
-
-    it("filters out non-shot-boundary markers", () => {
-      const markers = [
-        createShotBoundaryMarker("1", 30),
-        createTestMarker({ id: "2", seconds: 45 }), // Regular marker
-        createShotBoundaryMarker("3", 60),
-      ];
-
-      const { container } = render(
-        <TimelineAxis
-          {...defaultProps}
-          markers={markers}
-          showShotBoundaries={true}
-        />
-      );
-
-      const shotBoundaries = container.querySelectorAll('[title*="Shot boundary"]');
-      expect(shotBoundaries).toHaveLength(2);
+      const renderedBoundaries = container.querySelectorAll('[title*="Shot boundary"]');
+      expect(renderedBoundaries[0]).toHaveStyle({ left: "300px" });
+      expect(renderedBoundaries[1]).toHaveStyle({ left: "900px" });
     });
 
     it("displays shot boundary time in title", () => {
-      const markers = [createShotBoundaryMarker("1", 65)];
+      const shotBoundaries = [createShotBoundary("1", 65)];
 
       render(
         <TimelineAxis
           {...defaultProps}
-          markers={markers}
+          shotBoundaries={shotBoundaries}
           showShotBoundaries={true}
         />
       );
@@ -240,12 +193,12 @@ describe("TimelineAxis", () => {
 
     it("calls onSeek when shot boundary is clicked", () => {
       const onSeek = jest.fn();
-      const markers = [createShotBoundaryMarker("1", 45)];
+      const shotBoundaries = [createShotBoundary("1", 45)];
 
       render(
         <TimelineAxis
           {...defaultProps}
-          markers={markers}
+          shotBoundaries={shotBoundaries}
           showShotBoundaries={true}
           onSeek={onSeek}
         />
@@ -259,12 +212,12 @@ describe("TimelineAxis", () => {
 
     it("prevents event propagation when shot boundary is clicked", () => {
       const onSeek = jest.fn();
-      const markers = [createShotBoundaryMarker("1", 45)];
+      const shotBoundaries = [createShotBoundary("1", 45)];
 
       render(
         <TimelineAxis
           {...defaultProps}
-          markers={markers}
+          shotBoundaries={shotBoundaries}
           showShotBoundaries={true}
           onSeek={onSeek}
         />
@@ -450,9 +403,9 @@ describe("TimelineAxis", () => {
       expect(ticks[1]).toHaveStyle({ left: "210px" });
     });
 
-    it("handles empty markers array", () => {
+    it("handles empty shot boundary array", () => {
       const { container } = render(
-        <TimelineAxis {...defaultProps} markers={[]} showShotBoundaries={true} />
+        <TimelineAxis {...defaultProps} shotBoundaries={[]} showShotBoundaries={true} />
       );
 
       const shotBoundaries = container.querySelectorAll('[title*="Shot boundary"]');
@@ -498,15 +451,15 @@ describe("TimelineAxis", () => {
     });
 
     it("provides titles for shot boundaries", () => {
-      const markers = [
-        createShotBoundaryMarker("1", 30),
-        createShotBoundaryMarker("2", 90),
+      const shotBoundaries = [
+        createShotBoundary("1", 30),
+        createShotBoundary("2", 90),
       ];
 
       render(
         <TimelineAxis
           {...defaultProps}
-          markers={markers}
+          shotBoundaries={shotBoundaries}
           showShotBoundaries={true}
         />
       );

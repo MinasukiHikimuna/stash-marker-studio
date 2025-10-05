@@ -5,6 +5,7 @@ import {
   type Tag,
   type SceneMarker,
 } from "../services/StashappService";
+import type { ShotBoundary } from "../core/shotBoundary/types";
 import {
   selectMarkers,
   selectScene,
@@ -24,6 +25,8 @@ import {
   createMarker,
   splitMarker,
   updateMarkerTimes,
+  createShotBoundary,
+  updateShotBoundary,
   pauseVideo,
   seekToTime,
   setSelectedMarkerId,
@@ -41,7 +44,7 @@ type ToastFunction = (message: string, type: "success" | "error") => void;
 
 export const useMarkerOperations = (
   actionMarkers: SceneMarker[],
-  getShotBoundaries: () => SceneMarker[],
+  getShotBoundaries: () => ShotBoundary[],
   showToast: ToastFunction
 ) => {
   const dispatch = useAppDispatch();
@@ -144,50 +147,58 @@ export const useMarkerOperations = (
 
   // Split a Video Cut marker at the current playhead position
   const splitVideoCutMarker = useCallback(async () => {
-    const currentTime = currentVideoTime;
-    const allMarkers = markers || [];
+    if (!scene) {
+      dispatch(setError("No scene data available"));
+      return;
+    }
 
-    // Find the Video Cut marker that contains the current time
-    const videoCutMarker = allMarkers.find(
-      (marker) =>
-        isShotBoundaryMarker(marker) &&
-        marker.seconds <= currentTime &&
-        marker.end_seconds &&
-        marker.end_seconds > currentTime
+    const currentTime = currentVideoTime;
+    const shotBoundaries = getShotBoundaries();
+
+    const containingShot = shotBoundaries.find(
+      (shot) =>
+        shot.startTime <= currentTime &&
+        shot.endTime !== null &&
+        shot.endTime !== undefined &&
+        shot.endTime > currentTime
     );
 
-    if (!videoCutMarker || !videoCutMarker.end_seconds || !scene) {
-      console.log("Cannot split Video Cut marker:", {
-        hasMarker: !!videoCutMarker,
-        hasEndTime: !!videoCutMarker?.end_seconds,
-        hasScene: !!scene,
+    if (!containingShot || containingShot.endTime === null || containingShot.endTime === undefined) {
+      console.log("Cannot split shot boundary:", {
+        hasBoundary: !!containingShot,
+        hasEndTime: containingShot?.endTime,
+        currentTime,
       });
-      dispatch(setError("No Video Cut marker found at current position"));
+      dispatch(setError("No shot boundary found at current position"));
       return;
     }
 
     try {
-      // Use Redux splitMarker thunk
-      const originalTagIds = videoCutMarker.tags.map((tag) => tag.id);
-      const result = await dispatch(splitMarker({
+      await dispatch(updateShotBoundary({
         sceneId: scene.id,
-        sourceMarkerId: videoCutMarker.id,
-        splitTime: currentTime,
-        tagId: videoCutMarker.primary_tag.id,
-        originalTagIds: originalTagIds,
-        sourceStartTime: videoCutMarker.seconds,
-        sourceEndTime: videoCutMarker.end_seconds || null,
+        shotBoundaryId: containingShot.id,
+        startTime: containingShot.startTime,
+        endTime: currentTime,
       })).unwrap();
 
-      console.log("Split Video Cut marker completed:", result);
+      await dispatch(createShotBoundary({
+        sceneId: scene.id,
+        startTime: currentTime,
+        endTime: containingShot.endTime,
+      })).unwrap();
 
-      // Show success message
-      showToast("Video Cut marker split successfully", "success");
+      showToast("Shot boundary split successfully", "success");
     } catch (err) {
-      console.error("Error splitting Video Cut marker:", err);
-      dispatch(setError("Failed to split Video Cut marker"));
+      console.error("Error splitting shot boundary:", err);
+      dispatch(setError("Failed to split shot boundary"));
     }
-  }, [markers, currentVideoTime, scene, dispatch, showToast]);
+  }, [
+    scene,
+    currentVideoTime,
+    getShotBoundaries,
+    dispatch,
+    showToast,
+  ]);
 
   // Create or duplicate marker - now just calls the marker page's createOrDuplicateMarker
   const createOrDuplicateMarker = useCallback(
@@ -433,7 +444,7 @@ export const useMarkerOperations = (
 
   // Execute the completion process
   const executeCompletion = useCallback(async (
-    videoCutMarkersToDelete: SceneMarker[],
+    shotBoundarySnapshot: ShotBoundary[],
     selectedActions: import("../serverConfig").CompletionDefaults
   ) => {
     const actionMarkers = getActionMarkers();
@@ -441,18 +452,13 @@ export const useMarkerOperations = (
     if (!scene) return;
 
     try {
-      // Step 1: Delete Video Cut markers (if selected)
-      if (selectedActions.deleteVideoCutMarkers && videoCutMarkersToDelete.length > 0) {
-        console.log("=== Deleting Video Cut Markers ===");
+      // Step 1: Handle shot boundaries (no remote deletion required)
+      if (selectedActions.deleteVideoCutMarkers) {
+        console.log("=== Shot Boundary Retention ===");
         console.log(
-          `Deleting ${videoCutMarkersToDelete.length} Video Cut markers`
+          `Shot boundaries remain in local database (count: ${shotBoundarySnapshot.length})`
         );
-        const videoCutMarkerIds = videoCutMarkersToDelete.map(
-          (marker) => marker.id
-        );
-        await stashappService.deleteMarkers(videoCutMarkerIds);
-        console.log("Video Cut markers deleted successfully");
-        console.log("=== End Video Cut Marker Deletion ===");
+        console.log("=== End Shot Boundary Retention ===");
       }
 
       // Step 2: Generate markers for action markers (if selected)

@@ -129,11 +129,13 @@ export const TimelineAxis: React.FC<TimelineAxisProps> = ({
             key={`shot-${marker.id}`}
             className="absolute top-0 h-full cursor-pointer group"
             style={{
-              left: `${marker.seconds * pixelsPerSecond}px`,
+              left: `${marker.startTime * pixelsPerSecond}px`,
               width: "2px",
             }}
-            onClick={(e) => handleShotBoundaryClick(e, marker.seconds)}
-            title={`Shot boundary: ${formatTime(marker.seconds)}`}
+            onClick={(e) => handleShotBoundaryClick(e, marker.startTime)}
+            title={`Shot boundary: ${formatTime(marker.startTime)}${
+              marker.endTime != null ? ` → ${formatTime(marker.endTime)}` : ""
+            }`}
           >
             {/* Shot boundary line */}
             <div className="w-full h-full bg-orange-400 opacity-60 group-hover:opacity-100 transition-opacity" />

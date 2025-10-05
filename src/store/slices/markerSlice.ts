@@ -13,7 +13,7 @@ import { loadMarkerGroups } from "./configSlice";
 // Modal state types
 export type CompletionModalData = {
   warnings: string[];
-  videoCutMarkersToDelete: SceneMarker[];
+  videoCutMarkersToDelete: ShotBoundary[];
   hasAiReviewedTag: boolean;
   primaryTagsToAdd: Tag[];
   tagsToRemove: Tag[];
@@ -1078,6 +1078,7 @@ const markerSlice = createSlice({
         state.sceneId = action.payload.scene.id;
         state.sceneTitle = action.payload.scene.title;
         state.markers = action.payload.markers;
+        state.shotBoundaries = action.payload.shotBoundaries;
         state.availableTags = action.payload.availableTags;
       })
       .addCase(initializeMarkerPage.rejected, (state, action) => {
@@ -1330,6 +1331,20 @@ const markerSlice = createSlice({
         state.loading = false;
         state.error = (action.payload as string) || "Failed to split marker";
       })
+
+      // Handle load shot boundaries
+      .addCase(loadShotBoundaries.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(loadShotBoundaries.fulfilled, (state, action) => {
+        state.loading = false;
+        state.shotBoundaries = action.payload;
+      })
+      .addCase(loadShotBoundaries.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as string) || "Failed to load shot boundaries";
+      });
 
   },
 });

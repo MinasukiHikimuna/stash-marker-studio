@@ -12,6 +12,7 @@ import {
   loadAvailableTags,
 } from "@/store/slices/markerSlice";
 import { ConfigTagAutocomplete } from "@/components/settings/ConfigTagAutocomplete";
+import type { ShotBoundaryConfig } from "@/serverConfig";
 
 interface VersionInfo {
   name: string;
@@ -26,12 +27,7 @@ export default function ShotBoundaryConfigPage() {
   const shotBoundaryConfig = useAppSelector(selectShotBoundaryConfig);
   const availableTags = useAppSelector(selectAvailableTags);
 
-  const [formData, setFormData] = useState({
-    shotBoundary: "",
-    sourceShotBoundaryAnalysis: "",
-    aiTagged: "",
-    shotBoundaryProcessed: "",
-  });
+  const [formData, setFormData] = useState<ShotBoundaryConfig>(() => shotBoundaryConfig);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [tagsLoaded, setTagsLoaded] = useState(false);
@@ -81,7 +77,7 @@ export default function ShotBoundaryConfigPage() {
     loadVersions();
   }, []);
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: keyof ShotBoundaryConfig, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -186,31 +182,13 @@ export default function ShotBoundaryConfigPage() {
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-2">Shot Boundary Detection</h2>
           <p className="text-gray-400 text-sm">
-            Configure tags and settings for PySceneDetect shot boundary analysis. 
-            This feature automatically detects scene changes and creates markers at shot boundaries.
+            Configure tags used to orchestrate PySceneDetect workflows. Shot boundaries are now stored in the local
+            PostgreSQL database and no longer rely on a dedicated Stashapp tag. Use these fields to manage scene-level
+            tags that trigger or record processing status.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Shot Boundary Tag ID
-            </label>
-            <ConfigTagAutocomplete
-              value={formData.shotBoundary}
-              onChange={(tagId) => handleInputChange("shotBoundary", tagId)}
-              availableTags={availableTags}
-              placeholder="Search for shot boundary tag..."
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
-              onTagCreated={async (_newTag) => {
-                // Reload available tags after creating a new tag
-                await dispatch(loadAvailableTags());
-              }}
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              Primary tag applied to shot boundary markers
-            </p>
-          </div>
           <div>
             <label className="block text-sm font-medium mb-2">
               Source Detection Tag ID

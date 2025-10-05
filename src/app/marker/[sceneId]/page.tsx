@@ -80,6 +80,7 @@ import {
   getMarkerStatus,
 } from "../../../core/marker/markerLogic";
 import { MarkerStatus } from "../../../core/marker/types";
+import type { ShotBoundary } from "../../../core/shotBoundary/types";
 
 
 // Add toast state type
@@ -132,7 +133,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   );
 
   // Get sorted shot boundaries from Redux
-  const getShotBoundaries = useCallback(() => {
+  const getShotBoundaries = useCallback((): ShotBoundary[] => {
     return [...shotBoundaries].sort((a, b) => a.startTime - b.startTime);
   }, [shotBoundaries]);
 
@@ -320,20 +321,20 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       );
     }
 
-    // Get Video Cut markers (shot boundaries) to delete
-    const videoCutMarkers = getShotBoundaries();
-    console.log("=== Video Cut Markers to Delete ===");
-    console.log(`Found ${videoCutMarkers.length} Video Cut markers`);
-    videoCutMarkers.forEach((marker, index) => {
+    // Capture shot boundary state for completion summary (no longer deleting via Stashapp)
+    const shotBoundariesForSummary = getShotBoundaries();
+    console.log("=== Shot Boundaries Summary ===");
+    console.log(`Found ${shotBoundariesForSummary.length} shot boundaries`);
+    shotBoundariesForSummary.forEach((boundary, index) => {
       console.log(
-        `${index + 1}. ID: ${marker.id}, Title: ${
-          marker.title
-        }, Time: ${formatSeconds(marker.seconds, true)} - ${
-          marker.end_seconds ? formatSeconds(marker.end_seconds, true) : "N/A"
-        }, Tag: ${marker.primary_tag.name}`
+        `${index + 1}. ID: ${boundary.id}, Time: ${formatSeconds(boundary.startTime, true)} - ${
+          boundary.endTime !== null && boundary.endTime !== undefined
+            ? formatSeconds(boundary.endTime, true)
+            : "N/A"
+        }`
       );
     });
-    console.log("=== End Video Cut Markers ===");
+    console.log("=== End Shot Boundaries Summary ===");
 
     // Calculate tags to remove and primary tags to add for preview
     const confirmedMarkers = actionMarkers.filter((marker) =>
@@ -404,7 +405,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     // Open completion modal with all the data
     dispatch(openCompletionModal({
       warnings,
-      videoCutMarkersToDelete: videoCutMarkers,
+      videoCutMarkersToDelete: shotBoundariesForSummary,
       hasAiReviewedTag: hasAiReviewedTagAlready,
       primaryTagsToAdd,
       tagsToRemove
@@ -547,11 +548,11 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   const jumpToNextShot = useCallback(() => {
     const shotBoundaries = getShotBoundaries();
     const nextShot = shotBoundaries.find(
-      (shot) => shot.seconds > currentVideoTime + 0.1
+      (shot) => (shot.startTime ?? 0) > currentVideoTime + 0.1
     );
 
     if (nextShot) {
-      dispatch(seekToTime(nextShot.seconds));
+      dispatch(seekToTime(nextShot.startTime));
     }
   }, [getShotBoundaries, currentVideoTime, dispatch]);
 
@@ -559,10 +560,10 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     const shotBoundaries = getShotBoundaries();
     const previousShot = [...shotBoundaries]
       .reverse()
-      .find((shot) => shot.seconds < currentVideoTime - 0.1);
+      .find((shot) => (shot.startTime ?? 0) < currentVideoTime - 0.1);
 
     if (previousShot) {
-      dispatch(seekToTime(previousShot.seconds));
+      dispatch(seekToTime(previousShot.startTime));
     }
   }, [getShotBoundaries, currentVideoTime, dispatch]);
 
@@ -651,11 +652,11 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     // Find previous shot boundary (at or before current time)
     const previousShot = [...shotBoundaries]
       .reverse()
-      .find((shot) => shot.seconds <= currentVideoTime);
+      .find((shot) => shot.startTime <= currentVideoTime);
 
     // Find next shot boundary (after current time)
     const nextShot = shotBoundaries
-      .find((shot) => shot.seconds > currentVideoTime);
+      .find((shot) => shot.startTime > currentVideoTime);
 
     let startTime: number;
     let endTime: number;
@@ -665,16 +666,16 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
 
     if (previousShot && nextShot) {
       // Between two shot boundaries - end one frame before next shot
-      startTime = previousShot.seconds;
-      endTime = nextShot.seconds - frameTime;
+      startTime = previousShot.startTime;
+      endTime = nextShot.startTime - frameTime;
     } else if (previousShot && !nextShot) {
       // After last shot boundary - use previous shot to end of video
-      startTime = previousShot.seconds;
+      startTime = previousShot.startTime;
       endTime = videoDuration || (currentVideoTime + 20);
     } else if (!previousShot && nextShot) {
       // Before first shot boundary - end one frame before next shot
       startTime = 0;
-      endTime = nextShot.seconds - frameTime;
+      endTime = nextShot.startTime - frameTime;
     } else {
       // No shot boundaries - fallback to current time + 20 seconds
       startTime = currentVideoTime;
@@ -684,8 +685,8 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     console.log("Creating shot boundary marker:", {
       startTime,
       endTime,
-      previousShot: previousShot?.seconds,
-      nextShot: nextShot?.seconds,
+      previousShot: previousShot?.startTime,
+      nextShot: nextShot?.startTime,
       currentTime: currentVideoTime,
     });
 
@@ -713,12 +714,16 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
 
     // Find if playhead is inside an existing shot boundary
     const containingShot = shotBoundaries.find(
-      (shot) => shot.seconds <= currentTime && shot.end_seconds && shot.end_seconds > currentTime
+      (shot) =>
+        shot.startTime <= currentTime &&
+        shot.endTime !== null &&
+        shot.endTime !== undefined &&
+        shot.endTime > currentTime
     );
 
     if (containingShot) {
       // Split the existing shot boundary at playhead
-      if (!containingShot.end_seconds) {
+      if (containingShot.endTime === null || containingShot.endTime === undefined) {
         showToast("Cannot split shot boundary without end time", "error");
         return;
       }
@@ -726,17 +731,16 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       try {
         console.log("Splitting shot boundary at playhead:", {
           shotId: containingShot.id,
-          originalStart: containingShot.seconds,
-          originalEnd: containingShot.end_seconds,
+          originalStart: containingShot.startTime,
+          originalEnd: containingShot.endTime,
           splitTime: currentTime,
         });
 
         // Update first shot to end at playhead
-        const shotBoundaryId = containingShot.id.replace('shot-', '');
         await dispatch(updateShotBoundary({
           sceneId: scene.id,
-          shotBoundaryId: shotBoundaryId,
-          startTime: containingShot.seconds,
+          shotBoundaryId: containingShot.id,
+          startTime: containingShot.startTime,
           endTime: currentTime,
         })).unwrap();
 
@@ -744,7 +748,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         await dispatch(createShotBoundary({
           sceneId: scene.id,
           startTime: currentTime,
-          endTime: containingShot.end_seconds,
+          endTime: containingShot.endTime,
         })).unwrap();
 
         showToast(`Split shot boundary at ${formatSeconds(currentTime)}`, "success");
@@ -756,32 +760,33 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     }
 
     // Playhead is not inside any shot boundary - create new boundaries
-    // Find next shot boundary after playhead
-    const nextShot = shotBoundaries.find((shot) => shot.seconds > currentTime);
-    const endTime = nextShot ? nextShot.seconds : (videoDuration || currentTime + 20);
+    const nextShot = shotBoundaries.find((shot) => shot.startTime > currentTime);
+    const endTime = nextShot ? nextShot.startTime : (videoDuration || currentTime + 20);
 
-    // Find previous shot boundary before playhead
     const previousShot = [...shotBoundaries]
       .reverse()
-      .find((shot) => shot.seconds < currentTime);
+      .find((shot) => shot.startTime < currentTime);
 
     try {
-      if (previousShot && previousShot.end_seconds && previousShot.end_seconds < currentTime) {
+      if (
+        previousShot &&
+        previousShot.endTime !== null &&
+        previousShot.endTime !== undefined &&
+        previousShot.endTime < currentTime
+      ) {
         // There's a gap - create shot from previous end to playhead, then playhead to next
         console.log("Creating shot boundaries to fill gap:", {
-          gapStart: previousShot.end_seconds,
+          gapStart: previousShot.endTime,
           splitPoint: currentTime,
           gapEnd: endTime,
         });
 
-        // Create first shot from previous shot's end to playhead
         await dispatch(createShotBoundary({
           sceneId: scene.id,
-          startTime: previousShot.end_seconds,
+          startTime: previousShot.endTime,
           endTime: currentTime,
         })).unwrap();
 
-        // Create second shot from playhead to next boundary
         await dispatch(createShotBoundary({
           sceneId: scene.id,
           startTime: currentTime,
@@ -794,14 +799,12 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
           secondShotEnd: endTime,
         });
 
-        // Create shot from 0 to playhead
         await dispatch(createShotBoundary({
           sceneId: scene.id,
           startTime: 0,
           endTime: currentTime,
         })).unwrap();
 
-        // Create shot from playhead to next boundary
         await dispatch(createShotBoundary({
           sceneId: scene.id,
           startTime: currentTime,
@@ -846,7 +849,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     // Find the shot boundary marker that starts at or near the current playhead position
     // Allow for small tolerance (0.5 seconds) to account for precision issues
     const currentShotBoundary = shotBoundaries.find(
-      (shot) => Math.abs(shot.seconds - currentVideoTime) <= 0.5
+      (shot) => Math.abs(shot.startTime - currentVideoTime) <= 0.5
     );
 
     if (!currentShotBoundary) {
@@ -857,10 +860,10 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     // Find the previous and next shot boundary markers
     const previousShotBoundary = [...shotBoundaries]
       .reverse()
-      .find((shot) => shot.seconds < currentShotBoundary.seconds);
+      .find((shot) => shot.startTime < currentShotBoundary.startTime);
 
     const nextShotBoundary = shotBoundaries.find(
-      (shot) => shot.seconds > currentShotBoundary.seconds
+      (shot) => shot.startTime > currentShotBoundary.startTime
     );
 
     try {
@@ -874,56 +877,54 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         console.log("Removing first shot boundary:", {
           currentShotId: currentShotBoundary.id,
           nextShotId: nextShotBoundary.id,
-          nextShotOldStart: nextShotBoundary.seconds,
+          nextShotOldStart: nextShotBoundary.startTime,
         });
 
-        // Extend next boundary to start from 0
-        const nextShotId = nextShotBoundary.id.replace('shot-', '');
         await dispatch(updateShotBoundary({
           sceneId: scene.id,
-          shotBoundaryId: nextShotId,
+          shotBoundaryId: nextShotBoundary.id,
           startTime: 0,
-          endTime: nextShotBoundary.end_seconds ?? null,
+          endTime: nextShotBoundary.endTime ?? null,
         })).unwrap();
 
-        // Delete current boundary
-        const currentShotId = currentShotBoundary.id.replace('shot-', '');
         await dispatch(deleteShotBoundary({
           sceneId: scene.id,
-          shotBoundaryId: currentShotId,
+          shotBoundaryId: currentShotBoundary.id,
         })).unwrap();
 
         showToast(`Removed first shot boundary, extended next to start from beginning`, "success");
       } else {
         // Normal case - extend previous boundary
-        const newEndTime = currentShotBoundary.end_seconds || videoDuration || (currentVideoTime + 20);
+        const newEndTime =
+          currentShotBoundary.endTime ??
+          videoDuration ??
+          currentVideoTime + 20;
 
         console.log("Removing shot boundary marker:", {
           currentShotId: currentShotBoundary.id,
-          currentShotStart: currentShotBoundary.seconds,
+          currentShotStart: currentShotBoundary.startTime,
           previousShotId: previousShotBoundary.id,
-          previousShotStart: previousShotBoundary.seconds,
-          previousShotOldEnd: previousShotBoundary.end_seconds,
+          previousShotStart: previousShotBoundary.startTime,
+          previousShotOldEnd: previousShotBoundary.endTime,
           newEndTime,
         });
 
-        // Extend the previous shot boundary to cover both segments
-        const prevShotId = previousShotBoundary.id.replace('shot-', '');
         await dispatch(updateShotBoundary({
           sceneId: scene.id,
-          shotBoundaryId: prevShotId,
-          startTime: previousShotBoundary.seconds,
-          endTime: newEndTime
+          shotBoundaryId: previousShotBoundary.id,
+          startTime: previousShotBoundary.startTime,
+          endTime: newEndTime,
         })).unwrap();
 
-        // Delete the current shot boundary marker
-        const currShotId = currentShotBoundary.id.replace('shot-', '');
         await dispatch(deleteShotBoundary({
           sceneId: scene.id,
-          shotBoundaryId: currShotId
+          shotBoundaryId: currentShotBoundary.id,
         })).unwrap();
 
-        showToast(`Merged shot boundaries: ${formatSeconds(previousShotBoundary.seconds)} - ${formatSeconds(newEndTime)}`, "success");
+        showToast(
+          `Merged shot boundaries: ${formatSeconds(previousShotBoundary.startTime)} - ${formatSeconds(newEndTime)}`,
+          "success"
+        );
       }
     } catch (error) {
       console.error("Error removing shot boundary marker:", error);

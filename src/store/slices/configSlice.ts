@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import { AppConfig } from '@/serverConfig';
+import { AppConfig, ShotBoundaryConfig } from '@/serverConfig';
 
 export type MarkerGroupTag = {
   id: string;
@@ -141,12 +141,7 @@ const configSlice = createSlice({
       // Clear marker groups when parent changes
       state.markerGroups.tags = [];
     },
-    setShotBoundaryConfig: (state, action: PayloadAction<{ 
-      aiTagged: string; 
-      shotBoundary: string; 
-      sourceShotBoundaryAnalysis: string; 
-      shotBoundaryProcessed: string; 
-    }>) => {
+    setShotBoundaryConfig: (state, action: PayloadAction<ShotBoundaryConfig>) => {
       state.shotBoundaryConfig = action.payload;
     },
     clearMarkerGroups: (state) => {
