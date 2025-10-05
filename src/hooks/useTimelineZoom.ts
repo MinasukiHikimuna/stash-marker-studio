@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
-const ZOOM_LEVELS = [1.0, 1.5, 3.0, 5.0];
+const ZOOM_LEVELS = [1.0, 1.5, 3.0, 6.0, 12.0];
 
 export interface UseTimelineZoomReturn {
   zoom: number;
@@ -15,11 +15,11 @@ export interface UseTimelineZoomReturn {
   setAvailableTimelineWidth: (width: number) => void;
 }
 
-export function useTimelineZoom(videoDuration: number | null): UseTimelineZoomReturn {
-  // Zoom state
+export function useTimelineZoom(_videoDuration: number | null): UseTimelineZoomReturn {
+  // Zoom state - now represents multiplier relative to fit-to-window
   const [zoom, setZoom] = useState(1);
   const [timelineContainerWidth, setTimelineContainerWidth] = useState(0);
-  const [availableTimelineWidth, setAvailableTimelineWidth] = useState<number | null>(null);
+  const [_availableTimelineWidth, setAvailableTimelineWidth] = useState<number | null>(null);
 
   // Timeline container ref for fit-to-window functionality
   const timelineContainerRef = useRef<HTMLDivElement>(null);
@@ -46,45 +46,19 @@ export function useTimelineZoom(videoDuration: number | null): UseTimelineZoomRe
     };
   }, []);
 
-  // Calculate fit-to-window zoom level
-  const calculateFitZoom = useCallback((uniformTagLabelWidth?: number) => {
-    if (videoDuration && videoDuration > 0) {
-      // Base timeline width at 1x zoom is 300px per minute
-      const basePixelsPerMinute = 300;
-      const totalMinutes = videoDuration / 60;
-      const baseTimelineWidth = totalMinutes * basePixelsPerMinute;
+  // Calculate fit-to-window zoom level (always 1x in the new system)
+  const calculateFitZoom = useCallback(() => {
+    return 1;
+  }, []);
 
-      // Use the precise available width from Timeline component if available
-      let availableWidth: number;
-      if (availableTimelineWidth !== null) {
-        availableWidth = availableTimelineWidth;
-      } else if (timelineContainerWidth > 0) {
-        // Fallback calculation if Timeline hasn't reported width yet
-        const labelWidth = uniformTagLabelWidth || 333;
-        const scrollbarMargin = 20;
-        availableWidth = timelineContainerWidth - labelWidth - scrollbarMargin;
-      } else {
-        return 1; // No width information available
-      }
-      
-      const fitZoom = Math.max(
-        0.01, // Very low minimum to allow extreme zoom out if needed
-        Math.min(10, availableWidth / baseTimelineWidth)
-      );
-
-      return fitZoom;
-    }
-    return 1; // Fallback
-  }, [videoDuration, timelineContainerWidth, availableTimelineWidth]);
-
-  // Get current minimum zoom (fit-to-window level)
-  const getMinZoom = useCallback((uniformTagLabelWidth?: number) => {
-    return Math.max(0.01, calculateFitZoom(uniformTagLabelWidth)); // Very low minimum
-  }, [calculateFitZoom]);
+  // Get current minimum zoom (always 1x - fit-to-window)
+  const getMinZoom = useCallback(() => {
+    return 1;
+  }, []);
 
   // Find closest zoom level to current zoom
   const findClosestZoomLevel = useCallback((currentZoom: number) => {
-    return ZOOM_LEVELS.reduce((prev, curr) => 
+    return ZOOM_LEVELS.reduce((prev, curr) =>
       Math.abs(curr - currentZoom) < Math.abs(prev - currentZoom) ? curr : prev
     );
   }, []);
@@ -101,47 +75,22 @@ export function useTimelineZoom(videoDuration: number | null): UseTimelineZoomRe
     });
   }, [findClosestZoomLevel]);
 
-  const zoomOut = useCallback((uniformTagLabelWidth?: number) => {
-    const minZoom = getMinZoom(uniformTagLabelWidth);
+  const zoomOut = useCallback(() => {
     setZoom((prevZoom) => {
       const closestLevel = findClosestZoomLevel(prevZoom);
       const currentIndex = ZOOM_LEVELS.indexOf(closestLevel);
       if (currentIndex <= 0) {
-        return Math.max(minZoom, ZOOM_LEVELS[0]); // Respect minimum zoom (fit-to-window)
+        return ZOOM_LEVELS[0]; // Minimum is 1x (fit-to-window)
       }
-      return Math.max(minZoom, ZOOM_LEVELS[currentIndex - 1]);
+      return ZOOM_LEVELS[currentIndex - 1];
     });
-  }, [getMinZoom, findClosestZoomLevel]);
+  }, [findClosestZoomLevel]);
 
-  const resetZoom = useCallback((uniformTagLabelWidth?: number) => {
-    const fitZoom = calculateFitZoom(uniformTagLabelWidth);
-    setZoom(fitZoom);
-  }, [calculateFitZoom]);
+  const resetZoom = useCallback(() => {
+    setZoom(1); // Reset to fit-to-window (1x)
+  }, []);
 
-  // Set default zoom to fit-to-window when data becomes available
-  useEffect(() => {
-    if (videoDuration && videoDuration > 0 && (availableTimelineWidth !== null || timelineContainerWidth > 0)) {
-      const fitZoom = calculateFitZoom();
-      // Only set if we're still at the initial zoom level (1)
-      if (zoom === 1) {
-        setZoom(fitZoom);
-      }
-    }
-  }, [videoDuration, timelineContainerWidth, availableTimelineWidth, calculateFitZoom, zoom]);
-
-  // Auto-adjust zoom when container width changes (for window resizing)
-  useEffect(() => {
-    if (videoDuration && videoDuration > 0 && (availableTimelineWidth !== null || timelineContainerWidth > 0)) {
-      const currentMinZoom = calculateFitZoom();
-
-      // If current zoom is at or below the new minimum, update to new fit-to-window level
-      // This handles window resizing where the fit level changes
-      if (zoom <= currentMinZoom + 0.01) {
-        // Small tolerance for floating point comparison
-        setZoom(currentMinZoom);
-      }
-    }
-  }, [timelineContainerWidth, availableTimelineWidth, calculateFitZoom, videoDuration, zoom]);
+  // Zoom is always initialized to 1 (fit-to-window) and maintained by user actions
 
   const updateAvailableTimelineWidth = useCallback((width: number) => {
     setAvailableTimelineWidth(width);
