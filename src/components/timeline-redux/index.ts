@@ -1,13 +1,13 @@
 /**
- * Timeline Redux Components
+ * Timeline Components
  *
- * Modern, refactored timeline component implementation with improved
+ * Modern timeline component implementation with improved
  * separation of concerns and comprehensive test coverage.
  */
 
-// Main integration component (drop-in replacement for Timeline)
-export { default as TimelineRedux } from "./TimelineRedux";
-export type { TimelineProps, TimelineRef } from "./TimelineRedux";
+// Main integration component
+export { default as Timeline } from "./Timeline";
+export type { TimelineProps, TimelineRef } from "./Timeline";
 
 // Sub-components (can be used independently if needed)
 export { default as TimelineAxis } from "./TimelineAxis";

@@ -1,14 +1,14 @@
 /**
- * TimelineRedux - Drop-in replacement for Timeline component
+ * Timeline - Main timeline component
  *
  * This component integrates all timeline sub-components (TimelineAxis, TimelineLabels,
- * TimelineGrid) and provides the same public API as the original Timeline component.
+ * TimelineGrid) and provides a comprehensive timeline visualization.
  *
  * Key features:
- * - Identical props interface (TimelineProps)
- * - Identical ref interface (TimelineRef)
+ * - TimelineProps interface
+ * - TimelineRef interface for programmatic control
  * - Scroll synchronization between header and swimlanes
- * - Proper Redux integration
+ * - Redux integration
  * - Swimlane resize support
  * - Keyboard shortcuts
  * - Playhead rendered in swimlanes only (not in header)
@@ -68,7 +68,7 @@ export interface TimelineRef {
   centerOnPlayhead: () => void;
 }
 
-const TimelineRedux = forwardRef<TimelineRef, TimelineProps>(
+const Timeline = forwardRef<TimelineRef, TimelineProps>(
   (
     {
       markers,
@@ -509,6 +509,6 @@ const TimelineRedux = forwardRef<TimelineRef, TimelineProps>(
   }
 );
 
-TimelineRedux.displayName = "TimelineRedux";
+Timeline.displayName = "Timeline";
 
-export default TimelineRedux;
+export default Timeline;

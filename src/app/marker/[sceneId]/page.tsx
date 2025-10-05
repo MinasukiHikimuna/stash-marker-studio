@@ -7,7 +7,7 @@ import {
   type SceneMarker,
 } from "../../../services/StashappService";
 import { KeyboardShortcutsModal } from "../../components/KeyboardShortcutsModal";
-import { TimelineRedux, TimelineRef } from "../../../components/timeline-redux";
+import { Timeline, TimelineRef } from "../../../components/timeline-redux";
 import { VideoPlayer } from "../../../components/marker/video/VideoPlayer";
 import { MarkerWithTrack, TagGroup } from "../../../core/marker/types";
 import { CorrespondingTagConversionModal } from "../../components/CorrespondingTagConversionModal";
@@ -1098,7 +1098,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
               ref={timelineContainerRef}
               className="border-t border-gray-300 flex-shrink-0"
             >
-              <TimelineRedux
+              <Timeline
                 ref={timelineRef}
                 markers={markers || []}
                 actionMarkers={actionMarkers}

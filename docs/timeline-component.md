@@ -122,7 +122,7 @@ The component exposes the following methods via ref:
 ```tsx
 const timelineRef = useRef<TimelineRef>(null);
 
-<TimelineRedux
+<Timeline
   ref={timelineRef}
   markers={allMarkers}
   actionMarkers={filteredActionMarkers}
@@ -145,7 +145,7 @@ timelineRef.current?.centerOnPlayhead();
 
 ### Component Architecture
 
-The TimelineRedux component is built from five sub-components:
+The Timeline component is built from five sub-components:
 
 1. **[TimelineAxis](../src/components/timeline-redux/TimelineAxis.tsx)** - Time axis header
    - Renders minute tick marks with time labels
@@ -202,7 +202,7 @@ The timeline uses pure functions from the core layer:
 
 ```
 src/components/timeline-redux/
-├── TimelineRedux.tsx          # Main integration component
+├── Timeline.tsx               # Main integration component
 ├── TimelineMarkerBar.tsx      # Individual marker
 ├── TimelinePlayhead.tsx       # Playhead indicator
 ├── TimelineGrid.tsx           # Marker grid
