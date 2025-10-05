@@ -4,33 +4,54 @@ import { prisma } from '@/lib/prisma';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { stashappSceneId, shotBoundaries } = body;
+    const { stashappSceneId, shotBoundaries, startTime, endTime } = body;
 
-    if (!stashappSceneId || !Array.isArray(shotBoundaries)) {
-      return NextResponse.json(
-        { error: 'stashappSceneId and shotBoundaries array are required' },
-        { status: 400 }
-      );
+    // Bulk import mode (from PySceneDetect)
+    if (shotBoundaries && Array.isArray(shotBoundaries)) {
+      if (!stashappSceneId) {
+        return NextResponse.json(
+          { error: 'stashappSceneId is required for bulk import' },
+          { status: 400 }
+        );
+      }
+
+      // Delete existing shot boundaries for this scene
+      await prisma.shotBoundary.deleteMany({
+        where: { stashappSceneId },
+      });
+
+      // Insert new shot boundaries
+      const created = await prisma.shotBoundary.createMany({
+        data: shotBoundaries.map((sb: { startTime: number; endTime: number }) => ({
+          stashappSceneId,
+          startTime: sb.startTime,
+          endTime: sb.endTime,
+        })),
+      });
+
+      return NextResponse.json({
+        success: true,
+        count: created.count,
+      });
     }
 
-    // Delete existing shot boundaries for this scene
-    await prisma.shotBoundary.deleteMany({
-      where: { stashappSceneId },
-    });
+    // Single shot boundary creation mode
+    if (stashappSceneId && startTime !== undefined && endTime !== undefined) {
+      const created = await prisma.shotBoundary.create({
+        data: {
+          stashappSceneId: parseInt(stashappSceneId),
+          startTime,
+          endTime,
+        },
+      });
 
-    // Insert new shot boundaries
-    const created = await prisma.shotBoundary.createMany({
-      data: shotBoundaries.map((sb: { startTime: number; endTime: number }) => ({
-        stashappSceneId,
-        startTime: sb.startTime,
-        endTime: sb.endTime,
-      })),
-    });
+      return NextResponse.json({ shotBoundary: created });
+    }
 
-    return NextResponse.json({
-      success: true,
-      count: created.count,
-    });
+    return NextResponse.json(
+      { error: 'Invalid request: provide either shotBoundaries array for bulk import or stashappSceneId/startTime/endTime for single creation' },
+      { status: 400 }
+    );
   } catch (error) {
     console.error('Error storing shot boundaries:', error);
     return NextResponse.json(

@@ -299,6 +299,33 @@ export const createMarker = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
+      // Check if creating a shot boundary marker
+      const isShotBoundary = params.tagId === stashappService.markerShotBoundary;
+
+      if (isShotBoundary) {
+        // Create shot boundary in database
+        const response = await fetch('/api/shot-boundaries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stashappSceneId: params.sceneId,
+            startTime: params.startTime,
+            endTime: params.endTime,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create shot boundary in database');
+        }
+
+        const data = await response.json();
+        // Refresh markers after creation
+        await dispatch(loadMarkers(params.sceneId));
+
+        return data.shotBoundary;
+      }
+
+      // Regular marker creation in Stashapp
       const newMarker = await stashappService.createSceneMarker(
         params.sceneId,
         params.tagId,
@@ -335,6 +362,34 @@ export const updateMarkerTimes = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
+      // Check if updating a shot boundary (ID starts with "shot-")
+      const isShotBoundary = params.markerId.startsWith('shot-');
+
+      if (isShotBoundary) {
+        // Extract the UUID from the prefixed ID
+        const shotBoundaryId = params.markerId.replace('shot-', '');
+
+        // Update shot boundary in database
+        const response = await fetch(`/api/shot-boundaries/${shotBoundaryId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            startTime: params.startTime,
+            endTime: params.endTime,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update shot boundary in database');
+        }
+
+        // Refresh markers after update
+        await dispatch(loadMarkers(params.sceneId));
+
+        return true;
+      }
+
+      // Regular Stashapp marker update
       await stashappService.updateMarkerTimes(
         params.markerId,
         params.startTime,
@@ -393,6 +448,29 @@ export const deleteMarker = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
+      // Check if deleting a shot boundary (ID starts with "shot-")
+      const isShotBoundary = params.markerId.startsWith('shot-');
+
+      if (isShotBoundary) {
+        // Extract the UUID from the prefixed ID
+        const shotBoundaryId = params.markerId.replace('shot-', '');
+
+        // Delete shot boundary from database
+        const response = await fetch(`/api/shot-boundaries/${shotBoundaryId}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete shot boundary from database');
+        }
+
+        // Refresh markers after deletion
+        await dispatch(loadMarkers(params.sceneId));
+
+        return params.markerId;
+      }
+
+      // Regular Stashapp marker deletion
       await stashappService.deleteMarkers([params.markerId]);
 
       // Refresh markers after deletion
