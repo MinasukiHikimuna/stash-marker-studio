@@ -82,7 +82,9 @@ describe("TimelineMarkerBar", () => {
       );
 
       const element = screen.getByTestId("timeline-marker-bar");
-      expect(element).toHaveStyle({ left: "100px", width: "50px" });
+      // Position and width are on the parent wrapper div, not the inner colored bar
+      const wrapper = element.parentElement;
+      expect(wrapper).toHaveStyle({ left: "100px", width: "50px" });
     });
 
     it("should render with marker ID in data attribute", () => {
@@ -175,7 +177,7 @@ describe("TimelineMarkerBar", () => {
       expect(element).toHaveClass("bg-red-600");
     });
 
-    it("should apply selected marker colors when selected", () => {
+    it("should apply selected marker visual indicator when selected", () => {
       const marker = createTestMarker();
       render(
         <TimelineMarkerBar
@@ -188,10 +190,12 @@ describe("TimelineMarkerBar", () => {
       );
 
       const element = screen.getByTestId("timeline-marker-bar");
-      expect(element).toHaveClass("bg-blue-500");
+      // Selected markers show a white ring, not a different background color
+      expect(element).toHaveClass("ring-2");
+      expect(element).toHaveClass("ring-white");
     });
 
-    it("should override status colors when selected", () => {
+    it("should keep status colors when selected", () => {
       const marker = createConfirmedMarker();
       render(
         <TimelineMarkerBar
@@ -204,8 +208,10 @@ describe("TimelineMarkerBar", () => {
       );
 
       const element = screen.getByTestId("timeline-marker-bar");
-      expect(element).toHaveClass("bg-blue-500");
-      expect(element).not.toHaveClass("bg-green-600");
+      // Selected markers keep their status color and add a ring
+      expect(element).toHaveClass("bg-green-600");
+      expect(element).toHaveClass("ring-2");
+      expect(element).toHaveClass("ring-white");
     });
 
     it("should include transition classes", () => {
@@ -307,7 +313,8 @@ describe("TimelineMarkerBar", () => {
       );
 
       const element = screen.getByTestId("timeline-marker-bar");
-      expect(element).toHaveStyle({ width: "0px" });
+      const wrapper = element.parentElement;
+      expect(wrapper).toHaveStyle({ width: "0px" });
     });
 
     it("should handle negative left position", () => {
@@ -323,7 +330,8 @@ describe("TimelineMarkerBar", () => {
       );
 
       const element = screen.getByTestId("timeline-marker-bar");
-      expect(element).toHaveStyle({ left: "-50px" });
+      const wrapper = element.parentElement;
+      expect(wrapper).toHaveStyle({ left: "-50px" });
     });
 
     it("should handle very large positions", () => {
@@ -339,7 +347,8 @@ describe("TimelineMarkerBar", () => {
       );
 
       const element = screen.getByTestId("timeline-marker-bar");
-      expect(element).toHaveStyle({ left: "999999px", width: "500px" });
+      const wrapper = element.parentElement;
+      expect(wrapper).toHaveStyle({ left: "999999px", width: "500px" });
     });
 
     it("should handle fractional positions", () => {
@@ -355,7 +364,8 @@ describe("TimelineMarkerBar", () => {
       );
 
       const element = screen.getByTestId("timeline-marker-bar");
-      expect(element).toHaveStyle({ left: "10.5px", width: "25.75px" });
+      const wrapper = element.parentElement;
+      expect(wrapper).toHaveStyle({ left: "10.5px", width: "25.75px" });
     });
   });
 });

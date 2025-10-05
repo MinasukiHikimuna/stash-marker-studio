@@ -135,7 +135,7 @@ describe('TimelinePlayhead', () => {
       );
 
       const playhead = container.querySelector('div');
-      expect(playhead).toHaveClass('bg-orange-500');
+      expect(playhead).toHaveClass('bg-red-500');
     });
 
     it('should render as thin vertical line', () => {
