@@ -1,7 +1,7 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 export default {
   preset: "ts-jest",
-  testEnvironment: "node",
+  testEnvironment: "jsdom",
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
@@ -10,8 +10,13 @@ export default {
       "ts-jest",
       {
         useESM: true,
+        tsconfig: {
+          jsx: "react",
+        },
       },
     ],
   },
   extensionsToTreatAsEsm: [".ts", ".tsx"],
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
+  testMatch: ["**/__tests__/**/*.test.[jt]s?(x)", "**/?(*.)+(spec|test).[jt]s?(x)"],
 };
