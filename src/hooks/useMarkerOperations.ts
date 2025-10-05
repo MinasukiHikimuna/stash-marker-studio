@@ -33,7 +33,6 @@ import {
   formatSeconds,
   isMarkerConfirmed,
   isMarkerRejected,
-  isShotBoundaryMarker,
   filterUnprocessedMarkers,
   calculateMarkerSummary,
 } from "../core/marker/markerLogic";

@@ -27,6 +27,7 @@ import React, {
 } from "react";
 import { type SceneMarker, type Scene, stashappService } from "../../services/StashappService";
 import { TagGroup, MarkerWithTrack } from "../../core/marker/types";
+import type { ShotBoundary } from "../../core/shotBoundary/types";
 import TimelineAxis from "./TimelineAxis";
 import TimelineLabels from "./TimelineLabels";
 import TimelineGrid from "./TimelineGrid";
@@ -53,6 +54,7 @@ import { TagAutocomplete } from "../marker/TagAutocomplete";
 export type TimelineProps = {
   markers: SceneMarker[];
   actionMarkers: SceneMarker[];
+  shotBoundaries: ShotBoundary[];
   videoDuration: number;
   currentTime: number;
   onMarkerClick: (marker: SceneMarker) => void;
@@ -76,6 +78,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
     {
       markers,
       actionMarkers,
+      shotBoundaries,
       videoDuration,
       currentTime,
       onMarkerClick,
@@ -604,7 +607,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
                 pixelsPerSecond={timelineWidth.pixelsPerSecond}
                 timelineWidth={timelineWidth.width}
                 showShotBoundaries={showShotBoundaries}
-                markers={markers}
+                shotBoundaries={shotBoundaries}
                 onSeek={handleSeek}
               />
             </div>

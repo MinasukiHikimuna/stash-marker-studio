@@ -40,7 +40,6 @@ const initialState: ConfigState = {
   },
   shotBoundaryConfig: {
     aiTagged: '',
-    shotBoundary: '',
     sourceShotBoundaryAnalysis: '',
     shotBoundaryProcessed: '',
   },
@@ -208,7 +207,6 @@ export const selectMarkerStatusConfirmed = (state: { config: ConfigState }) => s
 export const selectMarkerStatusRejected = (state: { config: ConfigState }) => state.config.markerConfig.statusRejected;
 export const selectMarkerSourceManual = (state: { config: ConfigState }) => state.config.markerConfig.sourceManual;
 export const selectMarkerAiReviewed = (state: { config: ConfigState }) => state.config.markerConfig.aiReviewed;
-export const selectMarkerShotBoundary = (state: { config: ConfigState }) => state.config.shotBoundaryConfig.shotBoundary;
 export const selectMarkerGroupTagSorting = (state: { config: ConfigState }) => state.config.markerGroupTagSorting || {};
 
 export default configSlice.reducer;

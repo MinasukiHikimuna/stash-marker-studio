@@ -57,13 +57,10 @@ export interface MarkerGroupTagSorting {
 export interface ShotBoundaryConfig {
   // Tag for scenes which have been AI analyzed.
   aiTagged: string;
-  
-  // Tag for markers which indicate a shot boundary.
-  shotBoundary: string;
-  
+
   // Tag for markers to indicate that the source of the marker is shot boundary analysis and not e.g. manual or AI.
   sourceShotBoundaryAnalysis: string;
-  
+
   // Tag for scenes which have been processed with shot boundary analysis.
   shotBoundaryProcessed: string;
 }

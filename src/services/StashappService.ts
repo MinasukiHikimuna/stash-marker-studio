@@ -149,7 +149,6 @@ export class StashappService {
   private MARKER_STATUS_REJECTED = "";
   private MARKER_GROUP_PARENT_ID = "";
   private MARKER_SOURCE_MANUAL = "";
-  private MARKER_SHOT_BOUNDARY = "";
   private MARKER_AI_REVIEWED = "";
 
   // Add these getter methods to make the properties accessible
@@ -163,10 +162,6 @@ export class StashappService {
 
   get markerSourceManual() {
     return this.MARKER_SOURCE_MANUAL;
-  }
-
-  get markerShotBoundary() {
-    return this.MARKER_SHOT_BOUNDARY;
   }
 
   get markerAiReviewed() {
@@ -183,7 +178,6 @@ export class StashappService {
     this.MARKER_SOURCE_MANUAL = config.markerConfig.sourceManual;
     this.MARKER_AI_REVIEWED = config.markerConfig.aiReviewed;
     this.MARKER_GROUP_PARENT_ID = config.markerGroupingConfig.markerGroupParent;
-    this.MARKER_SHOT_BOUNDARY = config.shotBoundaryConfig?.shotBoundary || "";
   }
 
   // Update the fetchGraphQL method to use only the API key

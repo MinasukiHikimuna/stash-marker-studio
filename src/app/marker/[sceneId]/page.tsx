@@ -23,6 +23,7 @@ import { useMarkerOperations } from "../../../hooks/useMarkerOperations";
 import { useDynamicKeyboardShortcuts } from "../../../hooks/useDynamicKeyboardShortcuts";
 import {
   selectMarkers,
+  selectShotBoundaries,
   selectScene,
   selectAvailableTags,
   selectSelectedMarkerId,
@@ -59,20 +60,22 @@ import {
   initializeMarkerPage,
   loadMarkers,
   createMarker,
+  createShotBoundary,
+  updateShotBoundary,
+  deleteShotBoundary,
   updateMarkerTag,
   updateMarkerTimes,
   deleteMarker,
   seekToTime,
   setError
 } from "../../../store/slices/markerSlice";
-import { selectMarkerShotBoundary, selectMarkerAiReviewed } from "../../../store/slices/configSlice";
+import { selectMarkerAiReviewed } from "../../../store/slices/configSlice";
 import Toast from "../../components/Toast";
 import { useRouter } from "next/navigation";
 import { incorrectMarkerStorage } from "@/utils/incorrectMarkerStorage";
 import { IncorrectMarkerCollectionModal } from "../../components/IncorrectMarkerCollectionModal";
 import {
   formatSeconds,
-  isShotBoundaryMarker,
   filterUnprocessedMarkers,
   getMarkerStatus,
 } from "../../../core/marker/markerLogic";
@@ -91,7 +94,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   
   // Redux selectors
   const markers = useAppSelector(selectMarkers);
-  const markerShotBoundary = useAppSelector(selectMarkerShotBoundary);
+  const shotBoundaries = useAppSelector(selectShotBoundaries);
   const markerAiReviewed = useAppSelector(selectMarkerAiReviewed);
   const scene = useAppSelector(selectScene);
   const availableTags = useAppSelector(selectAvailableTags);
@@ -128,13 +131,10 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     []
   );
 
-  // Get shot boundaries sorted by time
+  // Get sorted shot boundaries from Redux
   const getShotBoundaries = useCallback(() => {
-    if (!markers) return [];
-    return markers
-      .filter(isShotBoundaryMarker)
-      .sort((a, b) => a.seconds - b.seconds);
-  }, [markers]);
+    return [...shotBoundaries].sort((a, b) => a.startTime - b.startTime);
+  }, [shotBoundaries]);
 
   // Add state for tracking which marker is being edited
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
@@ -220,22 +220,9 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     }
   }, [error, showToast, dispatch]);
 
-  // Get action markers (non-shot boundary) for display and navigation
+  // All markers are action markers now (shot boundaries are stored separately)
   const actionMarkers = useMemo(() => {
-    if (!markers) {
-      return [];
-    }
-
-    const filteredMarkers = markers.filter((marker) => {
-      // Always include temp markers regardless of their primary tag
-      if (marker.id.startsWith("temp-")) {
-        return true;
-      }
-      // Filter out shot boundary markers for non-temp markers
-      return !isShotBoundaryMarker(marker);
-    });
-
-    return filteredMarkers;
+    return markers || [];
   }, [markers]);
 
 
@@ -551,15 +538,9 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         markerEnd: marker.end_seconds,
       });
 
-      // Don't select shot boundary markers
-      if (marker.primary_tag.id === markerShotBoundary) {
-        console.log("Prevented selection of shot boundary marker");
-        return;
-      }
-
       dispatch(setSelectedMarkerId(marker.id));
     },
-    [dispatch, markerShotBoundary]
+    [dispatch]
   );
 
   // Navigate to next/previous shot
@@ -751,19 +732,19 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         });
 
         // Update first shot to end at playhead
-        await dispatch(updateMarkerTimes({
+        const shotBoundaryId = containingShot.id.replace('shot-', '');
+        await dispatch(updateShotBoundary({
           sceneId: scene.id,
-          markerId: containingShot.id,
+          shotBoundaryId: shotBoundaryId,
           startTime: containingShot.seconds,
           endTime: currentTime,
         })).unwrap();
 
         // Create new shot from playhead to original end
-        await dispatch(createMarker({
+        await dispatch(createShotBoundary({
           sceneId: scene.id,
           startTime: currentTime,
           endTime: containingShot.end_seconds,
-          tagId: stashappService.markerShotBoundary,
         })).unwrap();
 
         showToast(`Split shot boundary at ${formatSeconds(currentTime)}`, "success");
@@ -794,19 +775,17 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         });
 
         // Create first shot from previous shot's end to playhead
-        await dispatch(createMarker({
+        await dispatch(createShotBoundary({
           sceneId: scene.id,
           startTime: previousShot.end_seconds,
           endTime: currentTime,
-          tagId: stashappService.markerShotBoundary,
         })).unwrap();
 
         // Create second shot from playhead to next boundary
-        await dispatch(createMarker({
+        await dispatch(createShotBoundary({
           sceneId: scene.id,
           startTime: currentTime,
           endTime: endTime,
-          tagId: stashappService.markerShotBoundary,
         })).unwrap();
       } else if (!previousShot) {
         // No previous shot - create from start of video
@@ -816,27 +795,24 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         });
 
         // Create shot from 0 to playhead
-        await dispatch(createMarker({
+        await dispatch(createShotBoundary({
           sceneId: scene.id,
           startTime: 0,
           endTime: currentTime,
-          tagId: stashappService.markerShotBoundary,
         })).unwrap();
 
         // Create shot from playhead to next boundary
-        await dispatch(createMarker({
+        await dispatch(createShotBoundary({
           sceneId: scene.id,
           startTime: currentTime,
           endTime: endTime,
-          tagId: stashappService.markerShotBoundary,
         })).unwrap();
       } else {
         // Previous shot extends to playhead, just create from playhead onward
-        await dispatch(createMarker({
+        await dispatch(createShotBoundary({
           sceneId: scene.id,
           startTime: currentTime,
           endTime: endTime,
-          tagId: stashappService.markerShotBoundary,
         })).unwrap();
       }
 
@@ -852,7 +828,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     videoDuration,
     dispatch,
     showToast,
-    stashappService.markerShotBoundary,
   ]);
 
   // Remove shot boundary marker at playhead position and merge with previous shot
@@ -903,17 +878,19 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         });
 
         // Extend next boundary to start from 0
-        await dispatch(updateMarkerTimes({
+        const nextShotId = nextShotBoundary.id.replace('shot-', '');
+        await dispatch(updateShotBoundary({
           sceneId: scene.id,
-          markerId: nextShotBoundary.id,
+          shotBoundaryId: nextShotId,
           startTime: 0,
           endTime: nextShotBoundary.end_seconds ?? null,
         })).unwrap();
 
         // Delete current boundary
-        await dispatch(deleteMarker({
+        const currentShotId = currentShotBoundary.id.replace('shot-', '');
+        await dispatch(deleteShotBoundary({
           sceneId: scene.id,
-          markerId: currentShotBoundary.id,
+          shotBoundaryId: currentShotId,
         })).unwrap();
 
         showToast(`Removed first shot boundary, extended next to start from beginning`, "success");
@@ -931,17 +908,19 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         });
 
         // Extend the previous shot boundary to cover both segments
-        await dispatch(updateMarkerTimes({
+        const prevShotId = previousShotBoundary.id.replace('shot-', '');
+        await dispatch(updateShotBoundary({
           sceneId: scene.id,
-          markerId: previousShotBoundary.id,
+          shotBoundaryId: prevShotId,
           startTime: previousShotBoundary.seconds,
           endTime: newEndTime
         })).unwrap();
 
         // Delete the current shot boundary marker
-        await dispatch(deleteMarker({
+        const currShotId = currentShotBoundary.id.replace('shot-', '');
+        await dispatch(deleteShotBoundary({
           sceneId: scene.id,
-          markerId: currentShotBoundary.id
+          shotBoundaryId: currShotId
         })).unwrap();
 
         showToast(`Merged shot boundaries: ${formatSeconds(previousShotBoundary.seconds)} - ${formatSeconds(newEndTime)}`, "success");
@@ -1268,6 +1247,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
                 ref={timelineRef}
                 markers={markers || []}
                 actionMarkers={actionMarkers}
+                shotBoundaries={shotBoundaries}
                 selectedMarkerId={selectedMarkerId}
                 videoDuration={videoDuration || 0}
                 currentTime={currentVideoTime}

@@ -50,21 +50,12 @@ export const filterUnprocessedMarkers = (
   return markers.filter(isUnprocessed);
 };
 
-export const isShotBoundaryMarker = (marker: SceneMarker): boolean => {
-  return marker.primary_tag.id === stashappService.markerShotBoundary;
-};
-
 export const calculateMarkerSummary = (
   markers: SceneMarker[]
 ): MarkerSummary => {
   if (!markers.length) return { confirmed: 0, rejected: 0, unknown: 0 };
 
-  // Filter out shot boundary markers first
-  const actionMarkers = markers.filter(
-    (marker) => marker.primary_tag.id !== stashappService.markerShotBoundary
-  );
-
-  return actionMarkers.reduce(
+  return markers.reduce(
     (acc: MarkerSummary, marker: SceneMarker) => {
       const status = getMarkerStatus(marker);
       switch (status) {
@@ -116,18 +107,8 @@ export const parseTimeColonDot = (str: string): number => {
 export const getActionMarkers = (
   markers: SceneMarker[]
 ): SceneMarker[] => {
-  if (!markers) {
-    return [];
-  }
-
-  return markers.filter((marker) => {
-    // Always include temp markers regardless of their primary tag
-    if (marker.id.startsWith("temp-")) {
-      return true;
-    }
-    // Filter out shot boundary markers for non-temp markers
-    return !isShotBoundaryMarker(marker);
-  });
+  // All markers are action markers now (shot boundaries are stored separately)
+  return markers || [];
 };
 
 export const findNearestMarker = (
@@ -159,7 +140,6 @@ export const checkAllMarkersApproved = (markers: SceneMarker[]): boolean => {
   return markers.every(
     (marker) =>
       isMarkerConfirmed(marker) ||
-      isMarkerRejected(marker) ||
-      isShotBoundaryMarker(marker)
+      isMarkerRejected(marker)
   );
 };

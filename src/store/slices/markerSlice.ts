@@ -6,6 +6,8 @@ import {
   stashappService,
 } from "@/services/StashappService";
 import type { IncorrectMarker } from "@/utils/incorrectMarkerStorage";
+import type { ShotBoundary, ShotBoundaryFromAPI } from "@/core/shotBoundary/types";
+import { shotBoundaryFromAPI } from "@/core/shotBoundary/types";
 import { loadMarkerGroups } from "./configSlice";
 
 // Modal state types
@@ -42,6 +44,7 @@ export type SceneWithMarkers = Scene & {
 export interface MarkerState {
   // Core data
   markers: SceneMarker[];
+  shotBoundaries: ShotBoundary[];  // Stored separately from markers
   scene: Scene | null;
   sceneId: string | null;
   sceneTitle: string | null;
@@ -113,6 +116,7 @@ export interface MarkerState {
 const initialState: MarkerState = {
   // Core data
   markers: [],
+  shotBoundaries: [],
   scene: null,
   sceneId: null,
   sceneTitle: null,
@@ -185,38 +189,25 @@ export const initializeMarkerPage = createAsyncThunk(
         throw new Error("Scene not found");
       }
 
-      // Load markers from Stashapp
+      // Load markers from Stashapp (only actual markers, not shot boundaries)
       const markersResult = await stashappService.getSceneMarkers(sceneId);
-      const stashappMarkers = markersResult.findSceneMarkers.scene_markers || [];
+      const markers = markersResult.findSceneMarkers.scene_markers || [];
+      const sortedMarkers = [...markers].sort((a, b) => a.seconds - b.seconds);
 
-      // Load shot boundaries from database
-      let shotBoundaryMarkers: SceneMarker[] = [];
+      // Load shot boundaries from database (separate entity type)
+      let shotBoundaries: ShotBoundary[] = [];
       try {
         const response = await fetch(`/api/shot-boundaries?stashappSceneId=${sceneId}`);
         if (response.ok) {
           const data = await response.json();
-          // Convert shot boundaries to SceneMarker format
-          shotBoundaryMarkers = data.shotBoundaries.map((sb: { id: string; startTime: number; endTime: number }) => ({
-            id: `shot-${sb.id}`, // Prefix to differentiate from Stashapp markers
-            title: "Shot Boundary",
-            seconds: parseFloat(sb.startTime.toString()),
-            seconds_end: parseFloat(sb.endTime.toString()),
-            primary_tag: {
-              id: stashappService.markerShotBoundary,
-              name: "Shot Boundary",
-            },
-            tags: [],
-            scene: { id: sceneId },
-          }));
+          shotBoundaries = data.shotBoundaries.map((sb: ShotBoundaryFromAPI) =>
+            shotBoundaryFromAPI(sb)
+          );
         }
       } catch (error) {
         console.warn("Failed to load shot boundaries from database:", error);
         // Continue without shot boundaries if database load fails
       }
-
-      // Merge and sort all markers by time
-      const allMarkers = [...stashappMarkers, ...shotBoundaryMarkers];
-      const sortedMarkers = allMarkers.sort((a, b) => a.seconds - b.seconds);
 
       // Load available tags
       const tagsResult = await stashappService.getAllTags();
@@ -229,6 +220,7 @@ export const initializeMarkerPage = createAsyncThunk(
       return {
         scene,
         markers: sortedMarkers,
+        shotBoundaries,
         availableTags,
       };
     } catch (error) {
@@ -246,37 +238,10 @@ export const loadMarkers = createAsyncThunk(
   "marker/loadMarkers",
   async (sceneId: string, { rejectWithValue }) => {
     try {
-      // Load markers from Stashapp
+      // Load markers from Stashapp (only actual markers, not shot boundaries)
       const result = await stashappService.getSceneMarkers(sceneId);
-      const stashappMarkers = result.findSceneMarkers.scene_markers || [];
-
-      // Load shot boundaries from database
-      let shotBoundaryMarkers: SceneMarker[] = [];
-      try {
-        const response = await fetch(`/api/shot-boundaries?stashappSceneId=${sceneId}`);
-        if (response.ok) {
-          const data = await response.json();
-          // Convert shot boundaries to SceneMarker format
-          shotBoundaryMarkers = data.shotBoundaries.map((sb: { id: string; startTime: number; endTime: number }) => ({
-            id: `shot-${sb.id}`,
-            title: "Shot Boundary",
-            seconds: parseFloat(sb.startTime.toString()),
-            seconds_end: parseFloat(sb.endTime.toString()),
-            primary_tag: {
-              id: stashappService.markerShotBoundary,
-              name: "Shot Boundary",
-            },
-            tags: [],
-            scene: { id: sceneId },
-          }));
-        }
-      } catch (error) {
-        console.warn("Failed to load shot boundaries from database:", error);
-      }
-
-      // Merge and sort all markers by time
-      const allMarkers = [...stashappMarkers, ...shotBoundaryMarkers];
-      const sortedMarkers = allMarkers.sort((a, b) => a.seconds - b.seconds);
+      const markers = result.findSceneMarkers.scene_markers || [];
+      const sortedMarkers = [...markers].sort((a, b) => a.seconds - b.seconds);
       return sortedMarkers;
     } catch (error) {
       return rejectWithValue(
@@ -286,7 +251,138 @@ export const loadMarkers = createAsyncThunk(
   }
 );
 
-// Create a new marker
+// Load shot boundaries (separate from markers)
+export const loadShotBoundaries = createAsyncThunk(
+  "marker/loadShotBoundaries",
+  async (sceneId: string, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`/api/shot-boundaries?stashappSceneId=${sceneId}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch shot boundaries");
+      }
+      const data = await response.json();
+      const shotBoundaries = data.shotBoundaries.map((sb: ShotBoundaryFromAPI) =>
+        shotBoundaryFromAPI(sb)
+      );
+      return shotBoundaries;
+    } catch (error) {
+      console.warn("Failed to load shot boundaries from database:", error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to load shot boundaries"
+      );
+    }
+  }
+);
+
+// Create a new shot boundary
+export const createShotBoundary = createAsyncThunk(
+  "marker/createShotBoundary",
+  async (
+    params: {
+      sceneId: string;
+      startTime: number;
+      endTime: number | null;
+    },
+    { dispatch, rejectWithValue }
+  ) => {
+    try {
+      const response = await fetch('/api/shot-boundaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stashappSceneId: params.sceneId,
+          startTime: params.startTime,
+          endTime: params.endTime,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create shot boundary');
+      }
+
+      const data = await response.json();
+      // Refresh shot boundaries after creation
+      await dispatch(loadShotBoundaries(params.sceneId));
+
+      return shotBoundaryFromAPI(data.shotBoundary);
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to create shot boundary"
+      );
+    }
+  }
+);
+
+// Update a shot boundary
+export const updateShotBoundary = createAsyncThunk(
+  "marker/updateShotBoundary",
+  async (
+    params: {
+      sceneId: string;
+      shotBoundaryId: string;
+      startTime: number;
+      endTime: number | null;
+    },
+    { dispatch, rejectWithValue }
+  ) => {
+    try {
+      const response = await fetch(`/api/shot-boundaries/${params.shotBoundaryId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startTime: params.startTime,
+          endTime: params.endTime,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update shot boundary');
+      }
+
+      // Refresh shot boundaries after update
+      await dispatch(loadShotBoundaries(params.sceneId));
+
+      return true;
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to update shot boundary"
+      );
+    }
+  }
+);
+
+// Delete a shot boundary
+export const deleteShotBoundary = createAsyncThunk(
+  "marker/deleteShotBoundary",
+  async (
+    params: {
+      sceneId: string;
+      shotBoundaryId: string;
+    },
+    { dispatch, rejectWithValue }
+  ) => {
+    try {
+      const response = await fetch(`/api/shot-boundaries/${params.shotBoundaryId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete shot boundary');
+      }
+
+      // Refresh shot boundaries after deletion
+      await dispatch(loadShotBoundaries(params.sceneId));
+
+      return true;
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to delete shot boundary"
+      );
+    }
+  }
+);
+
+// Create a new marker (Stashapp markers only)
 export const createMarker = createAsyncThunk(
   "marker/createMarker",
   async (
@@ -299,33 +395,7 @@ export const createMarker = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      // Check if creating a shot boundary marker
-      const isShotBoundary = params.tagId === stashappService.markerShotBoundary;
-
-      if (isShotBoundary) {
-        // Create shot boundary in database
-        const response = await fetch('/api/shot-boundaries', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            stashappSceneId: params.sceneId,
-            startTime: params.startTime,
-            endTime: params.endTime,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to create shot boundary in database');
-        }
-
-        const data = await response.json();
-        // Refresh markers after creation
-        await dispatch(loadMarkers(params.sceneId));
-
-        return data.shotBoundary;
-      }
-
-      // Regular marker creation in Stashapp
+      // Create marker in Stashapp
       const newMarker = await stashappService.createSceneMarker(
         params.sceneId,
         params.tagId,
@@ -349,7 +419,7 @@ export const createMarker = createAsyncThunk(
   }
 );
 
-// Update marker times
+// Update marker times (Stashapp markers only)
 export const updateMarkerTimes = createAsyncThunk(
   "marker/updateMarkerTimes",
   async (
@@ -362,34 +432,7 @@ export const updateMarkerTimes = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      // Check if updating a shot boundary (ID starts with "shot-")
-      const isShotBoundary = params.markerId.startsWith('shot-');
-
-      if (isShotBoundary) {
-        // Extract the UUID from the prefixed ID
-        const shotBoundaryId = params.markerId.replace('shot-', '');
-
-        // Update shot boundary in database
-        const response = await fetch(`/api/shot-boundaries/${shotBoundaryId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            startTime: params.startTime,
-            endTime: params.endTime,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to update shot boundary in database');
-        }
-
-        // Refresh markers after update
-        await dispatch(loadMarkers(params.sceneId));
-
-        return true;
-      }
-
-      // Regular Stashapp marker update
+      // Update marker in Stashapp
       await stashappService.updateMarkerTimes(
         params.markerId,
         params.startTime,
@@ -437,7 +480,7 @@ export const updateMarkerTag = createAsyncThunk(
   }
 );
 
-// Delete a single marker
+// Delete a single marker (Stashapp markers only)
 export const deleteMarker = createAsyncThunk(
   "marker/deleteMarker",
   async (
@@ -448,29 +491,7 @@ export const deleteMarker = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      // Check if deleting a shot boundary (ID starts with "shot-")
-      const isShotBoundary = params.markerId.startsWith('shot-');
-
-      if (isShotBoundary) {
-        // Extract the UUID from the prefixed ID
-        const shotBoundaryId = params.markerId.replace('shot-', '');
-
-        // Delete shot boundary from database
-        const response = await fetch(`/api/shot-boundaries/${shotBoundaryId}`, {
-          method: 'DELETE',
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to delete shot boundary from database');
-        }
-
-        // Refresh markers after deletion
-        await dispatch(loadMarkers(params.sceneId));
-
-        return params.markerId;
-      }
-
-      // Regular Stashapp marker deletion
+      // Delete marker from Stashapp
       await stashappService.deleteMarkers([params.markerId]);
 
       // Refresh markers after deletion
@@ -1368,6 +1389,8 @@ export const selectMarkerState = (state: { marker: MarkerState }) =>
 // Core data selectors
 export const selectMarkers = (state: { marker: MarkerState }) =>
   state.marker.markers;
+export const selectShotBoundaries = (state: { marker: MarkerState }) =>
+  state.marker.shotBoundaries;
 export const selectScene = (state: { marker: MarkerState }) =>
   state.marker.scene;
 export const selectSceneId = (state: { marker: MarkerState }) =>

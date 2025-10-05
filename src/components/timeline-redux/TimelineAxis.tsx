@@ -11,8 +11,7 @@
 "use client";
 
 import React, { useCallback, useRef } from "react";
-import { SceneMarker } from "../../services/StashappService";
-import { isShotBoundaryMarker } from "../../core/marker/markerLogic";
+import type { ShotBoundary } from "../../core/shotBoundary/types";
 
 export interface TimelineAxisProps {
   /** Total video duration in seconds */
@@ -23,8 +22,8 @@ export interface TimelineAxisProps {
   timelineWidth: number;
   /** Whether to show shot boundary markers */
   showShotBoundaries: boolean;
-  /** All markers (for shot boundary filtering) */
-  markers: SceneMarker[];
+  /** Shot boundaries (separate from markers) */
+  shotBoundaries: ShotBoundary[];
   /** Callback when user clicks on the timeline to seek */
   onSeek: (time: number) => void;
   /** Optional callback when mouse moves over timeline (for sprite preview) */
@@ -47,7 +46,7 @@ export const TimelineAxis: React.FC<TimelineAxisProps> = ({
   pixelsPerSecond,
   timelineWidth,
   showShotBoundaries,
-  markers,
+  shotBoundaries,
   onSeek,
   onTimeHover,
   onTimeHoverEnd,
@@ -98,10 +97,8 @@ export const TimelineAxis: React.FC<TimelineAxisProps> = ({
   // Calculate number of minute markers
   const minuteCount = Math.floor(videoDuration / 60) + 1;
 
-  // Filter shot boundary markers
-  const shotBoundaryMarkers = showShotBoundaries
-    ? markers.filter(isShotBoundaryMarker)
-    : [];
+  // Use shot boundaries if enabled
+  const visibleShotBoundaries = showShotBoundaries ? shotBoundaries : [];
 
   return (
     <div style={{ width: `${timelineWidth}px` }}>
@@ -127,7 +124,7 @@ export const TimelineAxis: React.FC<TimelineAxisProps> = ({
         ))}
 
         {/* Shot boundaries */}
-        {shotBoundaryMarkers.map((marker) => (
+        {visibleShotBoundaries.map((marker) => (
           <div
             key={`shot-${marker.id}`}
             className="absolute top-0 h-full cursor-pointer group"
