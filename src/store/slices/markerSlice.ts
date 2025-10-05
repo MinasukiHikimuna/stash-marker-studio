@@ -185,11 +185,38 @@ export const initializeMarkerPage = createAsyncThunk(
         throw new Error("Scene not found");
       }
 
-      // Load markers
+      // Load markers from Stashapp
       const markersResult = await stashappService.getSceneMarkers(sceneId);
-      const markers = markersResult.findSceneMarkers.scene_markers || [];
-      // Sort markers by time for consistent ordering across all UI components
-      const sortedMarkers = [...markers].sort((a, b) => a.seconds - b.seconds);
+      const stashappMarkers = markersResult.findSceneMarkers.scene_markers || [];
+
+      // Load shot boundaries from database
+      let shotBoundaryMarkers: SceneMarker[] = [];
+      try {
+        const response = await fetch(`/api/shot-boundaries?stashappSceneId=${sceneId}`);
+        if (response.ok) {
+          const data = await response.json();
+          // Convert shot boundaries to SceneMarker format
+          shotBoundaryMarkers = data.shotBoundaries.map((sb: { id: string; startTime: number; endTime: number }) => ({
+            id: `shot-${sb.id}`, // Prefix to differentiate from Stashapp markers
+            title: "Shot Boundary",
+            seconds: parseFloat(sb.startTime.toString()),
+            seconds_end: parseFloat(sb.endTime.toString()),
+            primary_tag: {
+              id: stashappService.markerShotBoundary,
+              name: "Shot Boundary",
+            },
+            tags: [],
+            scene: { id: sceneId },
+          }));
+        }
+      } catch (error) {
+        console.warn("Failed to load shot boundaries from database:", error);
+        // Continue without shot boundaries if database load fails
+      }
+
+      // Merge and sort all markers by time
+      const allMarkers = [...stashappMarkers, ...shotBoundaryMarkers];
+      const sortedMarkers = allMarkers.sort((a, b) => a.seconds - b.seconds);
 
       // Load available tags
       const tagsResult = await stashappService.getAllTags();
@@ -219,10 +246,37 @@ export const loadMarkers = createAsyncThunk(
   "marker/loadMarkers",
   async (sceneId: string, { rejectWithValue }) => {
     try {
+      // Load markers from Stashapp
       const result = await stashappService.getSceneMarkers(sceneId);
-      const markers = result.findSceneMarkers.scene_markers || [];
-      // Sort markers by time for consistent ordering across all UI components
-      const sortedMarkers = [...markers].sort((a, b) => a.seconds - b.seconds);
+      const stashappMarkers = result.findSceneMarkers.scene_markers || [];
+
+      // Load shot boundaries from database
+      let shotBoundaryMarkers: SceneMarker[] = [];
+      try {
+        const response = await fetch(`/api/shot-boundaries?stashappSceneId=${sceneId}`);
+        if (response.ok) {
+          const data = await response.json();
+          // Convert shot boundaries to SceneMarker format
+          shotBoundaryMarkers = data.shotBoundaries.map((sb: { id: string; startTime: number; endTime: number }) => ({
+            id: `shot-${sb.id}`,
+            title: "Shot Boundary",
+            seconds: parseFloat(sb.startTime.toString()),
+            seconds_end: parseFloat(sb.endTime.toString()),
+            primary_tag: {
+              id: stashappService.markerShotBoundary,
+              name: "Shot Boundary",
+            },
+            tags: [],
+            scene: { id: sceneId },
+          }));
+        }
+      } catch (error) {
+        console.warn("Failed to load shot boundaries from database:", error);
+      }
+
+      // Merge and sort all markers by time
+      const allMarkers = [...stashappMarkers, ...shotBoundaryMarkers];
+      const sortedMarkers = allMarkers.sort((a, b) => a.seconds - b.seconds);
       return sortedMarkers;
     } catch (error) {
       return rejectWithValue(
