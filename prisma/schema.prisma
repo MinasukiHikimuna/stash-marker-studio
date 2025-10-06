@@ -21,3 +21,40 @@ model ShotBoundary {
   @@index([stashappSceneId, startTime])
   @@map("shot_boundaries")
 }
+
+model Marker {
+  id                Int      @id @default(autoincrement())
+  stashappMarkerId  Int?     @unique @map("stashapp_marker_id")
+  stashappSceneId   Int      @map("stashapp_scene_id")
+  title             String
+  seconds           Decimal
+  endSeconds        Decimal? @map("end_seconds")
+  primaryTagId      Int?     @map("primary_tag_id")
+
+  lastSyncedAt      DateTime? @map("last_synced_at")
+  lastExportedAt    DateTime? @map("last_exported_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  markerTags        MarkerTag[]
+
+  @@index([stashappSceneId])
+  @@index([stashappMarkerId])
+  @@map("markers")
+}
+
+model MarkerTag {
+  id         Int      @id @default(autoincrement())
+  markerId   Int      @map("marker_id")
+  tagId      Int      @map("tag_id")
+  isPrimary  Boolean  @default(false) @map("is_primary")
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  marker     Marker   @relation(fields: [markerId], references: [id], onDelete: Cascade)
+
+  @@unique([markerId, tagId])
+  @@index([tagId])
+  @@map("marker_tags")
+}

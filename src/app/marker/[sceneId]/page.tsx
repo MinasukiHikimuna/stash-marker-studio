@@ -307,6 +307,34 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     fetchTags();
   }, [fetchTags]);
 
+  // Handle import markers button click
+  const handleImportMarkers = useCallback(async () => {
+    if (!scene) {
+      showToast("No scene available", "error");
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/markers/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sceneId: scene.id }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to import markers');
+      }
+
+      const result = await response.json();
+      showToast(`Imported ${result.count} marker(s) from Stashapp`, "success");
+    } catch (error) {
+      console.error("Error importing markers:", error);
+      showToast("Failed to import markers from Stashapp", "error");
+    }
+  }, [scene, showToast]);
+
   // Handle completion button click
   const handleComplete = useCallback(async () => {
     if (!actionMarkers || actionMarkers.length === 0) return;
@@ -1183,6 +1211,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         onOpenCollectModal={() => dispatch(openCollectingModal())}
         onCorrespondingTagConversion={handleCorrespondingTagConversion}
         onComplete={handleComplete}
+        onImportMarkers={handleImportMarkers}
       />
 
       {error && (

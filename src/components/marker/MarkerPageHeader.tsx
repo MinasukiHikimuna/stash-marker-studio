@@ -20,6 +20,7 @@ interface MarkerPageHeaderProps {
   onOpenCollectModal: () => void;
   onCorrespondingTagConversion: () => void;
   onComplete: () => void;
+  onImportMarkers: () => void;
 }
 
 export function MarkerPageHeader({
@@ -32,6 +33,7 @@ export function MarkerPageHeader({
   onOpenCollectModal,
   onCorrespondingTagConversion,
   onComplete,
+  onImportMarkers,
 }: MarkerPageHeaderProps) {
   const router = useRouter();
   const stashUrl = useAppSelector(selectStashUrl);
@@ -96,6 +98,14 @@ export function MarkerPageHeader({
               title="Switch to a different scene"
             >
               Switch Scene
+            </button>
+            <button
+              onClick={onImportMarkers}
+              disabled={isLoading || !scene}
+              className="bg-indigo-500 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-sm text-sm transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+              title="Import markers from Stashapp to local database"
+            >
+              Import Markers
             </button>
             <button
               onClick={handleDeleteRejectedClick}
