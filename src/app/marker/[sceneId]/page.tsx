@@ -329,11 +329,14 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
 
       const result = await response.json();
       showToast(`Imported ${result.count} marker(s) from Stashapp`, "success");
+
+      // Refresh markers to show the imported markers
+      await dispatch(loadMarkers(scene.id));
     } catch (error) {
       console.error("Error importing markers:", error);
       showToast("Failed to import markers from Stashapp", "error");
     }
-  }, [scene, showToast]);
+  }, [scene, showToast, dispatch]);
 
   // Handle completion button click
   const handleComplete = useCallback(async () => {
