@@ -48,3 +48,5 @@ next-env.d.ts
 
 .plan.md
 /generated/prisma
+
+.env
