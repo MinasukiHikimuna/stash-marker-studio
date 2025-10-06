@@ -409,7 +409,7 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
 
       'video.jumpToMarkerEnd': () => {
         if (!currentMarker) return;
-        dispatch(seekToTime(currentMarker.end_seconds || currentMarker.seconds + 30));
+        dispatch(seekToTime(currentMarker.end_seconds || currentMarker.seconds));
       },
 
       'video.jumpToSceneEnd': () => {
