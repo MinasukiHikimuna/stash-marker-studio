@@ -189,9 +189,18 @@ export const initializeMarkerPage = createAsyncThunk(
         throw new Error("Scene not found");
       }
 
-      // Load markers from Stashapp (only actual markers, not shot boundaries)
-      const markersResult = await stashappService.getSceneMarkers(sceneId);
-      const markers = markersResult.findSceneMarkers.scene_markers || [];
+      // Load markers from local database
+      let markers: SceneMarker[] = [];
+      try {
+        const markersResponse = await fetch(`/api/markers?sceneId=${sceneId}`);
+        if (markersResponse.ok) {
+          const markersData = await markersResponse.json();
+          markers = markersData.markers || [];
+        }
+      } catch (error) {
+        console.warn("Failed to load markers from local database:", error);
+        // Continue without markers if database load fails
+      }
       const sortedMarkers = [...markers].sort((a, b) => a.seconds - b.seconds);
 
       // Load shot boundaries from database (separate entity type)
@@ -238,9 +247,13 @@ export const loadMarkers = createAsyncThunk(
   "marker/loadMarkers",
   async (sceneId: string, { rejectWithValue }) => {
     try {
-      // Load markers from Stashapp (only actual markers, not shot boundaries)
-      const result = await stashappService.getSceneMarkers(sceneId);
-      const markers = result.findSceneMarkers.scene_markers || [];
+      // Load markers from local database
+      const response = await fetch(`/api/markers?sceneId=${sceneId}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch markers from local database");
+      }
+      const data = await response.json();
+      const markers = data.markers || [];
       const sortedMarkers = [...markers].sort((a, b) => a.seconds - b.seconds);
       return sortedMarkers;
     } catch (error) {
@@ -407,6 +420,13 @@ export const createMarker = createAsyncThunk(
         ]
       );
 
+      // Re-import from Stashapp to sync local DB
+      await fetch('/api/markers/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: params.sceneId }),
+      });
+
       // Refresh markers after creation
       await dispatch(loadMarkers(params.sceneId));
 
@@ -439,6 +459,13 @@ export const updateMarkerTimes = createAsyncThunk(
         params.endTime
       );
 
+      // Re-import from Stashapp to sync local DB
+      await fetch('/api/markers/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: params.sceneId }),
+      });
+
       // Refresh markers after update
       await dispatch(loadMarkers(params.sceneId));
 
@@ -468,6 +495,13 @@ export const updateMarkerTag = createAsyncThunk(
         params.tagId
       );
 
+      // Re-import from Stashapp to sync local DB
+      await fetch('/api/markers/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: params.sceneId }),
+      });
+
       // Refresh markers after update
       await dispatch(loadMarkers(params.sceneId));
 
@@ -493,6 +527,13 @@ export const deleteMarker = createAsyncThunk(
     try {
       // Delete marker from Stashapp
       await stashappService.deleteMarkers([params.markerId]);
+
+      // Re-import from Stashapp to sync local DB
+      await fetch('/api/markers/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: params.sceneId }),
+      });
 
       // Refresh markers after deletion
       await dispatch(loadMarkers(params.sceneId));
@@ -523,6 +564,13 @@ export const deleteRejectedMarkers = createAsyncThunk(
 
       await stashappService.deleteMarkers(params.rejectedMarkerIds);
 
+      // Re-import from Stashapp to sync local DB
+      await fetch('/api/markers/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: params.sceneId }),
+      });
+
       // Refresh markers after deletion
       await dispatch(loadMarkers(params.sceneId));
 
@@ -550,6 +598,13 @@ export const confirmMarker = createAsyncThunk(
     try {
       await stashappService.confirmMarker(params.markerId, params.sceneId);
 
+      // Re-import from Stashapp to sync local DB
+      await fetch('/api/markers/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: params.sceneId }),
+      });
+
       // Refresh markers after confirmation
       await dispatch(loadMarkers(params.sceneId));
 
@@ -575,6 +630,13 @@ export const rejectMarker = createAsyncThunk(
     try {
       await stashappService.rejectMarker(params.markerId, params.sceneId);
 
+      // Re-import from Stashapp to sync local DB
+      await fetch('/api/markers/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: params.sceneId }),
+      });
+
       // Refresh markers after rejection
       await dispatch(loadMarkers(params.sceneId));
 
@@ -599,6 +661,13 @@ export const resetMarker = createAsyncThunk(
   ) => {
     try {
       await stashappService.resetMarker(params.markerId, params.sceneId);
+
+      // Re-import from Stashapp to sync local DB
+      await fetch('/api/markers/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: params.sceneId }),
+      });
 
       // Refresh markers after reset
       await dispatch(loadMarkers(params.sceneId));
@@ -644,6 +713,13 @@ export const addTagToMarker = createAsyncThunk(
         params.tagId
       );
 
+      // Re-import from Stashapp to sync local DB
+      await fetch('/api/markers/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: params.sceneId }),
+      });
+
       // Refresh markers after update
       await dispatch(loadMarkers(params.sceneId));
 
@@ -677,6 +753,13 @@ export const convertAITags = createAsyncThunk(
           correspondingTag.id
         );
       }
+
+      // Re-import from Stashapp to sync local DB
+      await fetch('/api/markers/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: params.sceneId }),
+      });
 
       // Refresh markers after conversion
       await dispatch(loadMarkers(params.sceneId));
@@ -735,6 +818,13 @@ export const duplicateMarker = createAsyncThunk(
         ]
       );
 
+      // Re-import from Stashapp to sync local DB
+      await fetch('/api/markers/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: params.sceneId }),
+      });
+
       // Refresh markers after creation
       await dispatch(loadMarkers(params.sceneId));
 
@@ -775,6 +865,13 @@ export const mergeMarkers = createAsyncThunk(
           stashappService.markerStatusConfirmed,
         ]
       );
+
+      // Re-import from Stashapp to sync local DB
+      await fetch('/api/markers/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: params.sceneId }),
+      });
 
       // Refresh markers after merge
       await dispatch(loadMarkers(params.sceneId));
@@ -821,6 +918,13 @@ export const splitMarker = createAsyncThunk(
           params.originalTagIds // Preserve all original tags
         );
       }
+
+      // Re-import from Stashapp to sync local DB
+      await fetch('/api/markers/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: params.sceneId }),
+      });
 
       // Refresh markers after split
       await dispatch(loadMarkers(params.sceneId));
