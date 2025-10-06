@@ -25,6 +25,7 @@ import {
   createMarker,
   splitMarker,
   updateMarkerTimes,
+  deleteRejectedMarkers,
   createShotBoundary,
   updateShotBoundary,
   pauseVideo,
@@ -327,10 +328,17 @@ export const useMarkerOperations = (
   const confirmDeleteRejectedMarkers = useCallback(async () => {
     try {
       const rejectedMarkers = deleteRejectedModalData?.rejectedMarkers || [];
-      await stashappService.deleteMarkers(
-        rejectedMarkers.map((m) => m.id)
-      );
-      if (scene?.id) await dispatch(loadMarkers(scene.id)).unwrap();
+      const rejectedMarkerIds = rejectedMarkers.map((m) => m.id);
+
+      if (scene?.id && rejectedMarkerIds.length > 0) {
+        await dispatch(
+          deleteRejectedMarkers({
+            sceneId: scene.id,
+            rejectedMarkerIds,
+          })
+        ).unwrap();
+      }
+
       dispatch(closeModal());
     } catch (err) {
       console.error("Error deleting rejected markers:", err);

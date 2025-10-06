@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// Update a marker
+// Update a marker (times, title, primary tag)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -9,19 +9,57 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { seconds, endSeconds } = body;
+    const { seconds, endSeconds, title, primaryTagId } = body;
 
-    // Update in local database
+    // Convert id to number (internal database ID)
+    const markerId = parseInt(id);
+
+    if (isNaN(markerId)) {
+      return NextResponse.json(
+        { error: 'Invalid marker ID' },
+        { status: 400 }
+      );
+    }
+
+    // Build update data
+    const updateData: {
+      seconds?: number;
+      endSeconds?: number | null;
+      title?: string;
+      primaryTagId?: number | null;
+      updatedAt: Date;
+    } = {
+      updatedAt: new Date(),
+    };
+
+    if (seconds !== undefined) updateData.seconds = seconds;
+    if (endSeconds !== undefined) updateData.endSeconds = endSeconds ?? null;
+    if (title !== undefined) updateData.title = title;
+    if (primaryTagId !== undefined) updateData.primaryTagId = primaryTagId ? parseInt(primaryTagId) : null;
+
+    // Update in local database using internal ID
     const updatedMarker = await prisma.marker.update({
-      where: {
-        stashappMarkerId: parseInt(id),
-      },
-      data: {
-        seconds,
-        endSeconds: endSeconds ?? null,
-        updatedAt: new Date(),
-      },
+      where: { id: markerId },
+      data: updateData,
     });
+
+    // If primaryTagId was updated, update the isPrimary flag in marker_tags
+    if (primaryTagId !== undefined && updatedMarker.primaryTagId) {
+      // Set all tags to non-primary
+      await prisma.markerTag.updateMany({
+        where: { markerId: updatedMarker.id },
+        data: { isPrimary: false },
+      });
+
+      // Set the new primary tag
+      await prisma.markerTag.updateMany({
+        where: {
+          markerId: updatedMarker.id,
+          tagId: updatedMarker.primaryTagId,
+        },
+        data: { isPrimary: true },
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -44,11 +82,24 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // Delete from local database
+    // Convert id to number (internal database ID)
+    const markerId = parseInt(id);
+
+    if (isNaN(markerId)) {
+      return NextResponse.json(
+        { error: 'Invalid marker ID' },
+        { status: 400 }
+      );
+    }
+
+    // Delete marker tags first (foreign key constraint)
+    await prisma.markerTag.deleteMany({
+      where: { markerId },
+    });
+
+    // Delete from local database using internal ID
     await prisma.marker.delete({
-      where: {
-        stashappMarkerId: parseInt(id),
-      },
+      where: { id: markerId },
     });
 
     return NextResponse.json({

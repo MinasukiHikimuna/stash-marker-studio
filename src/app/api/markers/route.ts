@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
         .map((tag) => ({ id: tag.id, name: tag.name }));
 
       return {
-        id: dbMarker.stashappMarkerId?.toString() || dbMarker.id.toString(),
+        id: dbMarker.id.toString(), // Always use internal database ID
         title: dbMarker.title,
         seconds: Number(dbMarker.seconds),
         end_seconds: dbMarker.endSeconds ? Number(dbMarker.endSeconds) : undefined,

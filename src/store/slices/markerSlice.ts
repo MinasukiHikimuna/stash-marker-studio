@@ -395,7 +395,7 @@ export const deleteShotBoundary = createAsyncThunk(
   }
 );
 
-// Create a new marker (Stashapp markers only)
+// Create a new marker (local DB first, export to Stashapp later)
 export const createMarker = createAsyncThunk(
   "marker/createMarker",
   async (
@@ -408,29 +408,40 @@ export const createMarker = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      // Create marker in Stashapp
-      const newMarker = await stashappService.createSceneMarker(
-        params.sceneId,
-        params.tagId,
-        params.startTime,
-        params.endTime,
-        [
-          stashappService.markerSourceManual,
-          stashappService.markerStatusConfirmed,
-        ]
-      );
+      // Get tag name for title
+      const tagsResult = await stashappService.getAllTags();
+      const tag = tagsResult.findTags.tags.find((t) => t.id === params.tagId);
+      const title = tag?.name || 'Untitled';
 
-      // Re-import from Stashapp to sync local DB
-      await fetch('/api/markers/import', {
+      // Get config for marker source and status tags
+      const MARKER_SOURCE_MANUAL = stashappService.markerSourceManual;
+      const MARKER_STATUS_CONFIRMED = stashappService.markerStatusConfirmed;
+
+      // Create marker in local database
+      // Note: primaryTagId is included automatically via isPrimary flag, don't add to tagIds
+      const response = await fetch('/api/markers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId: params.sceneId }),
+        body: JSON.stringify({
+          stashappSceneId: params.sceneId,
+          title,
+          seconds: params.startTime,
+          endSeconds: params.endTime,
+          primaryTagId: params.tagId,
+          tagIds: [params.tagId, MARKER_SOURCE_MANUAL, MARKER_STATUS_CONFIRMED],
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to create marker in local database');
+      }
+
+      const data = await response.json();
 
       // Refresh markers after creation
       await dispatch(loadMarkers(params.sceneId));
 
-      return newMarker;
+      return data.marker;
     } catch (error) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to create marker"
@@ -439,7 +450,7 @@ export const createMarker = createAsyncThunk(
   }
 );
 
-// Update marker times (Stashapp markers only)
+// Update marker times (local DB first, export to Stashapp later)
 export const updateMarkerTimes = createAsyncThunk(
   "marker/updateMarkerTimes",
   async (
@@ -452,19 +463,19 @@ export const updateMarkerTimes = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      // Update marker in Stashapp
-      await stashappService.updateMarkerTimes(
-        params.markerId,
-        params.startTime,
-        params.endTime
-      );
-
-      // Re-import from Stashapp to sync local DB
-      await fetch('/api/markers/import', {
-        method: 'POST',
+      // Update marker in local database
+      const response = await fetch(`/api/markers/${params.markerId}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId: params.sceneId }),
+        body: JSON.stringify({
+          seconds: params.startTime,
+          endSeconds: params.endTime,
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to update marker times in local database');
+      }
 
       // Refresh markers after update
       await dispatch(loadMarkers(params.sceneId));
@@ -478,7 +489,7 @@ export const updateMarkerTimes = createAsyncThunk(
   }
 );
 
-// Update marker tag
+// Update marker tag (local DB first, export to Stashapp later)
 export const updateMarkerTag = createAsyncThunk(
   "marker/updateMarkerTag",
   async (
@@ -490,17 +501,24 @@ export const updateMarkerTag = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      await stashappService.updateMarkerTagAndTitle(
-        params.markerId,
-        params.tagId
-      );
+      // Get tag name for title
+      const tagsResult = await stashappService.getAllTags();
+      const tag = tagsResult.findTags.tags.find((t) => t.id === params.tagId);
+      const title = tag?.name || 'Untitled';
 
-      // Re-import from Stashapp to sync local DB
-      await fetch('/api/markers/import', {
-        method: 'POST',
+      // Update marker primary tag and title in local database
+      const response = await fetch(`/api/markers/${params.markerId}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId: params.sceneId }),
+        body: JSON.stringify({
+          primaryTagId: params.tagId,
+          title,
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to update marker tag in local database');
+      }
 
       // Refresh markers after update
       await dispatch(loadMarkers(params.sceneId));
@@ -514,7 +532,7 @@ export const updateMarkerTag = createAsyncThunk(
   }
 );
 
-// Delete a single marker (Stashapp markers only)
+// Delete a single marker (local DB first, export to Stashapp later)
 export const deleteMarker = createAsyncThunk(
   "marker/deleteMarker",
   async (
@@ -525,15 +543,14 @@ export const deleteMarker = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      // Delete marker from Stashapp
-      await stashappService.deleteMarkers([params.markerId]);
-
-      // Re-import from Stashapp to sync local DB
-      await fetch('/api/markers/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId: params.sceneId }),
+      // Delete marker from local database
+      const response = await fetch(`/api/markers/${params.markerId}`, {
+        method: 'DELETE',
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete marker from local database');
+      }
 
       // Refresh markers after deletion
       await dispatch(loadMarkers(params.sceneId));
@@ -547,7 +564,7 @@ export const deleteMarker = createAsyncThunk(
   }
 );
 
-// Bulk delete rejected markers
+// Bulk delete rejected markers (local DB first, export to Stashapp later)
 export const deleteRejectedMarkers = createAsyncThunk(
   "marker/deleteRejectedMarkers",
   async (
@@ -562,14 +579,16 @@ export const deleteRejectedMarkers = createAsyncThunk(
         return [];
       }
 
-      await stashappService.deleteMarkers(params.rejectedMarkerIds);
+      // Delete markers from local database one by one
+      for (const markerId of params.rejectedMarkerIds) {
+        const response = await fetch(`/api/markers/${markerId}`, {
+          method: 'DELETE',
+        });
 
-      // Re-import from Stashapp to sync local DB
-      await fetch('/api/markers/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId: params.sceneId }),
-      });
+        if (!response.ok) {
+          console.error(`Failed to delete marker ${markerId}`);
+        }
+      }
 
       // Refresh markers after deletion
       await dispatch(loadMarkers(params.sceneId));
@@ -585,7 +604,7 @@ export const deleteRejectedMarkers = createAsyncThunk(
   }
 );
 
-// Confirm a marker (add confirmed status tag)
+// Confirm a marker (add confirmed status tag, local DB first)
 export const confirmMarker = createAsyncThunk(
   "marker/confirmMarker",
   async (
@@ -596,14 +615,16 @@ export const confirmMarker = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      await stashappService.confirmMarker(params.markerId, params.sceneId);
-
-      // Re-import from Stashapp to sync local DB
-      await fetch('/api/markers/import', {
-        method: 'POST',
+      // Update marker status in local database
+      const response = await fetch(`/api/markers/${params.markerId}/status`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId: params.sceneId }),
+        body: JSON.stringify({ action: 'confirm' }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to confirm marker in local database');
+      }
 
       // Refresh markers after confirmation
       await dispatch(loadMarkers(params.sceneId));
@@ -617,7 +638,7 @@ export const confirmMarker = createAsyncThunk(
   }
 );
 
-// Reject a marker (add rejected status tag)
+// Reject a marker (add rejected status tag, local DB first)
 export const rejectMarker = createAsyncThunk(
   "marker/rejectMarker",
   async (
@@ -628,14 +649,16 @@ export const rejectMarker = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      await stashappService.rejectMarker(params.markerId, params.sceneId);
-
-      // Re-import from Stashapp to sync local DB
-      await fetch('/api/markers/import', {
-        method: 'POST',
+      // Update marker status in local database
+      const response = await fetch(`/api/markers/${params.markerId}/status`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId: params.sceneId }),
+        body: JSON.stringify({ action: 'reject' }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to reject marker in local database');
+      }
 
       // Refresh markers after rejection
       await dispatch(loadMarkers(params.sceneId));
@@ -649,7 +672,7 @@ export const rejectMarker = createAsyncThunk(
   }
 );
 
-// Reset a marker (remove status tags)
+// Reset a marker (remove status tags, local DB first)
 export const resetMarker = createAsyncThunk(
   "marker/resetMarker",
   async (
@@ -660,14 +683,16 @@ export const resetMarker = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      await stashappService.resetMarker(params.markerId, params.sceneId);
-
-      // Re-import from Stashapp to sync local DB
-      await fetch('/api/markers/import', {
-        method: 'POST',
+      // Update marker status in local database
+      const response = await fetch(`/api/markers/${params.markerId}/status`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId: params.sceneId }),
+        body: JSON.stringify({ action: 'reset' }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to reset marker in local database');
+      }
 
       // Refresh markers after reset
       await dispatch(loadMarkers(params.sceneId));
@@ -696,7 +721,7 @@ export const loadAvailableTags = createAsyncThunk(
   }
 );
 
-// Add tag to marker (this is already handled by updateMarkerTag, but keeping for API consistency)
+// Add tag to marker (local DB first)
 export const addTagToMarker = createAsyncThunk(
   "marker/addTagToMarker",
   async (
@@ -708,17 +733,16 @@ export const addTagToMarker = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      await stashappService.updateMarkerTagAndTitle(
-        params.markerId,
-        params.tagId
-      );
-
-      // Re-import from Stashapp to sync local DB
-      await fetch('/api/markers/import', {
+      // Add tag to marker in local database
+      const response = await fetch(`/api/markers/${params.markerId}/tags`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId: params.sceneId }),
+        body: JSON.stringify({ tagId: params.tagId }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to add tag to marker in local database');
+      }
 
       // Refresh markers after update
       await dispatch(loadMarkers(params.sceneId));
@@ -735,7 +759,7 @@ export const addTagToMarker = createAsyncThunk(
 // Note: removeTagFromMarker doesn't exist in the original codebase - markers have one primary tag
 // If this functionality is needed, it would require extending the StashappService
 
-// Convert corresponding tags to their target tags
+// Convert corresponding tags to their target tags (local DB first)
 export const convertAITags = createAsyncThunk(
   "marker/convertAITags",
   async (
@@ -748,18 +772,20 @@ export const convertAITags = createAsyncThunk(
     try {
       // Convert each marker to its corresponding target tag
       for (const { sourceMarker, correspondingTag } of params.aiMarkers) {
-        await stashappService.updateMarkerTagAndTitle(
-          sourceMarker.id,
-          correspondingTag.id
-        );
-      }
+        // Update marker primary tag and title in local database
+        const response = await fetch(`/api/markers/${sourceMarker.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            primaryTagId: correspondingTag.id,
+            title: correspondingTag.name,
+          }),
+        });
 
-      // Re-import from Stashapp to sync local DB
-      await fetch('/api/markers/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId: params.sceneId }),
-      });
+        if (!response.ok) {
+          console.error(`Failed to convert marker ${sourceMarker.id}`);
+        }
+      }
 
       // Refresh markers after conversion
       await dispatch(loadMarkers(params.sceneId));
@@ -792,7 +818,7 @@ export const findConfirmedAIMarkers = createAsyncThunk(
 
 // Advanced operations (for future implementation)
 
-// Duplicate a marker
+// Duplicate a marker (local DB first)
 export const duplicateMarker = createAsyncThunk(
   "marker/duplicateMarker",
   async (
@@ -806,29 +832,39 @@ export const duplicateMarker = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      // Create a new marker with the same properties but different times
-      const newMarker = await stashappService.createSceneMarker(
-        params.sceneId,
-        params.tagId,
-        params.newStartTime,
-        params.newEndTime,
-        [
-          stashappService.markerSourceManual,
-          stashappService.markerStatusConfirmed,
-        ]
-      );
+      // Get tag name for title
+      const tagsResult = await stashappService.getAllTags();
+      const tag = tagsResult.findTags.tags.find((t) => t.id === params.tagId);
+      const title = tag?.name || 'Untitled';
 
-      // Re-import from Stashapp to sync local DB
-      await fetch('/api/markers/import', {
+      // Get config for marker source and status tags
+      const MARKER_SOURCE_MANUAL = stashappService.markerSourceManual;
+      const MARKER_STATUS_CONFIRMED = stashappService.markerStatusConfirmed;
+
+      // Create a new marker in local database
+      const response = await fetch('/api/markers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId: params.sceneId }),
+        body: JSON.stringify({
+          stashappSceneId: params.sceneId,
+          title,
+          seconds: params.newStartTime,
+          endSeconds: params.newEndTime,
+          primaryTagId: params.tagId,
+          tagIds: [params.tagId, MARKER_SOURCE_MANUAL, MARKER_STATUS_CONFIRMED],
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to duplicate marker in local database');
+      }
+
+      const data = await response.json();
 
       // Refresh markers after creation
       await dispatch(loadMarkers(params.sceneId));
 
-      return newMarker;
+      return data.marker;
     } catch (error) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to duplicate marker"
@@ -837,7 +873,7 @@ export const duplicateMarker = createAsyncThunk(
   }
 );
 
-// Merge markers (placeholder - would need custom StashappService method)
+// Merge markers (local DB first)
 export const mergeMarkers = createAsyncThunk(
   "marker/mergeMarkers",
   async (
@@ -851,27 +887,43 @@ export const mergeMarkers = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      // Delete the source markers
-      await stashappService.deleteMarkers(params.markerIds);
+      // Delete the source markers from local database
+      for (const markerId of params.markerIds) {
+        const response = await fetch(`/api/markers/${markerId}`, {
+          method: 'DELETE',
+        });
 
-      // Create a new merged marker
-      await stashappService.createSceneMarker(
-        params.sceneId,
-        params.tagId,
-        params.newStartTime,
-        params.newEndTime,
-        [
-          stashappService.markerSourceManual,
-          stashappService.markerStatusConfirmed,
-        ]
-      );
+        if (!response.ok) {
+          console.error(`Failed to delete marker ${markerId}`);
+        }
+      }
 
-      // Re-import from Stashapp to sync local DB
-      await fetch('/api/markers/import', {
+      // Get tag name for title
+      const tagsResult = await stashappService.getAllTags();
+      const tag = tagsResult.findTags.tags.find((t) => t.id === params.tagId);
+      const title = tag?.name || 'Untitled';
+
+      // Get config for marker source and status tags
+      const MARKER_SOURCE_MANUAL = stashappService.markerSourceManual;
+      const MARKER_STATUS_CONFIRMED = stashappService.markerStatusConfirmed;
+
+      // Create a new merged marker in local database
+      const response = await fetch('/api/markers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId: params.sceneId }),
+        body: JSON.stringify({
+          stashappSceneId: params.sceneId,
+          title,
+          seconds: params.newStartTime,
+          endSeconds: params.newEndTime,
+          primaryTagId: params.tagId,
+          tagIds: [params.tagId, MARKER_SOURCE_MANUAL, MARKER_STATUS_CONFIRMED],
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to create merged marker in local database');
+      }
 
       // Refresh markers after merge
       await dispatch(loadMarkers(params.sceneId));
@@ -885,7 +937,7 @@ export const mergeMarkers = createAsyncThunk(
   }
 );
 
-// Split marker (placeholder - would need custom StashappService method)
+// Split marker (local DB first)
 export const splitMarker = createAsyncThunk(
   "marker/splitMarker",
   async (
@@ -902,29 +954,43 @@ export const splitMarker = createAsyncThunk(
   ) => {
     try {
       // Update the original marker to end at the split time
-      await stashappService.updateMarkerTimes(
-        params.sourceMarkerId,
-        params.sourceStartTime,
-        params.splitTime
-      );
+      const updateResponse = await fetch(`/api/markers/${params.sourceMarkerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seconds: params.sourceStartTime,
+          endSeconds: params.splitTime,
+        }),
+      });
+
+      if (!updateResponse.ok) {
+        throw new Error('Failed to update first part of split marker');
+      }
 
       // Create second part (split time to end) only if there's remaining time
       if (params.sourceEndTime && params.splitTime < params.sourceEndTime) {
-        await stashappService.createSceneMarker(
-          params.sceneId,
-          params.tagId,
-          params.splitTime,
-          params.sourceEndTime,
-          params.originalTagIds // Preserve all original tags
-        );
-      }
+        // Get tag name for title
+        const tagsResult = await stashappService.getAllTags();
+        const tag = tagsResult.findTags.tags.find((t) => t.id === params.tagId);
+        const title = tag?.name || 'Untitled';
 
-      // Re-import from Stashapp to sync local DB
-      await fetch('/api/markers/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId: params.sceneId }),
-      });
+        const createResponse = await fetch('/api/markers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stashappSceneId: params.sceneId,
+            title,
+            seconds: params.splitTime,
+            endSeconds: params.sourceEndTime,
+            primaryTagId: params.tagId,
+            tagIds: params.originalTagIds, // Preserve all original tags
+          }),
+        });
+
+        if (!createResponse.ok) {
+          throw new Error('Failed to create second part of split marker');
+        }
+      }
 
       // Refresh markers after split
       await dispatch(loadMarkers(params.sceneId));
