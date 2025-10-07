@@ -84,7 +84,7 @@ export default function SlotDefinitionSettings() {
       .sort((a, b) => a.displayOrder - b.displayOrder)
       .map(slot => ({
         id: slot.id,
-        slotLabel: slot.slotLabel,
+        slotLabel: slot.slotLabel || '',
         genderHint: (slot.genderHint as GenderHint) || '',
       }));
 
@@ -143,26 +143,53 @@ export default function SlotDefinitionSettings() {
     try {
       const tagId = parseInt(selectedTagId);
 
-      // Delete all existing slots for this tag
-      const deletePromises = currentTagSlots.map(slot =>
-        fetch(`/api/slot-definitions/${slot.id}`, { method: 'DELETE' })
-      );
-      await Promise.all(deletePromises);
+      // Separate existing slots (with id) from new slots (without id)
+      const existingSlots = editingSlots.filter(s => s.id);
+      const newSlots = editingSlots.filter(s => !s.id);
 
-      // Create new slots with proper display order
-      const createPromises = editingSlots.map((slot, index) =>
-        fetch('/api/slot-definitions', {
-          method: 'POST',
+      // Find slots to delete (slots that existed but are no longer in editingSlots)
+      const slotsToDelete = currentTagSlots.filter(
+        existing => !existingSlots.find(editing => editing.id === existing.id)
+      );
+
+      // Delete removed slots
+      if (slotsToDelete.length > 0) {
+        const deletePromises = slotsToDelete.map(slot =>
+          fetch(`/api/slot-definitions/${slot.id}`, { method: 'DELETE' })
+        );
+        await Promise.all(deletePromises);
+      }
+
+      // Update existing slots
+      const updatePromises = existingSlots.map((slot) =>
+        fetch(`/api/slot-definitions/${slot.id}`, {
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            stashappTagId: tagId,
             slotLabel: slot.slotLabel.trim() || null,
             genderHint: slot.genderHint || null,
-            displayOrder: index,
+            displayOrder: editingSlots.indexOf(slot),
           }),
         })
       );
-      await Promise.all(createPromises);
+      await Promise.all(updatePromises);
+
+      // Create new slots
+      if (newSlots.length > 0) {
+        const createPromises = newSlots.map((slot) =>
+          fetch('/api/slot-definitions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              stashappTagId: tagId,
+              slotLabel: slot.slotLabel.trim() || null,
+              genderHint: slot.genderHint || null,
+              displayOrder: editingSlots.indexOf(slot),
+            }),
+          })
+        );
+        await Promise.all(createPromises);
+      }
 
       await loadSlotDefinitions();
       setIsEditing(false);

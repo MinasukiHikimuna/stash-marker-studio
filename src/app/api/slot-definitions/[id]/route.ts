@@ -43,7 +43,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         id,
       },
       data: {
-        ...(slotLabel !== undefined && { slotLabel }),
+        ...(slotLabel !== undefined && { slotLabel: slotLabel?.trim() || null }),
         ...(genderHint !== undefined && { genderHint: genderHint ?? null }),
         ...(displayOrder !== undefined && { displayOrder }),
       },

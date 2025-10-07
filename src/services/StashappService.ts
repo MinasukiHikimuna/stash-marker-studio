@@ -34,7 +34,7 @@ export type SceneMarker = {
     id: string;
     slotDefinitionId: string;
     stashappPerformerId: number | null;
-    slotLabel: string;
+    slotLabel: string | null;
     genderHint: string | null;
     displayOrder: number;
     performer?: {
