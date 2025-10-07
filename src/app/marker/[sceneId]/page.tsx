@@ -27,7 +27,6 @@ import {
   selectShotBoundaries,
   selectScene,
   selectAvailableTags,
-  selectAvailablePerformers,
   selectSelectedMarkerId,
   selectIsCompletionModalOpen,
   selectIncorrectMarkers,
@@ -103,7 +102,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   const markerAiReviewed = useAppSelector(selectMarkerAiReviewed);
   const scene = useAppSelector(selectScene);
   const availableTags = useAppSelector(selectAvailableTags);
-  const availablePerformers = useAppSelector(selectAvailablePerformers);
   const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
   const incorrectMarkers = useAppSelector(selectIncorrectMarkers);
   const videoDuration = useAppSelector(selectVideoDuration);
@@ -1262,7 +1260,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
                     editingMarkerId={editingMarkerId}
                     editingTagId={editingTagId}
                     availableTags={availableTags}
-                    availablePerformers={availablePerformers}
                     incorrectMarkers={incorrectMarkers}
                     videoElementRef={videoElementRef}
                     actionMarkers={actionMarkers}
@@ -1340,7 +1337,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       {isSlotAssignmentModalOpen && slotAssignmentModalData && scene && (
         <MarkerSlotsDialog
           marker={slotAssignmentModalData.marker}
-          availablePerformers={availablePerformers}
+          scene={scene}
           onSave={async (slots) => {
             // Update slots via API
             const response = await fetch(`/api/markers/${slotAssignmentModalData.marker.id}/slots`, {

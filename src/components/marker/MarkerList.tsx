@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { SceneMarker, type Tag, type Performer } from "../../services/StashappService";
+import { SceneMarker, type Tag } from "../../services/StashappService";
 import { MarkerListItem } from "./MarkerListItem";
 import { IncorrectMarker } from "../../utils/incorrectMarkerStorage";
 import { useAppSelector } from "../../store/hooks";
@@ -14,7 +14,6 @@ interface MarkerListProps {
   editingMarkerId: string | null;
   editingTagId: string;
   availableTags: Tag[];
-  availablePerformers: Performer[];
   incorrectMarkers: IncorrectMarker[];
   videoElementRef: React.RefObject<HTMLVideoElement | null>;
   actionMarkers: SceneMarker[];
@@ -31,7 +30,6 @@ export function MarkerList({
   editingMarkerId,
   editingTagId,
   availableTags,
-  availablePerformers,
   incorrectMarkers,
   videoElementRef,
   actionMarkers,
@@ -92,7 +90,6 @@ export function MarkerList({
                 editingMarkerId={editingMarkerId}
                 editingTagId={editingTagId}
                 availableTags={availableTags}
-                availablePerformers={availablePerformers}
                 incorrectMarkers={incorrectMarkers}
                 videoElementRef={videoElementRef}
                 markers={markers}

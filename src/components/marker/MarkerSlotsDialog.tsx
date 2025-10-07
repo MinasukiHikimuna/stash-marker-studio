@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { type SceneMarker, type Performer } from "@/services/StashappService";
+import { useEffect, useState, useMemo } from "react";
+import { type SceneMarker, type Scene } from "@/services/StashappService";
 import { type SlotDefinition } from "@/core/slot/types";
 import { PerformerAutocomplete } from "./PerformerAutocomplete";
 
@@ -12,14 +12,14 @@ interface SlotValue {
 
 interface MarkerSlotsDialogProps {
   marker: SceneMarker;
-  availablePerformers: Performer[];
+  scene: Scene;
   onSave: (slots: SlotValue[]) => Promise<void>;
   onCancel: () => void;
 }
 
 export function MarkerSlotsDialog({
   marker,
-  availablePerformers,
+  scene,
   onSave,
   onCancel,
 }: MarkerSlotsDialogProps) {
@@ -27,6 +27,11 @@ export function MarkerSlotsDialog({
   const [slotValues, setSlotValues] = useState<SlotValue[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Filter performers to only those assigned to this scene
+  const scenePerformers = useMemo(() => {
+    return scene.performers || [];
+  }, [scene.performers]);
 
   // Load slot definitions and existing slot assignments
   useEffect(() => {
@@ -145,7 +150,7 @@ export function MarkerSlotsDialog({
                     onChange={(performerId) =>
                       handleSlotChange(definition.id, performerId)
                     }
-                    availablePerformers={availablePerformers}
+                    availablePerformers={scenePerformers}
                     genderHint={definition.genderHint}
                     placeholder="Select performer..."
                     className="flex-1"

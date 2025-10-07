@@ -52,6 +52,19 @@ type SceneMarkersResponse = {
   };
 };
 
+export type Performer = {
+  id: string;
+  name: string;
+  gender:
+    | ""
+    | "MALE"
+    | "FEMALE"
+    | "TRANSGENDER_MALE"
+    | "TRANSGENDER_FEMALE"
+    | "INTERSEX"
+    | "NON_BINARY";
+};
+
 export type Scene = {
   id: string;
   title: string;
@@ -72,11 +85,7 @@ export type Scene = {
     name: string;
     description?: string | null;
   }>;
-  performers?: Array<{
-    id: string;
-    name: string;
-    gender?: string;
-  }>;
+  performers?: Performer[];
   scene_markers?: SceneMarker[];
 };
 
@@ -122,19 +131,6 @@ type SearchScenesVariables = {
       depth: number;
     };
   };
-};
-
-export type Performer = {
-  id: string;
-  name: string;
-  gender:
-    | ""
-    | "MALE"
-    | "FEMALE"
-    | "TRANSGENDER_MALE"
-    | "TRANSGENDER_FEMALE"
-    | "INTERSEX"
-    | "NON_BINARY";
 };
 
 export type SpriteFrame = {

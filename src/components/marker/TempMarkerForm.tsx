@@ -1,22 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { type Tag, type SceneMarker, type Performer } from "../../services/StashappService";
+import { type Tag, type SceneMarker } from "../../services/StashappService";
 import { formatTimeColonDot, parseTimeColonDot } from "../../core/marker/markerLogic";
 import { TagAutocomplete } from "./TagAutocomplete";
-import { MarkerSlotsEditor } from "./MarkerSlotsEditor";
-
-interface SlotValue {
-  slotDefinitionId: string;
-  performerId: string | null;
-}
 
 interface TempMarkerFormProps {
   marker: SceneMarker;
   availableTags: Tag[];
-  availablePerformers: Performer[];
   videoElement: HTMLVideoElement | null;
-  onSave: (start: number, end: number | null, tagId: string, slots: SlotValue[]) => void;
+  onSave: (start: number, end: number | null, tagId: string) => void;
   onCancel: () => void;
   isDuplicate?: boolean;
 }
@@ -24,7 +17,6 @@ interface TempMarkerFormProps {
 export function TempMarkerForm({
   marker,
   availableTags,
-  availablePerformers,
   videoElement,
   onSave,
   onCancel,
@@ -37,7 +29,6 @@ export function TempMarkerForm({
       : ""
   );
   const [tagId, setTagId] = useState(marker.primary_tag.id);
-  const [slots, setSlots] = useState<SlotValue[]>([]);
 
   const handleTimeKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
@@ -118,8 +109,7 @@ export function TempMarkerForm({
                 onSave(
                   parseTimeColonDot(start),
                   end === "" ? null : parseTimeColonDot(end),
-                  selectedTagId,
-                  slots
+                  selectedTagId
                 );
               }
             }}
@@ -130,8 +120,7 @@ export function TempMarkerForm({
               onSave(
                 parseTimeColonDot(start),
                 end === "" ? null : parseTimeColonDot(end),
-                tagId,
-                slots
+                tagId
               );
             }}
           >
@@ -145,13 +134,6 @@ export function TempMarkerForm({
           </button>
         </div>
       </div>
-      <MarkerSlotsEditor
-        primaryTagId={tagId}
-        availablePerformers={availablePerformers}
-        initialSlots={slots}
-        onChange={setSlots}
-        className="ml-8"
-      />
     </div>
   );
 }
