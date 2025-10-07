@@ -50,6 +50,7 @@ import { isPlatformModifierPressed } from "../../utils/platform";
 import { useThrottledResize } from "../../hooks/useThrottledResize";
 import { MarkerGroupAutocomplete } from "../marker/MarkerGroupAutocomplete";
 import { TagAutocomplete } from "../marker/TagAutocomplete";
+import { SlotDefinitionDialog } from "../marker/SlotDefinitionDialog";
 
 export type TimelineProps = {
   markers: SceneMarker[];
@@ -122,6 +123,12 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
       y: number;
     } | null>(null);
     const [correspondingTagId, setCorrespondingTagId] = useState<string>("");
+
+    // Slot definition dialog state
+    const [slotDefinitionDialog, setSlotDefinitionDialog] = useState<{
+      tagId: string;
+      tagName: string;
+    } | null>(null);
 
     // Window dimensions state
     const [containerWidth, setContainerWidth] = useState<number>(0);
@@ -339,6 +346,10 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
         y: y,
       });
     }, [allTags]);
+
+    const handleSlotDefinitionClick = useCallback((tagId: string, tagName: string) => {
+      setSlotDefinitionDialog({ tagId, tagName });
+    }, []);
 
     // Handle swimlane resize keyboard shortcuts
     const handleSwimlaneResize = useCallback(
@@ -639,6 +650,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
               selectedMarkerId={selectedMarkerId}
               markerGroupParentId={markerGroupParentId}
               onReassignClick={handleReassignmentIconClick}
+              onSlotDefinitionClick={handleSlotDefinitionClick}
             />
 
             {/* Grid column */}
@@ -749,6 +761,21 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
               onClick={() => setReassignmentUI(null)}
             />
           </div>
+        )}
+
+        {/* Slot Definition Dialog */}
+        {slotDefinitionDialog && (
+          <SlotDefinitionDialog
+            tagId={slotDefinitionDialog.tagId}
+            tagName={slotDefinitionDialog.tagName}
+            onClose={() => setSlotDefinitionDialog(null)}
+            onSave={async () => {
+              // Reload markers to refresh slot data
+              if (sceneId) {
+                await dispatch(loadMarkers(sceneId));
+              }
+            }}
+          />
         )}
       </div>
     );

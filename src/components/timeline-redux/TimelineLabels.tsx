@@ -33,6 +33,8 @@ export interface TimelineLabelsProps {
   markerGroupParentId: string | null;
   /** Optional callback when reassignment icon is clicked */
   onReassignClick?: (tagName: string, tagGroupMarkers: TagGroup) => void;
+  /** Optional callback when slot definition icon is clicked */
+  onSlotDefinitionClick?: (tagId: string, tagName: string) => void;
 }
 
 // Track layout constants (must match TimelineGrid)
@@ -60,6 +62,7 @@ const TimelineLabelsComponent: React.FC<TimelineLabelsProps> = ({
   selectedMarkerId,
   markerGroupParentId,
   onReassignClick,
+  onSlotDefinitionClick,
 }) => {
   // Ref to track swimlane elements for scrolling
   const swimlaneRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -100,6 +103,16 @@ const TimelineLabelsComponent: React.FC<TimelineLabelsProps> = ({
       }
     },
     [onReassignClick]
+  );
+
+  const handleSlotDefinitionClick = useCallback(
+    (e: React.MouseEvent, tagGroup: TagGroup) => {
+      e.stopPropagation();
+      if (onSlotDefinitionClick) {
+        onSlotDefinitionClick(tagGroup.markers[0]?.primary_tag.id || '', tagGroup.name);
+      }
+    },
+    [onSlotDefinitionClick]
   );
 
   return (
@@ -182,6 +195,16 @@ const TimelineLabelsComponent: React.FC<TimelineLabelsProps> = ({
                         {group.name}
                         {group.isRejected && " (R)"}
                         {trackCount > 1 && ` (${trackCount})`}
+                        {/* Slot definition icon - only show on hover */}
+                        {onSlotDefinitionClick && (
+                          <button
+                            className="opacity-0 group-hover/swimlane:opacity-100 transition-opacity text-purple-400 hover:text-purple-300 text-xs"
+                            onClick={(e) => handleSlotDefinitionClick(e, group)}
+                            title="Edit slot definitions for this tag"
+                          >
+                            🎯
+                          </button>
+                        )}
                         {/* Reassignment icon - only show on hover */}
                         {onReassignClick && (
                           <button
@@ -239,6 +262,9 @@ export const TimelineLabels = React.memo(
 
     // Re-render if reassign callback changed
     if (prevProps.onReassignClick !== nextProps.onReassignClick) return false;
+
+    // Re-render if slot definition callback changed
+    if (prevProps.onSlotDefinitionClick !== nextProps.onSlotDefinitionClick) return false;
 
     // Only re-render if selected marker moved to a different swimlane
     // Find which swimlane contains the previous selected marker
