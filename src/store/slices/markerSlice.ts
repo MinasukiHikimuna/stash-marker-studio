@@ -3,6 +3,7 @@ import {
   SceneMarker,
   Scene,
   Tag,
+  Performer,
   stashappService,
 } from "@/services/StashappService";
 import type { IncorrectMarker } from "@/utils/incorrectMarkerStorage";
@@ -27,13 +28,18 @@ export type DeleteRejectedModalData = {
   rejectedMarkers: SceneMarker[];
 };
 
-export type ModalState = 
+export type SlotAssignmentModalData = {
+  marker: SceneMarker;
+};
+
+export type ModalState =
   | { type: 'none' }
   | { type: 'completion'; data: CompletionModalData }
   | { type: 'correspondingTagConversion'; data: CorrespondingTagConversionModalData }
   | { type: 'keyboardShortcuts' }
   | { type: 'collecting' }
-  | { type: 'deleteRejected'; data: DeleteRejectedModalData };
+  | { type: 'deleteRejected'; data: DeleteRejectedModalData }
+  | { type: 'slotAssignment'; data: SlotAssignmentModalData };
 
 // Extended Scene type with markers
 export type SceneWithMarkers = Scene & {
@@ -49,6 +55,7 @@ export interface MarkerState {
   sceneId: string | null;
   sceneTitle: string | null;
   availableTags: Tag[];
+  availablePerformers: Performer[];
 
   // UI state - organized into logical groups
   ui: {
@@ -121,6 +128,7 @@ const initialState: MarkerState = {
   sceneId: null,
   sceneTitle: null,
   availableTags: [],
+  availablePerformers: [],
 
   // UI state
   ui: {
@@ -218,9 +226,13 @@ export const initializeMarkerPage = createAsyncThunk(
         // Continue without shot boundaries if database load fails
       }
 
-      // Load available tags
-      const tagsResult = await stashappService.getAllTags();
+      // Load available tags and performers
+      const [tagsResult, performersResult] = await Promise.all([
+        stashappService.getAllTags(),
+        stashappService.getAllPerformers(),
+      ]);
       const availableTags = tagsResult.findTags.tags;
+      const availablePerformers = performersResult.findPerformers.performers;
 
       // Load marker groups (if marker group parent is configured)
       console.log("🎯 [INIT] Loading marker groups during marker page initialization");
@@ -231,6 +243,7 @@ export const initializeMarkerPage = createAsyncThunk(
         markers: sortedMarkers,
         shotBoundaries,
         availableTags,
+        availablePerformers,
       };
     } catch (error) {
       return rejectWithValue(
@@ -404,6 +417,7 @@ export const createMarker = createAsyncThunk(
       startTime: number;
       endTime: number | null;
       tagId: string;
+      slots?: Array<{ slotDefinitionId: string; performerId: string | null }>;
     },
     { dispatch, rejectWithValue }
   ) => {
@@ -417,7 +431,7 @@ export const createMarker = createAsyncThunk(
       const MARKER_SOURCE_MANUAL = stashappService.markerSourceManual;
       const MARKER_STATUS_CONFIRMED = stashappService.markerStatusConfirmed;
 
-      // Create marker in local database
+      // Create marker in local database with slots
       // Note: primaryTagId is included automatically via isPrimary flag, don't add to tagIds
       const response = await fetch('/api/markers', {
         method: 'POST',
@@ -429,6 +443,7 @@ export const createMarker = createAsyncThunk(
           endSeconds: params.endTime,
           primaryTagId: params.tagId,
           tagIds: [params.tagId, MARKER_SOURCE_MANUAL, MARKER_STATUS_CONFIRMED],
+          slots: params.slots || [],
         }),
       });
 
@@ -1035,6 +1050,10 @@ const markerSlice = createSlice({
       state.availableTags = action.payload;
     },
 
+    setAvailablePerformers: (state, action: PayloadAction<Performer[]>) => {
+      state.availablePerformers = action.payload;
+    },
+
     // UI actions - selection
     setSelectedMarkerId: (state, action: PayloadAction<string | null>) => {
       // Note: Shot boundary marker filtering is now done in the component
@@ -1069,6 +1088,10 @@ const markerSlice = createSlice({
 
     openDeleteRejectedModal: (state, action: PayloadAction<DeleteRejectedModalData>) => {
       state.ui.modal = { type: 'deleteRejected', data: action.payload };
+    },
+
+    openSlotAssignmentModal: (state, action: PayloadAction<SlotAssignmentModalData>) => {
+      state.ui.modal = { type: 'slotAssignment', data: action.payload };
     },
 
     // UI actions - non-modal states
@@ -1250,6 +1273,7 @@ const markerSlice = createSlice({
         state.markers = action.payload.markers;
         state.shotBoundaries = action.payload.shotBoundaries;
         state.availableTags = action.payload.availableTags;
+        state.availablePerformers = action.payload.availablePerformers;
       })
       .addCase(initializeMarkerPage.rejected, (state, action) => {
         state.initializing = false;
@@ -1524,6 +1548,7 @@ export const {
   setMarkers,
   setScene,
   setAvailableTags,
+  setAvailablePerformers,
   setSelectedMarkerId,
   setEditingMarker,
   setCreatingMarker,
@@ -1537,6 +1562,7 @@ export const {
   openKeyboardShortcutsModal,
   openCollectingModal,
   openDeleteRejectedModal,
+  openSlotAssignmentModal,
   setMarkerStartTime,
   setMarkerEndTime,
   setNewTagSearch,
@@ -1584,6 +1610,8 @@ export const selectSceneTitle = (state: { marker: MarkerState }) =>
   state.marker.sceneTitle;
 export const selectAvailableTags = (state: { marker: MarkerState }) =>
   state.marker.availableTags;
+export const selectAvailablePerformers = (state: { marker: MarkerState }) =>
+  state.marker.availablePerformers;
 
 // UI selectors
 export const selectSelectedMarkerId = (state: { marker: MarkerState }) =>
@@ -1621,6 +1649,9 @@ export const selectIsCollectingModalOpen = (state: { marker: MarkerState }) =>
 export const selectIsDeletingRejected = (state: { marker: MarkerState }) =>
   state.marker.ui.modal.type === 'deleteRejected';
 
+export const selectIsSlotAssignmentModalOpen = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal.type === 'slotAssignment';
+
 // Modal data selectors
 export const selectCompletionModalData = (state: { marker: MarkerState }) =>
   state.marker.ui.modal.type === 'completion' ? state.marker.ui.modal.data : null;
@@ -1630,6 +1661,9 @@ export const selectCorrespondingTagConversionModalData = (state: { marker: Marke
 
 export const selectDeleteRejectedModalData = (state: { marker: MarkerState }) =>
   state.marker.ui.modal.type === 'deleteRejected' ? state.marker.ui.modal.data : null;
+
+export const selectSlotAssignmentModalData = (state: { marker: MarkerState }) =>
+  state.marker.ui.modal.type === 'slotAssignment' ? state.marker.ui.modal.data : null;
 
 // Legacy selectors for backward compatibility (will be removed after refactor)
 export const selectRejectedMarkers = (state: { marker: MarkerState }) =>

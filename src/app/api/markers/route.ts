@@ -16,7 +16,7 @@ async function loadConfig(): Promise<AppConfig> {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { stashappSceneId, title, seconds, endSeconds, primaryTagId, tagIds } = body;
+    const { stashappSceneId, title, seconds, endSeconds, primaryTagId, tagIds, slots } = body;
 
     if (!stashappSceneId || !title || seconds === undefined) {
       return NextResponse.json(
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create marker in local database
+    // Create marker in local database with slots
     const marker = await prisma.marker.create({
       data: {
         stashappSceneId: parseInt(stashappSceneId),
@@ -41,9 +41,22 @@ export async function POST(request: NextRequest) {
               })),
             }
           : undefined,
+        markerSlots: slots
+          ? {
+              create: slots.map((slot: { slotDefinitionId: string; performerId: string | null }) => ({
+                slotDefinitionId: slot.slotDefinitionId,
+                stashappPerformerId: slot.performerId ? parseInt(slot.performerId) : null,
+              })),
+            }
+          : undefined,
       },
       include: {
         markerTags: true,
+        markerSlots: {
+          include: {
+            slotDefinition: true,
+          },
+        },
       },
     });
 

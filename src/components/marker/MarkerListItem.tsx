@@ -15,8 +15,13 @@ import {
   createMarker,
 } from "../../store/slices/markerSlice";
 import { selectMarkerStatusConfirmed, selectMarkerStatusRejected } from "@/store/slices/configSlice";
-import { type Tag } from "../../services/StashappService";
+import { type Tag, type Performer } from "../../services/StashappService";
 import { IncorrectMarker } from "../../utils/incorrectMarkerStorage";
+
+interface SlotValue {
+  slotDefinitionId: string;
+  performerId: string | null;
+}
 
 interface MarkerListItemProps {
   marker: SceneMarker;
@@ -24,6 +29,7 @@ interface MarkerListItemProps {
   editingMarkerId: string | null;
   editingTagId: string;
   availableTags: Tag[];
+  availablePerformers: Performer[];
   incorrectMarkers: IncorrectMarker[];
   videoElementRef: React.RefObject<HTMLVideoElement | null>;
   markers: SceneMarker[] | null;
@@ -41,6 +47,7 @@ export function MarkerListItem({
   editingMarkerId,
   editingTagId,
   availableTags,
+  availablePerformers,
   incorrectMarkers,
   videoElementRef,
   markers,
@@ -80,8 +87,9 @@ export function MarkerListItem({
         <TempMarkerForm
           marker={marker}
           availableTags={availableTags}
+          availablePerformers={availablePerformers}
           videoElement={videoElementRef.current}
-          onSave={async (newStart, newEnd, newTagId) => {
+          onSave={async (newStart, newEnd, newTagId, slots) => {
             try {
               const isDuplicating = marker.id === "temp-duplicate";
               
@@ -92,25 +100,13 @@ export function MarkerListItem({
               dispatch(setMarkers(realMarkers));
 
               // Create marker using Redux thunk
-              let result;
-              if (isDuplicating) {
-                // For duplication, we need the source marker ID
-                // Since this is a temp marker, we don't have the original source ID
-                // We'll use createMarker instead
-                result = await dispatch(createMarker({
-                  sceneId: marker.scene.id,
-                  startTime: newStart,
-                  endTime: newEnd ?? null,
-                  tagId: newTagId,
-                }));
-              } else {
-                result = await dispatch(createMarker({
-                  sceneId: marker.scene.id,
-                  startTime: newStart,
-                  endTime: newEnd ?? null,
-                  tagId: newTagId,
-                }));
-              }
+              const result = await dispatch(createMarker({
+                sceneId: marker.scene.id,
+                startTime: newStart,
+                endTime: newEnd ?? null,
+                tagId: newTagId,
+                slots,
+              }));
 
               // On success, select the new marker
               if (createMarker.fulfilled.match(result)) {

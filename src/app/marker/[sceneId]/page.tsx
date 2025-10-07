@@ -26,6 +26,7 @@ import {
   selectShotBoundaries,
   selectScene,
   selectAvailableTags,
+  selectAvailablePerformers,
   selectSelectedMarkerId,
   selectIsCompletionModalOpen,
   selectIncorrectMarkers,
@@ -99,6 +100,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   const markerAiReviewed = useAppSelector(selectMarkerAiReviewed);
   const scene = useAppSelector(selectScene);
   const availableTags = useAppSelector(selectAvailableTags);
+  const availablePerformers = useAppSelector(selectAvailablePerformers);
   const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
   const incorrectMarkers = useAppSelector(selectIncorrectMarkers);
   const videoDuration = useAppSelector(selectVideoDuration);
@@ -1255,6 +1257,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
                     editingMarkerId={editingMarkerId}
                     editingTagId={editingTagId}
                     availableTags={availableTags}
+                    availablePerformers={availablePerformers}
                     incorrectMarkers={incorrectMarkers}
                     videoElementRef={videoElementRef}
                     actionMarkers={actionMarkers}
