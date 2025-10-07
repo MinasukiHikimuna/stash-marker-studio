@@ -10,7 +10,7 @@ export type GenderHint = 'MALE' | 'FEMALE' | 'TRANSGENDER_MALE' | 'TRANSGENDER_F
 export interface SlotDefinition {
   id: string;
   stashappTagId: number;
-  slotLabel: string;
+  slotLabel: string | null;
   genderHint: GenderHint | null;
   displayOrder: number;
   createdAt: string;

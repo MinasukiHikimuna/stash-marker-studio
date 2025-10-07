@@ -196,13 +196,13 @@ export function MarkerListItem({
                 </p>
                 {marker.slots && marker.slots.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {marker.slots.map((slot) => (
+                    {marker.slots.map((slot, index) => (
                       <span
                         key={slot.id}
                         className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-900/50 text-blue-200 rounded text-xs"
-                        title={`${slot.slotLabel}${slot.genderHint ? ` (${slot.genderHint})` : ''}`}
+                        title={`${slot.slotLabel || `Slot ${index + 1}`}${slot.genderHint ? ` (${slot.genderHint})` : ''}`}
                       >
-                        <span className="text-blue-400">{slot.slotLabel}:</span>
+                        {slot.slotLabel && <span className="text-blue-400">{slot.slotLabel}:</span>}
                         <span>{slot.performer?.name || '—'}</span>
                       </span>
                     ))}

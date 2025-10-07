@@ -31,9 +31,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { stashappTagId, slotLabel, genderHint, displayOrder } = body;
 
-    if (!stashappTagId || !slotLabel) {
+    if (!stashappTagId) {
       return NextResponse.json(
-        { error: 'stashappTagId and slotLabel are required' },
+        { error: 'stashappTagId is required' },
         { status: 400 }
       );
     }
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const slotDefinition = await prisma.slotDefinition.create({
       data: {
         stashappTagId: parseInt(stashappTagId),
-        slotLabel,
+        slotLabel: slotLabel?.trim() || null,
         genderHint: genderHint ?? null,
         displayOrder: displayOrder ?? 0,
       },

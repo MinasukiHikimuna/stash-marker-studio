@@ -131,10 +131,9 @@ export default function SlotDefinitionSettings() {
       return;
     }
 
-    // Validate all slots have labels
-    const validSlots = editingSlots.filter(s => s.slotLabel.trim());
-    if (validSlots.length === 0) {
-      setMessage('Please add at least one slot with a label');
+    // At least one slot must exist
+    if (editingSlots.length === 0) {
+      setMessage('Please add at least one slot');
       return;
     }
 
@@ -151,13 +150,13 @@ export default function SlotDefinitionSettings() {
       await Promise.all(deletePromises);
 
       // Create new slots with proper display order
-      const createPromises = validSlots.map((slot, index) =>
+      const createPromises = editingSlots.map((slot, index) =>
         fetch('/api/slot-definitions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             stashappTagId: tagId,
-            slotLabel: slot.slotLabel.trim(),
+            slotLabel: slot.slotLabel.trim() || null,
             genderHint: slot.genderHint || null,
             displayOrder: index,
           }),
@@ -303,13 +302,13 @@ export default function SlotDefinitionSettings() {
                       <div className="flex-1 space-y-2">
                         <div>
                           <label className="block text-xs font-medium text-gray-300 mb-1">
-                            Slot Label
+                            Slot Label <span className="text-gray-500">(optional)</span>
                           </label>
                           <input
                             type="text"
                             value={slot.slotLabel}
                             onChange={(e) => updateSlot(index, 'slotLabel', e.target.value)}
-                            placeholder="e.g., 'giver', 'receiver', 'performer'"
+                            placeholder="e.g., 'giver', 'receiver', 'performer' (leave blank if not needed)"
                             className="w-full p-2 bg-gray-500 border border-gray-400 rounded text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                         </div>
@@ -377,7 +376,9 @@ export default function SlotDefinitionSettings() {
                       <div className="flex items-center gap-3">
                         <span className="text-gray-400 font-mono text-sm">{index + 1}.</span>
                         <div className="flex-1">
-                          <p className="text-white font-medium">{slot.slotLabel}</p>
+                          <p className="text-white font-medium">
+                            {slot.slotLabel || `Slot ${index + 1}`}
+                          </p>
                           {slot.genderHint && (
                             <p className="text-sm text-gray-400">
                               Gender hint: {GENDER_HINT_LABELS[slot.genderHint as GenderHint]}
@@ -418,7 +419,7 @@ export default function SlotDefinitionSettings() {
                         <p className="text-white font-medium">{getTagName(parseInt(tagId))}</p>
                         <p className="text-sm text-gray-400">
                           {slots.length} slot{slots.length !== 1 ? 's' : ''}: {' '}
-                          {slots.sort((a, b) => a.displayOrder - b.displayOrder).map(s => s.slotLabel).join(', ')}
+                          {slots.sort((a, b) => a.displayOrder - b.displayOrder).map((s, i) => s.slotLabel || `Slot ${i + 1}`).join(', ')}
                         </p>
                       </div>
                       <button

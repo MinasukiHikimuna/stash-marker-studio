@@ -108,7 +108,7 @@ export function MarkerSlotsEditor({
         return (
           <div key={definition.id} className="flex items-center gap-2">
             <label className="text-xs text-gray-300 w-24 flex-shrink-0">
-              {definition.slotLabel}
+              {definition.slotLabel || `Slot ${slotDefinitions.indexOf(definition) + 1}`}
               {definition.genderHint && (
                 <span className="text-gray-500 ml-1">
                   ({definition.genderHint})

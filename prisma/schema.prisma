@@ -70,7 +70,7 @@ enum GenderHint {
 model SlotDefinition {
   id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   stashappTagId  Int          @map("stashapp_tag_id")
-  slotLabel      String       @map("slot_label")
+  slotLabel      String?      @map("slot_label")
   genderHint     GenderHint?  @map("gender_hint")
   displayOrder   Int          @default(0) @map("display_order")
 
@@ -78,7 +78,6 @@ model SlotDefinition {
 
   markerSlots    MarkerSlot[]
 
-  @@unique([stashappTagId, slotLabel])
   @@index([stashappTagId])
   @@map("slot_definitions")
 }
