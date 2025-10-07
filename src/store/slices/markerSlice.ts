@@ -442,7 +442,7 @@ export const createMarker = createAsyncThunk(
           seconds: params.startTime,
           endSeconds: params.endTime,
           primaryTagId: params.tagId,
-          tagIds: [params.tagId, MARKER_SOURCE_MANUAL, MARKER_STATUS_CONFIRMED],
+          tagIds: [MARKER_SOURCE_MANUAL, MARKER_STATUS_CONFIRMED],
           slots: params.slots || [],
         }),
       });
