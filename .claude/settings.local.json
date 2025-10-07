@@ -30,7 +30,8 @@
       "WebFetch(domain:github.com)",
       "Bash(npm test)",
       "Bash(npm test:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(npx prisma migrate dev:*)"
     ],
     "deny": []
   }

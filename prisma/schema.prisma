@@ -37,6 +37,7 @@ model Marker {
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
   markerTags        MarkerTag[]
+  markerSlots       MarkerSlot[]
 
   @@index([stashappSceneId])
   @@index([stashappMarkerId])
@@ -57,4 +58,38 @@ model MarkerTag {
   @@unique([markerId, tagId])
   @@index([tagId])
   @@map("marker_tags")
+}
+
+model SlotDefinition {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  stashappTagId  Int      @map("stashapp_tag_id")
+  slotLabel      String   @map("slot_label")
+  genderHint     String?  @map("gender_hint")
+  displayOrder   Int      @default(0) @map("display_order")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  markerSlots    MarkerSlot[]
+
+  @@unique([stashappTagId, slotLabel])
+  @@index([stashappTagId])
+  @@map("slot_definitions")
+}
+
+model MarkerSlot {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  markerId             Int      @map("marker_id")
+  slotDefinitionId     String   @map("slot_definition_id") @db.Uuid
+  stashappPerformerId  Int?     @map("stashapp_performer_id")
+
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  marker               Marker         @relation(fields: [markerId], references: [id], onDelete: Cascade)
+  slotDefinition       SlotDefinition @relation(fields: [slotDefinitionId], references: [id], onDelete: Cascade)
+
+  @@index([markerId])
+  @@index([slotDefinitionId])
+  @@index([stashappPerformerId])
+  @@map("marker_slots")
 }
