@@ -1,4 +1,9 @@
 /**
+ * Gender hint for slot definitions
+ */
+export type GenderHint = 'MALE' | 'FEMALE' | 'TRANSGENDER_MALE' | 'TRANSGENDER_FEMALE';
+
+/**
  * Slot definition defines a role/position for a marker tag
  * Example: BJ tag might have "giver" and "receiver" slots
  */
@@ -6,7 +11,7 @@ export interface SlotDefinition {
   id: string;
   stashappTagId: number;
   slotLabel: string;
-  genderHint: string | null;
+  genderHint: GenderHint | null;
   displayOrder: number;
   createdAt: string;
 }
