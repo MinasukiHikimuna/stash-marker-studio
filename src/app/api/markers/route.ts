@@ -77,13 +77,23 @@ export async function GET(request: NextRequest) {
     const stashappService = new StashappService();
     stashappService.applyConfig(config);
 
-    // Fetch markers from local database
+    // Fetch markers from local database with slots
     const dbMarkers = await prisma.marker.findMany({
       where: {
         stashappSceneId: parseInt(sceneId),
       },
       include: {
         markerTags: true,
+        markerSlots: {
+          include: {
+            slotDefinition: true,
+          },
+          orderBy: {
+            slotDefinition: {
+              displayOrder: 'asc',
+            },
+          },
+        },
       },
       orderBy: {
         seconds: 'asc',
@@ -109,6 +119,37 @@ export async function GET(request: NextRequest) {
       tagMap.set(tag.id, tag);
     }
 
+    // Collect all unique performer IDs from marker slots
+    const performerIds = new Set<number>();
+    for (const marker of dbMarkers) {
+      for (const slot of marker.markerSlots) {
+        if (slot.stashappPerformerId) {
+          performerIds.add(slot.stashappPerformerId);
+        }
+      }
+    }
+
+    // Fetch performer data from Stashapp
+    const performerMap = new Map<number, { id: string; name: string; gender?: string }>();
+    if (performerIds.size > 0) {
+      try {
+        const performers = await Promise.all(
+          Array.from(performerIds).map(id => stashappService.getPerformer(id.toString()))
+        );
+        for (const performer of performers) {
+          if (performer) {
+            performerMap.set(parseInt(performer.id), {
+              id: performer.id,
+              name: performer.name,
+              gender: performer.gender,
+            });
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch some performers:', error);
+      }
+    }
+
     // Convert database markers to SceneMarker format
     const sceneMarkers: SceneMarker[] = dbMarkers.map((dbMarker) => {
       const primaryTag = dbMarker.primaryTagId
@@ -119,6 +160,19 @@ export async function GET(request: NextRequest) {
         .map((mt) => tagMap.get(mt.tagId.toString()))
         .filter((tag): tag is Tag => tag !== undefined)
         .map((tag) => ({ id: tag.id, name: tag.name }));
+
+      // Convert marker slots with performer data
+      const slots = dbMarker.markerSlots.map((slot) => ({
+        id: slot.id,
+        slotDefinitionId: slot.slotDefinitionId,
+        stashappPerformerId: slot.stashappPerformerId,
+        slotLabel: slot.slotDefinition.slotLabel,
+        genderHint: slot.slotDefinition.genderHint,
+        displayOrder: slot.slotDefinition.displayOrder,
+        performer: slot.stashappPerformerId
+          ? performerMap.get(slot.stashappPerformerId)
+          : undefined,
+      }));
 
       return {
         id: dbMarker.id.toString(), // Always use internal database ID
@@ -138,6 +192,7 @@ export async function GET(request: NextRequest) {
           name: '',
         },
         tags,
+        slots: slots.length > 0 ? slots : undefined,
       };
     });
 

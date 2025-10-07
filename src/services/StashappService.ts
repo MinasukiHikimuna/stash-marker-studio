@@ -29,6 +29,20 @@ export type SceneMarker = {
     id: string;
     name: string;
   }>;
+  // Optional slots data (loaded from local database)
+  slots?: Array<{
+    id: string;
+    slotDefinitionId: string;
+    stashappPerformerId: number | null;
+    slotLabel: string;
+    genderHint: string | null;
+    displayOrder: number;
+    performer?: {
+      id: string;
+      name: string;
+      gender?: string;
+    };
+  }>;
 };
 
 type SceneMarkersResponse = {
@@ -1325,6 +1339,75 @@ export class StashappService {
     await this.fetchGraphQL<{
       data: { tagDestroy: boolean };
     }>(mutation, variables);
+  }
+
+  async getPerformer(performerId: string): Promise<Performer | null> {
+    const query = `
+      query FindPerformer($id: ID!) {
+        findPerformer(id: $id) {
+          id
+          name
+          gender
+        }
+      }
+    `;
+
+    const result = await this.fetchGraphQL<{
+      data: { findPerformer: Performer | null };
+    }>(query, { id: performerId });
+    return result.data.findPerformer;
+  }
+
+  async getAllPerformers(): Promise<{
+    findPerformers: { count: number; performers: Performer[] };
+  }> {
+    const query = `
+      query FindPerformers($filter: FindFilterType) {
+        findPerformers(filter: $filter) {
+          count
+          performers {
+            id
+            name
+            gender
+          }
+        }
+      }
+    `;
+
+    // Fetch all performers with pagination
+    const allPerformers: Performer[] = [];
+    const perPage = 1000;
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const result = await this.fetchGraphQL<{
+        data: {
+          findPerformers: {
+            count: number;
+            performers: Performer[];
+          };
+        };
+      }>(query, {
+        filter: {
+          page,
+          per_page: perPage,
+          sort: "name",
+          direction: "ASC",
+        },
+      });
+
+      allPerformers.push(...result.data.findPerformers.performers);
+      hasMore = result.data.findPerformers.performers.length === perPage;
+      page++;
+    }
+
+    return {
+      findPerformers: {
+        count: allPerformers.length,
+        performers: allPerformers,
+      },
+    };
   }
 }
 
