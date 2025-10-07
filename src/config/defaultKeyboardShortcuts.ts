@@ -172,6 +172,15 @@ export const defaultShortcuts: KeyboardShortcut[] = [
     enabled: true,
     editable: true,
   },
+  {
+    id: "marker.assignSlots",
+    bindings: [{ key: "g" }],
+    description: "Assign performers to marker slots",
+    category: "marker.edit",
+    action: { type: "function", functionName: "assignSlots" },
+    enabled: true,
+    editable: true,
+  },
 
   // Navigation
   {

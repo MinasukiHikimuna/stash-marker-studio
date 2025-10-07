@@ -5,6 +5,7 @@ import {
   rejectMarker,
   resetMarker,
   openCollectingModal,
+  openSlotAssignmentModal,
   closeModal,
   togglePlayPause,
   setCreatingMarker,
@@ -282,6 +283,11 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
 
       'marker.mergeProperties': () => {
         mergeMarkerProperties();
+      },
+
+      'marker.assignSlots': () => {
+        if (!currentMarker) return;
+        dispatch(openSlotAssignmentModal({ marker: currentMarker }));
       },
 
       // Navigation

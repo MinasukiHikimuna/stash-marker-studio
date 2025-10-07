@@ -7,6 +7,7 @@ import {
   type SceneMarker,
 } from "../../../services/StashappService";
 import { KeyboardShortcutsModal } from "../../components/KeyboardShortcutsModal";
+import { MarkerSlotsDialog } from "../../../components/marker/MarkerSlotsDialog";
 import { Timeline, TimelineRef } from "../../../components/timeline-redux";
 import { VideoPlayer } from "../../../components/marker/video/VideoPlayer";
 import { MarkerWithTrack, TagGroup } from "../../../core/marker/types";
@@ -41,9 +42,11 @@ import {
   selectIsCorrespondingTagConversionModalOpen,
   selectIsKeyboardShortcutsModalOpen,
   selectIsCollectingModalOpen,
+  selectIsSlotAssignmentModalOpen,
   selectCorrespondingTagConversionModalData,
   selectDeleteRejectedModalData,
   selectCompletionModalData,
+  selectSlotAssignmentModalData,
   setSelectedMarkerId,
   clearError,
   setAvailableTags,
@@ -114,6 +117,8 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   const isCorrespondingTagConversionModalOpen = useAppSelector(selectIsCorrespondingTagConversionModalOpen);
   const isKeyboardShortcutsModalOpen = useAppSelector(selectIsKeyboardShortcutsModalOpen);
   const isCollectingModalOpen = useAppSelector(selectIsCollectingModalOpen);
+  const isSlotAssignmentModalOpen = useAppSelector(selectIsSlotAssignmentModalOpen);
+  const slotAssignmentModalData = useAppSelector(selectSlotAssignmentModalData);
   const correspondingTagConversionModalData = useAppSelector(selectCorrespondingTagConversionModalData);
   const deleteRejectedModalData = useAppSelector(selectDeleteRejectedModalData);
   const completionModalData = useAppSelector(selectCompletionModalData);
@@ -1330,6 +1335,36 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
           dispatch(closeModal())
         }
       />
+
+      {/* Slot Assignment Dialog */}
+      {isSlotAssignmentModalOpen && slotAssignmentModalData && scene && (
+        <MarkerSlotsDialog
+          marker={slotAssignmentModalData.marker}
+          availablePerformers={availablePerformers}
+          onSave={async (slots) => {
+            // Update slots via API
+            const response = await fetch(`/api/markers/${slotAssignmentModalData.marker.id}/slots`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                slots: slots.map(s => ({
+                  slotDefinitionId: s.slotDefinitionId,
+                  stashappPerformerId: s.performerId ? parseInt(s.performerId) : null,
+                })),
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to update marker slots');
+            }
+
+            // Refresh markers to show updated slots
+            await dispatch(loadMarkers(scene.id));
+            dispatch(closeModal());
+          }}
+          onCancel={() => dispatch(closeModal())}
+        />
+      )}
 
       {/* Completion Modal */}
       <CompletionModal
