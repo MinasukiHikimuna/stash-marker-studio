@@ -146,61 +146,6 @@ export const useMarkerOperations = (
     dispatch,
   ]);
 
-  // Split a Video Cut marker at the current playhead position
-  const splitVideoCutMarker = useCallback(async () => {
-    if (!scene) {
-      dispatch(setError("No scene data available"));
-      return;
-    }
-
-    const currentTime = currentVideoTime;
-    const shotBoundaries = getShotBoundaries();
-
-    const containingShot = shotBoundaries.find(
-      (shot) =>
-        shot.startTime <= currentTime &&
-        shot.endTime !== null &&
-        shot.endTime !== undefined &&
-        shot.endTime > currentTime
-    );
-
-    if (!containingShot || containingShot.endTime === null || containingShot.endTime === undefined) {
-      console.log("Cannot split shot boundary:", {
-        hasBoundary: !!containingShot,
-        hasEndTime: containingShot?.endTime,
-        currentTime,
-      });
-      dispatch(setError("No shot boundary found at current position"));
-      return;
-    }
-
-    try {
-      await dispatch(updateShotBoundary({
-        sceneId: scene.id,
-        shotBoundaryId: containingShot.id,
-        startTime: containingShot.startTime,
-        endTime: currentTime,
-      })).unwrap();
-
-      await dispatch(createShotBoundary({
-        sceneId: scene.id,
-        startTime: currentTime,
-        endTime: containingShot.endTime,
-      })).unwrap();
-
-      showToast("Shot boundary split successfully", "success");
-    } catch (err) {
-      console.error("Error splitting shot boundary:", err);
-      dispatch(setError("Failed to split shot boundary"));
-    }
-  }, [
-    scene,
-    currentVideoTime,
-    getShotBoundaries,
-    dispatch,
-    showToast,
-  ]);
-
   // Create or duplicate marker - now just calls the marker page's createOrDuplicateMarker
   const createOrDuplicateMarker = useCallback(
     (startTime: number, endTime: number | null, sourceMarker?: SceneMarker) => {
@@ -540,25 +485,24 @@ export const useMarkerOperations = (
     getActionMarkers,
     getMarkerSummary,
     checkAllMarkersApproved,
-    
+
     // Marker operations
     splitCurrentMarker,
-    splitVideoCutMarker,
     createOrDuplicateMarker,
     handleCreateMarker,
-    
+
     // Copy/paste operations
     copyMarkerTimes,
     pasteMarkerTimes,
-    
+
     // Delete operations
     handleDeleteRejectedMarkers,
     confirmDeleteRejectedMarkers,
-    
+
     // AI operations
     handleCorrespondingTagConversion,
     handleConfirmCorrespondingTagConversion,
-    
+
     // Completion operations
     identifyAITagsToRemove,
     executeCompletion,

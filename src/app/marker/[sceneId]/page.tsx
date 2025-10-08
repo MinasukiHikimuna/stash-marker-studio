@@ -83,6 +83,7 @@ import {
 } from "../../../core/marker/markerLogic";
 import { MarkerStatus } from "../../../core/marker/types";
 import type { ShotBoundary } from "../../../core/shotBoundary/types";
+import { ShotBoundarySource } from "../../../core/shotBoundary/types";
 
 
 // Add toast state type
@@ -234,7 +235,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   // Marker operations functionality
   const {
     splitCurrentMarker: splitCurrentMarkerFromHook,
-    splitVideoCutMarker: splitVideoCutMarkerFromHook,
     copyMarkerTimes: copyMarkerTimesFromHook,
     pasteMarkerTimes: pasteMarkerTimesFromHook,
     handleDeleteRejectedMarkers: handleDeleteRejectedMarkersFromHook,
@@ -253,7 +253,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
 
   // Create aliases for compatibility with existing code
   const splitCurrentMarker = splitCurrentMarkerFromHook;
-  const splitVideoCutMarker = splitVideoCutMarkerFromHook;
   const copyMarkerTimes = copyMarkerTimesFromHook;
   const pasteMarkerTimes = pasteMarkerTimesFromHook;
   const getMarkerSummary = getMarkerSummaryFromHook;
@@ -772,11 +771,13 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         });
 
         // Update first shot to end at playhead
+        // When splitting, mark both boundaries as Manual (even if original was PySceneDetect)
         await dispatch(updateShotBoundary({
           sceneId: scene.id,
           shotBoundaryId: containingShot.id,
           startTime: containingShot.startTime,
           endTime: currentTime,
+          source: ShotBoundarySource.MANUAL,
         })).unwrap();
 
         // Create new shot from playhead to original end
@@ -1016,7 +1017,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     handleEditMarker,
     handleDeleteRejectedMarkers,
     splitCurrentMarker,
-    splitVideoCutMarker,
     createOrDuplicateMarker,
     createShotBoundaryMarker,
     addShotBoundaryAtPlayhead,

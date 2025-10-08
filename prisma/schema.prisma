@@ -7,16 +7,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ShotBoundarySource {
+  PYSCENEDETECT
+  MANUAL
+}
+
 model ShotBoundary {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
-  stashappSceneId Int      @map("stashapp_scene_id")
+  stashappSceneId Int                 @map("stashapp_scene_id")
 
-  startTime       Decimal  @map("start_time") @db.Decimal(8, 3)
-  endTime         Decimal  @map("end_time") @db.Decimal(8, 3)
+  startTime       Decimal             @map("start_time") @db.Decimal(8, 3)
+  endTime         Decimal             @map("end_time") @db.Decimal(8, 3)
 
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  source          ShotBoundarySource  @default(MANUAL)
+
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
 
   @@index([stashappSceneId, startTime])
   @@map("shot_boundaries")

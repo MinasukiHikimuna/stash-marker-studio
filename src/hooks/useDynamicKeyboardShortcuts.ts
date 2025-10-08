@@ -48,7 +48,6 @@ interface UseDynamicKeyboardShortcutsParams {
   handleEditMarker: (marker: SceneMarker) => void;
   handleDeleteRejectedMarkers: () => void;
   splitCurrentMarker: () => void;
-  splitVideoCutMarker: () => void;
   createOrDuplicateMarker: (startTime: number, endTime: number | null, sourceMarker?: SceneMarker) => void;
   createShotBoundaryMarker: () => void;
   addShotBoundaryAtPlayhead: () => void;
@@ -124,7 +123,6 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       handleEditMarker,
       handleDeleteRejectedMarkers,
       splitCurrentMarker,
-      splitVideoCutMarker,
       createOrDuplicateMarker,
       createShotBoundaryMarker,
       addShotBoundaryAtPlayhead,
@@ -229,10 +227,6 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       'marker.duplicate': () => {
         if (!currentMarker) return;
         createOrDuplicateMarker(currentMarker.seconds, currentMarker.end_seconds ?? null, currentMarker);
-      },
-
-      'marker.splitVideoCut': () => {
-        splitVideoCutMarker();
       },
 
       'marker.addShotBoundary': () => {

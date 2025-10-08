@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ShotBoundarySource } from '@/core/shotBoundary/types';
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,6 +27,7 @@ export async function POST(request: NextRequest) {
           stashappSceneId,
           startTime: sb.startTime,
           endTime: sb.endTime,
+          source: ShotBoundarySource.PYSCENEDETECT,
         })),
       });
 
@@ -42,6 +44,7 @@ export async function POST(request: NextRequest) {
           stashappSceneId: parseInt(stashappSceneId),
           startTime,
           endTime,
+          source: ShotBoundarySource.MANUAL,
         },
       });
 

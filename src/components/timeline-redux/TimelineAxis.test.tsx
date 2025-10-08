@@ -8,6 +8,7 @@ import "@testing-library/jest-dom";
 
 import { TimelineAxis, type TimelineAxisProps } from "./TimelineAxis";
 import type { ShotBoundary } from "../../core/shotBoundary/types";
+import { ShotBoundarySource } from "../../core/shotBoundary/types";
 
 function createShotBoundary(
   id: string,
@@ -19,6 +20,7 @@ function createShotBoundary(
     stashappSceneId: 1,
     startTime,
     endTime,
+    source: ShotBoundarySource.MANUAL,
     createdAt: new Date(0).toISOString(),
     updatedAt: new Date(0).toISOString(),
   };

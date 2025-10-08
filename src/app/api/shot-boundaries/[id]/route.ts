@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ShotBoundarySource } from '@/core/shotBoundary/types';
 
 type RouteParams = {
   params: Promise<{
@@ -14,7 +15,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { startTime, endTime } = body;
+    const { startTime, endTime, source } = body;
 
     if (startTime === undefined || endTime === undefined) {
       return NextResponse.json(
@@ -23,12 +24,23 @@ export async function PATCH(
       );
     }
 
+    const updateData: {
+      startTime: number;
+      endTime: number;
+      source?: ShotBoundarySource;
+    } = {
+      startTime,
+      endTime,
+    };
+
+    // If source is provided, update it (used when splitting PySceneDetect boundaries)
+    if (source !== undefined) {
+      updateData.source = source;
+    }
+
     const updated = await prisma.shotBoundary.update({
       where: { id },
-      data: {
-        startTime,
-        endTime,
-      },
+      data: updateData,
     });
 
     return NextResponse.json({ shotBoundary: updated });

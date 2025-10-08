@@ -8,6 +8,7 @@ import {
 } from "@/services/StashappService";
 import type { IncorrectMarker } from "@/utils/incorrectMarkerStorage";
 import type { ShotBoundary, ShotBoundaryFromAPI } from "@/core/shotBoundary/types";
+import { ShotBoundarySource } from "@/core/shotBoundary/types";
 import { shotBoundaryFromAPI } from "@/core/shotBoundary/types";
 import { loadMarkerGroups } from "./configSlice";
 
@@ -348,17 +349,29 @@ export const updateShotBoundary = createAsyncThunk(
       shotBoundaryId: string;
       startTime: number;
       endTime: number | null;
+      source?: ShotBoundarySource;
     },
     { dispatch, rejectWithValue }
   ) => {
     try {
+      const bodyData: {
+        startTime: number;
+        endTime: number | null;
+        source?: ShotBoundarySource;
+      } = {
+        startTime: params.startTime,
+        endTime: params.endTime,
+      };
+
+      // Include source if provided
+      if (params.source !== undefined) {
+        bodyData.source = params.source;
+      }
+
       const response = await fetch(`/api/shot-boundaries/${params.shotBoundaryId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          startTime: params.startTime,
-          endTime: params.endTime,
-        }),
+        body: JSON.stringify(bodyData),
       });
 
       if (!response.ok) {

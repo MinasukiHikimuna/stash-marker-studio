@@ -6,11 +6,17 @@
  * points detected by PySceneDetect or manually created by the user.
  */
 
+export enum ShotBoundarySource {
+  PYSCENEDETECT = 'PYSCENEDETECT',
+  MANUAL = 'MANUAL',
+}
+
 export type ShotBoundary = {
   id: string;           // UUID from database
   stashappSceneId: number;
   startTime: number;    // seconds
   endTime: number | null;      // seconds (null if open-ended)
+  source: ShotBoundarySource;
   createdAt: string;    // ISO date string for Redux serialization
   updatedAt: string;    // ISO date string for Redux serialization
 };
@@ -20,6 +26,7 @@ export type ShotBoundaryFromAPI = {
   stashappSceneId: number;
   startTime: string | number;  // May come as Decimal from Prisma
   endTime: string | number | null;
+  source: ShotBoundarySource;
   createdAt: string;
   updatedAt: string;
 };
@@ -35,6 +42,7 @@ export function shotBoundaryFromAPI(data: ShotBoundaryFromAPI): ShotBoundary {
         : typeof data.endTime === 'string'
         ? parseFloat(data.endTime)
         : data.endTime,
+    source: data.source,
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
   };
