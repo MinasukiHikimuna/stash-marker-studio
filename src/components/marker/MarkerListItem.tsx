@@ -89,19 +89,13 @@ export function MarkerListItem({
               );
               dispatch(setMarkers(realMarkers));
 
-              // Create marker using Redux thunk
-              const result = await dispatch(createMarker({
+              // Create marker using Redux thunk (selection is handled automatically)
+              await dispatch(createMarker({
                 sceneId: marker.scene.id,
                 startTime: newStart,
                 endTime: newEnd ?? null,
                 tagId: newTagId,
-              }));
-
-              // On success, select the new marker
-              if (createMarker.fulfilled.match(result)) {
-                const newMarkerId = result.payload.id;
-                dispatch(setSelectedMarkerId(newMarkerId));
-              }
+              })).unwrap();
 
               // Clear UI flags
               dispatch(setCreatingMarker(false));

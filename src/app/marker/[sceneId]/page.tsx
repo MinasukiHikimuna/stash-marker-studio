@@ -62,7 +62,6 @@ import {
   setVideoDuration,
   initializeMarkerPage,
   loadMarkers,
-  createMarker,
   createShotBoundary,
   updateShotBoundary,
   deleteShotBoundary,

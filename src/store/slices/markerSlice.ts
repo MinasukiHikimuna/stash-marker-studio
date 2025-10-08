@@ -409,16 +409,19 @@ export const deleteShotBoundary = createAsyncThunk(
 );
 
 // Create a new marker (local DB first, export to Stashapp later)
-export const createMarker = createAsyncThunk(
+export const createMarker = createAsyncThunk<
+  { id: string; selectAfterRefresh: boolean },
+  {
+    sceneId: string;
+    startTime: number;
+    endTime: number | null;
+    tagId: string;
+    slots?: Array<{ slotDefinitionId: string; performerId: string | null }>;
+  }
+>(
   "marker/createMarker",
   async (
-    params: {
-      sceneId: string;
-      startTime: number;
-      endTime: number | null;
-      tagId: string;
-      slots?: Array<{ slotDefinitionId: string; performerId: string | null }>;
-    },
+    params,
     { dispatch, rejectWithValue }
   ) => {
     try {
@@ -452,11 +455,13 @@ export const createMarker = createAsyncThunk(
       }
 
       const data = await response.json();
+      const newMarkerId = data.marker.id.toString();
 
       // Refresh markers after creation
       await dispatch(loadMarkers(params.sceneId));
 
-      return data.marker;
+      // Return the ID and a flag to select it after markers are loaded
+      return { id: newMarkerId, selectAfterRefresh: true };
     } catch (error) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to create marker"
@@ -1307,9 +1312,12 @@ const markerSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(createMarker.fulfilled, (state) => {
+      .addCase(createMarker.fulfilled, (state, action) => {
         state.loading = false;
-        // Markers are refreshed by the thunk
+        // Select the newly created marker (markers have already been refreshed by the thunk)
+        if (action.payload.selectAfterRefresh) {
+          state.ui.selectedMarkerId = action.payload.id;
+        }
       })
       .addCase(createMarker.rejected, (state, action) => {
         state.loading = false;
