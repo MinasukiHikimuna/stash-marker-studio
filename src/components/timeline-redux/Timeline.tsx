@@ -54,7 +54,6 @@ import { SlotDefinitionDialog } from "../marker/SlotDefinitionDialog";
 
 export type TimelineProps = {
   markers: SceneMarker[];
-  actionMarkers: SceneMarker[];
   shotBoundaries: ShotBoundary[];
   videoDuration: number;
   currentTime: number;
@@ -78,7 +77,6 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
   (
     {
       markers,
-      actionMarkers,
       shotBoundaries,
       videoDuration,
       currentTime,
@@ -153,12 +151,12 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
     // Group markers by tag name with proper marker group ordering
     const tagGroups = useMemo(() => {
       return groupMarkersByTags(
-        actionMarkers,
+        markers,
         markerGroupParentId,
         markerGroups,
         tagSorting
       );
-    }, [actionMarkers, markerGroupParentId, markerGroups, tagSorting]);
+    }, [markers, markerGroupParentId, markerGroups, tagSorting]);
 
     // Create markers with track data for keyboard navigation
     const markersWithTracks = useMemo(() => {

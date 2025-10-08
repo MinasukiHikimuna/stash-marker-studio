@@ -19,7 +19,6 @@ interface MarkerSummaryProps {
   onCreateMarker: () => void;
   onSplitMarker: () => void;
   onShowShortcuts: () => void;
-  actionMarkers: SceneMarker[];
   createOrDuplicateMarker: (startTime: number, endTime: number | null, sourceMarker?: SceneMarker) => void;
 }
 
@@ -33,11 +32,10 @@ export function MarkerSummary({
   onCreateMarker,
   onSplitMarker,
   onShowShortcuts,
-  actionMarkers,
   createOrDuplicateMarker,
 }: MarkerSummaryProps) {
   const handleDuplicateClick = useCallback(() => {
-    const currentMarker = actionMarkers.find(
+    const currentMarker = markers?.find(
       (m) => m.id === selectedMarkerId
     );
     if (!currentMarker) {
@@ -51,7 +49,7 @@ export function MarkerSummary({
       currentMarker.end_seconds ?? null, 
       currentMarker
     );
-  }, [actionMarkers, selectedMarkerId, createOrDuplicateMarker]);
+  }, [markers, selectedMarkerId, createOrDuplicateMarker]);
 
   const isMarkerActionDisabled = isCreatingMarker ||
     isDuplicatingMarker ||

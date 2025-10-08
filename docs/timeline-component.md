@@ -98,8 +98,7 @@ Markers are visually distinguished by color based on their status:
 ### Props (TimelineProps)
 
 **Required Props:**
-- `markers: SceneMarker[]` - All scene markers including shot boundaries
-- `actionMarkers: SceneMarker[]` - Filtered markers excluding shot boundaries
+- `markers: SceneMarker[]` - All scene markers
 - `videoDuration: number` - Total video duration in seconds
 - `currentTime: number` - Current playback position in seconds
 - `onMarkerClick: (marker: SceneMarker) => void` - Handler for marker click events
@@ -125,7 +124,6 @@ const timelineRef = useRef<TimelineRef>(null);
 <Timeline
   ref={timelineRef}
   markers={allMarkers}
-  actionMarkers={filteredActionMarkers}
   videoDuration={video.duration}
   currentTime={playbackTime}
   onMarkerClick={handleMarkerClick}

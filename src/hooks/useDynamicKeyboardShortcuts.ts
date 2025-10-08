@@ -25,7 +25,6 @@ import { isMarkerConfirmed, isMarkerRejected } from '../core/marker/markerLogic'
 import { useConfig } from '../contexts/ConfigContext';
 
 interface UseDynamicKeyboardShortcutsParams {
-  actionMarkers: SceneMarker[];
   markers: SceneMarker[] | null;
   scene: Scene | null;
   selectedMarkerId: string | null;
@@ -107,7 +106,6 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
   // Action handlers mapped by shortcut ID
   const actionHandlers = useCallback(() => {
     const {
-      actionMarkers,
       markers,
       scene,
       selectedMarkerId,
@@ -151,7 +149,7 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       centerPlayhead,
     } = params;
 
-    const currentMarker = actionMarkers.find(m => m.id === selectedMarkerId);
+    const currentMarker = markers?.find(m => m.id === selectedMarkerId);
 
     return {
       // Marker Review

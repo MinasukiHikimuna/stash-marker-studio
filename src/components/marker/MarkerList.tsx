@@ -16,7 +16,6 @@ interface MarkerListProps {
   availableTags: Tag[];
   incorrectMarkers: IncorrectMarker[];
   videoElementRef: React.RefObject<HTMLVideoElement | null>;
-  actionMarkers: SceneMarker[];
   onMarkerClick: (marker: SceneMarker) => void;
   onEditMarker: (marker: SceneMarker) => void;
   onSaveEditWithTagId: (marker: SceneMarker, tagId?: string) => Promise<void>;
@@ -32,7 +31,6 @@ export function MarkerList({
   availableTags,
   incorrectMarkers,
   videoElementRef,
-  actionMarkers,
   onMarkerClick,
   onEditMarker,
   onSaveEditWithTagId,
@@ -43,14 +41,14 @@ export function MarkerList({
   const markerGroups = useAppSelector(selectMarkerGroups);
   const tagSorting = useAppSelector(selectMarkerGroupTagSorting);
 
-  
+
   // Memoize tagGroups to prevent unnecessary re-sorting
   const tagGroups = useMemo(() => {
-    if (actionMarkers.length === 0) return [];
-    return groupMarkersByTags(actionMarkers, markerGroupParentId, markerGroups, tagSorting);
-  }, [actionMarkers, markerGroupParentId, markerGroups, tagSorting]);
-  
-  if (actionMarkers.length === 0) {
+    if (!markers || markers.length === 0) return [];
+    return groupMarkersByTags(markers, markerGroupParentId, markerGroups, tagSorting);
+  }, [markers, markerGroupParentId, markerGroups, tagSorting]);
+
+  if (!markers || markers.length === 0) {
     return (
       <div className="text-gray-400 text-center py-4">
         No markers
@@ -93,7 +91,6 @@ export function MarkerList({
                 incorrectMarkers={incorrectMarkers}
                 videoElementRef={videoElementRef}
                 markers={markers}
-                actionMarkers={actionMarkers}
                 onMarkerClick={onMarkerClick}
                 onEditMarker={onEditMarker}
                 onSaveEditWithTagId={onSaveEditWithTagId}

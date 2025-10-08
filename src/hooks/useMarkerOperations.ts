@@ -26,8 +26,6 @@ import {
   splitMarker,
   updateMarkerTimes,
   deleteRejectedMarkers,
-  createShotBoundary,
-  updateShotBoundary,
   pauseVideo,
   seekToTime,
   setSelectedMarkerId,
@@ -44,12 +42,11 @@ import {
 type ToastFunction = (message: string, type: "success" | "error") => void;
 
 export const useMarkerOperations = (
-  actionMarkers: SceneMarker[],
   getShotBoundaries: () => ShotBoundary[],
   showToast: ToastFunction
 ) => {
   const dispatch = useAppDispatch();
-  
+
   // Redux selectors
   const markerAiReviewed = useAppSelector(selectMarkerAiReviewed);
   const markers = useAppSelector(selectMarkers);
@@ -61,32 +58,25 @@ export const useMarkerOperations = (
   const correspondingTagConversionModalData = useAppSelector(selectCorrespondingTagConversionModalData);
   const copiedMarkerTimes = useAppSelector(selectCopiedMarkerTimes);
 
-  // Get action markers helper
-  const getActionMarkers = useCallback(() => {
-    return actionMarkers;
-  }, [actionMarkers]);
-
   // Calculate marker summary
   const getMarkerSummary = useCallback(() => {
-    const actionMarkers = getActionMarkers();
-    if (!actionMarkers.length) return { confirmed: 0, rejected: 0, unknown: 0 };
+    if (!markers || markers.length === 0) return { confirmed: 0, rejected: 0, unknown: 0 };
 
-    return calculateMarkerSummary(actionMarkers);
-  }, [getActionMarkers]);
+    return calculateMarkerSummary(markers);
+  }, [markers]);
 
   // Split current marker at playhead position
   const splitCurrentMarker = useCallback(async () => {
-    const actionMarkers = getActionMarkers();
-    if (!actionMarkers || !selectedMarkerId || !scene) {
+    if (!markers || !selectedMarkerId || !scene) {
       console.log("Cannot split marker:", {
-        hasActionMarkers: !!actionMarkers,
+        hasMarkers: !!markers,
         selectedMarkerId: selectedMarkerId,
         hasScene: !!scene,
       });
       return;
     }
 
-    const currentMarker = actionMarkers.find(
+    const currentMarker = markers.find(
       (m) => m.id === selectedMarkerId
     );
     if (!currentMarker) {
@@ -139,7 +129,7 @@ export const useMarkerOperations = (
       dispatch(setError(`Failed to split marker: ${err}`));
     }
   }, [
-    getActionMarkers,
+    markers,
     selectedMarkerId,
     scene,
     currentVideoTime,
@@ -181,19 +171,17 @@ export const useMarkerOperations = (
 
   // Handle delete rejected markers
   const handleDeleteRejectedMarkers = useCallback(async () => {
-    const actionMarkers = getActionMarkers();
-    if (!actionMarkers) return;
+    if (!markers) return;
 
-    const rejected = actionMarkers.filter(isMarkerRejected);
+    const rejected = markers.filter(isMarkerRejected);
     dispatch(openDeleteRejectedModal({ rejectedMarkers: rejected }));
-  }, [getActionMarkers, dispatch]);
+  }, [markers, dispatch]);
 
   // Copy marker times function
   const copyMarkerTimes = useCallback(() => {
-    const actionMarkers = getActionMarkers();
-    if (!actionMarkers || !selectedMarkerId) return;
+    if (!markers || !selectedMarkerId) return;
 
-    const currentMarker = actionMarkers.find(
+    const currentMarker = markers.find(
       (m) => m.id === selectedMarkerId
     );
     if (!currentMarker) return;
@@ -214,7 +202,7 @@ export const useMarkerOperations = (
       `Copied times: ${formatSeconds(copiedTimes.start, true)} - ${endTimeStr}`,
       "success"
     );
-  }, [getActionMarkers, selectedMarkerId, dispatch, showToast]);
+  }, [markers, selectedMarkerId, dispatch, showToast]);
 
   // Paste marker times function
   const pasteMarkerTimes = useCallback(async () => {
@@ -223,12 +211,11 @@ export const useMarkerOperations = (
       return;
     }
 
-    const actionMarkers = getActionMarkers();
-    if (!actionMarkers) {
+    if (!markers) {
       return;
     }
 
-    const currentMarker = actionMarkers.find(
+    const currentMarker = markers.find(
       (m) => m.id === selectedMarkerId
     );
     if (!currentMarker || !scene) {
@@ -262,7 +249,7 @@ export const useMarkerOperations = (
     }
   }, [
     copiedMarkerTimes,
-    getActionMarkers,
+    markers,
     selectedMarkerId,
     showToast,
     dispatch,
@@ -293,19 +280,18 @@ export const useMarkerOperations = (
 
   // Handle corresponding tag conversion
   const handleCorrespondingTagConversion = useCallback(async () => {
-    const actionMarkers = getActionMarkers();
-    if (!actionMarkers) return;
+    if (!markers) return;
 
     try {
-      const markers = await stashappService.convertConfirmedMarkersWithCorrespondingTags(
-        actionMarkers
+      const convertibleMarkers = await stashappService.convertConfirmedMarkersWithCorrespondingTags(
+        markers
       );
-      dispatch(openCorrespondingTagConversionModal({ markers }));
+      dispatch(openCorrespondingTagConversionModal({ markers: convertibleMarkers }));
     } catch (err) {
       console.error("Error preparing corresponding tag conversion:", err);
       dispatch(setError("Failed to prepare markers for conversion"));
     }
-  }, [getActionMarkers, dispatch]);
+  }, [markers, dispatch]);
 
   // Handle confirm corresponding tag conversion
   const handleConfirmCorrespondingTagConversion = useCallback(async () => {
@@ -326,11 +312,10 @@ export const useMarkerOperations = (
 
   // Check if all markers are approved (confirmed or rejected)
   const checkAllMarkersApproved = useCallback(() => {
-    const actionMarkers = getActionMarkers();
-    if (!actionMarkers || actionMarkers.length === 0) return true;
+    if (!markers || markers.length === 0) return true;
 
-    return filterUnprocessedMarkers(actionMarkers).length === 0;
-  }, [getActionMarkers]);
+    return filterUnprocessedMarkers(markers).length === 0;
+  }, [markers]);
 
   // Helper function to identify AI tags that should be removed from the scene
   const identifyAITagsToRemove = useCallback(
@@ -400,8 +385,7 @@ export const useMarkerOperations = (
     shotBoundarySnapshot: ShotBoundary[],
     selectedActions: import("../serverConfig").CompletionDefaults
   ) => {
-    const actionMarkers = getActionMarkers();
-    if (!actionMarkers || actionMarkers.length === 0) return;
+    if (!markers || markers.length === 0) return;
     if (!scene) return;
 
     try {
@@ -414,7 +398,7 @@ export const useMarkerOperations = (
         console.log("=== End Shot Boundary Retention ===");
       }
 
-      // Step 2: Generate markers for action markers (if selected)
+      // Step 2: Generate markers for markers (if selected)
       if (selectedActions.generateMarkers) {
         await stashappService.generateMarkers(scene.id);
       }
@@ -426,7 +410,7 @@ export const useMarkerOperations = (
         }
 
         // Get all confirmed markers and their primary tags
-        const confirmedMarkers = actionMarkers.filter((marker) =>
+        const confirmedMarkers = markers.filter((marker) =>
           isMarkerConfirmed(marker)
         );
 
@@ -473,7 +457,7 @@ export const useMarkerOperations = (
       dispatch(setError("Failed to complete scene processing"));
     }
   }, [
-    getActionMarkers,
+    markers,
     scene,
     identifyAITagsToRemove,
     dispatch,
@@ -482,7 +466,6 @@ export const useMarkerOperations = (
 
   return {
     // Data
-    getActionMarkers,
     getMarkerSummary,
     checkAllMarkersApproved,
 

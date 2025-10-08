@@ -27,7 +27,6 @@ interface MarkerListItemProps {
   incorrectMarkers: IncorrectMarker[];
   videoElementRef: React.RefObject<HTMLVideoElement | null>;
   markers: SceneMarker[] | null;
-  actionMarkers: SceneMarker[];
   onMarkerClick: (marker: SceneMarker) => void;
   onEditMarker: (marker: SceneMarker) => void;
   onSaveEditWithTagId: (marker: SceneMarker, tagId?: string) => Promise<void>;
@@ -44,7 +43,6 @@ export function MarkerListItem({
   incorrectMarkers,
   videoElementRef,
   markers,
-  actionMarkers,
   onMarkerClick,
   onEditMarker,
   onSaveEditWithTagId,
@@ -120,8 +118,8 @@ export function MarkerListItem({
             );
             dispatch(setMarkers(realMarkers));
             // Reset selected marker to first marker
-            if (actionMarkers.length > 0) {
-              dispatch(setSelectedMarkerId(actionMarkers[0].id));
+            if (realMarkers.length > 0) {
+              dispatch(setSelectedMarkerId(realMarkers[0].id));
             } else {
               dispatch(setSelectedMarkerId(null));
             }

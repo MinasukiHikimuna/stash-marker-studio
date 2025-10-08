@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState, useMemo, use } from "react";
+import { useEffect, useRef, useCallback, useState, use } from "react";
 import {
   stashappService,
   type Tag,
@@ -226,10 +226,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     }
   }, [error, showToast, dispatch]);
 
-  // All markers are action markers now (shot boundaries are stored separately)
-  const actionMarkers = useMemo(() => {
-    return markers || [];
-  }, [markers]);
 
 
   // Marker operations functionality
@@ -246,7 +242,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     identifyAITagsToRemove,
     executeCompletion,
   } = useMarkerOperations(
-    actionMarkers,
     getShotBoundaries,
     showToast
   );
@@ -343,12 +338,12 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
 
   // Handle completion button click
   const handleComplete = useCallback(async () => {
-    if (!actionMarkers || actionMarkers.length === 0) return;
+    if (!markers || markers.length === 0) return;
 
     const warnings: string[] = [];
 
     // Check if all markers are approved
-    const unprocessedMarkers = filterUnprocessedMarkers(actionMarkers);
+    const unprocessedMarkers = filterUnprocessedMarkers(markers);
     if (unprocessedMarkers.length > 0) {
       warnings.push(
         `${unprocessedMarkers.length} marker(s) are not yet approved`
@@ -371,7 +366,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     console.log("=== End Shot Boundaries Summary ===");
 
     // Calculate tags to remove and primary tags to add for preview
-    const confirmedMarkers = actionMarkers.filter((marker) =>
+    const confirmedMarkers = markers.filter((marker) =>
       [MarkerStatus.CONFIRMED].includes(
         getMarkerStatus(marker)
       )
@@ -445,7 +440,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       tagsToRemove
     }));
   }, [
-    actionMarkers,
+    markers,
     getShotBoundaries,
     scene,
     identifyAITagsToRemove,
@@ -470,11 +465,11 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   // Wrapper for keyboard shortcuts - opens completion modal
   const executeCompletionFromKeyboard = useCallback(() => {
     // Check if we have action markers to complete
-    if (!actionMarkers || actionMarkers.length === 0) return;
+    if (!markers || markers.length === 0) return;
     
     // Use the existing handleComplete function to open the modal with proper data
     handleComplete();
-  }, [actionMarkers, handleComplete]);
+  }, [markers, handleComplete]);
 
   // Universal marker creation function
   const createOrDuplicateMarker = useCallback(
@@ -507,7 +502,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         selectedTag = sourceMarker.primary_tag;
       } else {
         // For new markers, try to use the previously selected marker's tag
-        const previouslySelectedMarker = actionMarkers.find(m => m.id === selectedMarkerId);
+        const previouslySelectedMarker = markers.find(m => m.id === selectedMarkerId);
         if (previouslySelectedMarker?.primary_tag) {
           selectedTag = previouslySelectedMarker.primary_tag;
         } else {
@@ -551,7 +546,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       scene,
       availableTags,
       markers,
-      actionMarkers,
       selectedMarkerId,
       dispatch,
     ]
@@ -603,7 +597,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
 
   // Copy marker properties for merging
   const copyMarkerForMerge = useCallback(() => {
-    const currentMarker = actionMarkers.find(m => m.id === selectedMarkerId);
+    const currentMarker = markers.find(m => m.id === selectedMarkerId);
     if (!currentMarker) {
       showToast("No marker selected to copy", "error");
       return;
@@ -611,7 +605,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     
     setCopiedMarkerForMerge(currentMarker);
     showToast(`Copied marker "${currentMarker.primary_tag.name}" for merging`, "success");
-  }, [actionMarkers, selectedMarkerId, showToast]);
+  }, [markers, selectedMarkerId, showToast]);
 
   // Merge copied marker properties into current marker
   const mergeMarkerProperties = useCallback(async () => {
@@ -620,7 +614,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       return;
     }
 
-    const targetMarker = actionMarkers.find(m => m.id === selectedMarkerId);
+    const targetMarker = markers.find(m => m.id === selectedMarkerId);
     if (!targetMarker) {
       showToast("No target marker selected", "error");
       return;
@@ -668,7 +662,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       console.error("Error merging markers:", error);
       showToast("Failed to merge markers", "error");
     }
-  }, [copiedMarkerForMerge, actionMarkers, selectedMarkerId, scene, dispatch, showToast]);
+  }, [copiedMarkerForMerge, markers, selectedMarkerId, scene, dispatch, showToast]);
 
   // Create marker from previous shot boundary to next shot boundary
   const createShotBoundaryMarker = useCallback(() => {
@@ -987,7 +981,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     findNextMarkerAtPlayhead,
     findPreviousMarkerAtPlayhead,
   } = useMarkerNavigation({
-    actionMarkers,
+    markers,
     markersWithTracks,
     tagGroups,
     selectedMarkerId,
@@ -996,7 +990,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
 
   // Use dynamic keyboard shortcuts hook
   useDynamicKeyboardShortcuts({
-    actionMarkers,
     markers,
     scene,
     selectedMarkerId,
@@ -1049,12 +1042,12 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   // Effect to ensure selected marker is valid
   useEffect(() => {
     console.log("Marker selection effect triggered", {
-      actionMarkersCount: actionMarkers.length,
+      markersCount: markers.length,
       selectedMarkerId,
       hasSwimLaneData: markersWithTracks.length > 0 && tagGroups.length > 0,
       markersWithTracksCount: markersWithTracks.length,
       tagGroupsCount: tagGroups.length,
-      actionMarkers: actionMarkers.map(m => ({
+      markers: markers.map(m => ({
         id: m.id,
         seconds: m.seconds,
         tag: m.primary_tag.name,
@@ -1065,9 +1058,9 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       }))
     });
 
-    if (actionMarkers.length > 0) {
+    if (markers.length > 0) {
       // Check if currently selected marker still exists
-      const selectedMarker = actionMarkers.find(
+      const selectedMarker = markers.find(
         (m) => m.id === selectedMarkerId
       );
       
@@ -1082,8 +1075,8 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       });
       
       if (!selectedMarker) {
-        // Wait for both actionMarkers and markersWithTracks to be populated
-        if (actionMarkers.length > 0 && markersWithTracks.length > 0 && tagGroups.length > 0) {
+        // Wait for both markers and markersWithTracks to be populated
+        if (markers.length > 0 && markersWithTracks.length > 0 && tagGroups.length > 0) {
           console.log("No selected marker found, searching for first unprocessed with swimlane data...");
           const firstUnprocessedId = findNextUnprocessedGlobal();
           console.log("First unprocessed search result", {
@@ -1099,7 +1092,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
           }
         } else {
           console.log("Waiting for both action markers and swimlane data", {
-            actionMarkersCount: actionMarkers.length,
+            markersCount: markers.length,
             markersWithTracksCount: markersWithTracks.length,
             tagGroupsCount: tagGroups.length
           });
@@ -1110,7 +1103,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       console.log("No action markers, clearing selection");
       dispatch(setSelectedMarkerId(null));
     }
-  }, [actionMarkers, selectedMarkerId, dispatch, findNextUnprocessedGlobal, markersWithTracks.length, tagGroups.length]);
+  }, [markers, selectedMarkerId, dispatch, findNextUnprocessedGlobal, markersWithTracks.length, tagGroups.length]);
 
 
   // Scroll selected marker into view
@@ -1134,7 +1127,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
 
       return () => clearTimeout(timeoutId);
     }
-  }, [selectedMarkerId]); // Also depend on actionMarkers.length to ensure it runs after markers are updated
+  }, [selectedMarkerId]);
 
   // Update video duration and current time
   useEffect(() => {
@@ -1244,7 +1237,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
                   onCreateMarker={handleCreateMarker}
                   onSplitMarker={() => splitCurrentMarker()}
                   onShowShortcuts={() => dispatch(openKeyboardShortcutsModal())}
-                  actionMarkers={actionMarkers}
                   createOrDuplicateMarker={createOrDuplicateMarker}
                 />
                 {/* Scrollable marker list - now with grow to push edit section to bottom */}
@@ -1261,7 +1253,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
                     availableTags={availableTags}
                     incorrectMarkers={incorrectMarkers}
                     videoElementRef={videoElementRef}
-                    actionMarkers={actionMarkers}
                     onMarkerClick={handleMarkerClick}
                     onEditMarker={handleEditMarker}
                     onSaveEditWithTagId={handleSaveEditWithTagId}
@@ -1283,7 +1274,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
               <Timeline
                 ref={timelineRef}
                 markers={markers || []}
-                actionMarkers={actionMarkers}
                 shotBoundaries={shotBoundaries}
                 selectedMarkerId={selectedMarkerId}
                 videoDuration={videoDuration || 0}

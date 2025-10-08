@@ -15,7 +15,6 @@ import { selectStashUrl } from "@/store/slices/configSlice";
 import {
   isMarkerConfirmed,
   isMarkerRejected,
-  getActionMarkers,
 } from "../../../core/marker/markerLogic";
 import { stashappService } from "../../../services/StashappService";
 
@@ -36,14 +35,11 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
   
   // Handle corresponding tag conversion
   const handleCorrespondingTagConversion = async () => {
-    if (!markers) return;
-    
-    const actionMarkers = getActionMarkers(markers);
-    if (!actionMarkers || actionMarkers.length === 0) return;
+    if (!markers || markers.length === 0) return;
 
     try {
       const markersToConvert = await stashappService.convertConfirmedMarkersWithCorrespondingTags(
-        actionMarkers
+        markers
       );
       dispatch(openCorrespondingTagConversionModal({ markers: markersToConvert }));
     } catch (err) {

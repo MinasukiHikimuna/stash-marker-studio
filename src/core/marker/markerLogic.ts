@@ -104,13 +104,6 @@ export const parseTimeColonDot = (str: string): number => {
   return isNaN(num) ? 0 : num;
 };
 
-export const getActionMarkers = (
-  markers: SceneMarker[]
-): SceneMarker[] => {
-  // All markers are action markers now (shot boundaries are stored separately)
-  return markers || [];
-};
-
 export const findNearestMarker = (
   markers: MarkerWithTrack[],
   currentTime: number,
