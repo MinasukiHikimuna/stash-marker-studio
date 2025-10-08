@@ -12,8 +12,8 @@ model ShotBoundary {
 
   stashappSceneId Int      @map("stashapp_scene_id")
 
-  startTime       Decimal  @map("start_time")
-  endTime         Decimal  @map("end_time")
+  startTime       Decimal  @map("start_time") @db.Decimal(8, 3)
+  endTime         Decimal  @map("end_time") @db.Decimal(8, 3)
 
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
