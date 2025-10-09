@@ -852,4 +852,107 @@ describe('generateAssignmentCombinations', () => {
       expect(result[0].description).toBe('Jane Doe, Jane Doe');
     });
   });
+
+  describe('Duplicate slot labels', () => {
+    it('should deduplicate combinations when multiple slots share the same label', () => {
+      // Double Handjob scenario: 1 Giver, 2 Receivers (order of receivers doesn't matter)
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Giver', ['FEMALE']),
+        createSlotDefinition('slot2', 'Receiver', ['MALE']),
+        createSlotDefinition('slot3', 'Receiver', ['MALE']),
+      ];
+      const performers = [
+        createPerformer('p1', 'Jane Doe', 'FEMALE'),
+        createPerformer('p2', 'John Doe', 'MALE'),
+        createPerformer('p3', 'Jack Smith', 'MALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // Should have only 1 combination since the two receivers are interchangeable
+      // (Jane->Giver, {John, Jack}->Receivers in any order is the same combination)
+      expect(result).toHaveLength(1);
+      expect(result[0].assignments).toHaveLength(3);
+
+      // Jane should be the Giver
+      const giverAssignment = result[0].assignments.find(a => a.slotDefinitionId === 'slot1');
+      expect(giverAssignment?.performerId).toBe('p1');
+
+      // John and Jack should be receivers (order doesn't matter)
+      const receiverAssignments = result[0].assignments
+        .filter(a => a.slotDefinitionId === 'slot2' || a.slotDefinitionId === 'slot3')
+        .map(a => a.performerId)
+        .sort();
+      expect(receiverAssignments).toEqual(['p2', 'p3']);
+    });
+
+    it('should handle mix of unique and duplicate slot labels', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Top', ['MALE']),
+        createSlotDefinition('slot2', 'Bottom', ['FEMALE']),
+        createSlotDefinition('slot3', 'Bottom', ['FEMALE']),
+      ];
+      const performers = [
+        createPerformer('p1', 'John', 'MALE'),
+        createPerformer('p2', 'Jane', 'FEMALE'),
+        createPerformer('p3', 'Mary', 'FEMALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // Should have 1 combination: John->Top, {Jane, Mary}->Bottoms
+      expect(result).toHaveLength(1);
+      expect(result[0].assignments).toHaveLength(3);
+    });
+
+    it('should generate multiple combinations when unique labeled slots have multiple options', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Giver', ['FEMALE']),
+        createSlotDefinition('slot2', 'Receiver', ['MALE']),
+        createSlotDefinition('slot3', 'Receiver', ['MALE']),
+      ];
+      const performers = [
+        createPerformer('p1', 'Jane', 'FEMALE'),
+        createPerformer('p2', 'Mary', 'FEMALE'),
+        createPerformer('p3', 'John', 'MALE'),
+        createPerformer('p4', 'Jack', 'MALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // Should have 2 combinations:
+      // 1. Jane->Giver, {John, Jack}->Receivers
+      // 2. Mary->Giver, {John, Jack}->Receivers
+      expect(result).toHaveLength(2);
+
+      const giverIds = result.map(r =>
+        r.assignments.find(a => a.slotDefinitionId === 'slot1')?.performerId
+      ).sort();
+      expect(giverIds).toEqual(['p1', 'p2']);
+
+      // Both should have John and Jack as receivers
+      result.forEach(r => {
+        const receiverIds = r.assignments
+          .filter(a => a.slotDefinitionId === 'slot2' || a.slotDefinitionId === 'slot3')
+          .map(a => a.performerId)
+          .sort();
+        expect(receiverIds).toEqual(['p3', 'p4']);
+      });
+    });
+  });
 });

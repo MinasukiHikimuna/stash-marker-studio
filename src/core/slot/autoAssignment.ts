@@ -115,24 +115,61 @@ export function generateAssignmentCombinations(
   // Check if all slots have no labels
   const allSlotsUnlabeled = slots.every((slot) => !slot.slotLabel);
 
-  // If all slots are unlabeled, deduplicate by performer set
+  // Deduplicate based on slot labels:
+  // - If all slots are unlabeled, deduplicate by performer set
+  // - If there are duplicate slot labels, deduplicate within each label group
   let finalCombinations = combinations;
-  if (allSlotsUnlabeled) {
-    const seen = new Set<string>();
-    finalCombinations = combinations.filter((combo) => {
-      // Create a sorted performer ID string as the key
-      const performerIds = combo.assignments
+
+  // Build a deduplication key based on slot labels and performer groupings
+  const seen = new Set<string>();
+  finalCombinations = combinations.filter((combo) => {
+    let key: string;
+
+    if (allSlotsUnlabeled) {
+      // All unlabeled: deduplicate by sorted performer IDs
+      key = combo.assignments
         .map((a) => a.performerId)
         .sort()
         .join(',');
+    } else {
+      // Group assignments by slot label
+      const labelGroups = new Map<string, string[]>();
 
-      if (seen.has(performerIds)) {
-        return false;
-      }
-      seen.add(performerIds);
-      return true;
-    });
-  }
+      combo.assignments.forEach((assignment) => {
+        const slot = slots.find((s) => s.id === assignment.slotDefinitionId);
+        const label = slot?.slotLabel || '';
+
+        if (!labelGroups.has(label)) {
+          labelGroups.set(label, []);
+        }
+        labelGroups.get(label)!.push(assignment.performerId);
+      });
+
+      // Create a key where performers are sorted within each label group
+      // but label groups maintain their order
+      const keyParts: string[] = [];
+      slots.forEach((slot) => {
+        const label = slot.slotLabel || '';
+        const performers = labelGroups.get(label);
+        if (performers && performers.length > 0) {
+          // Only add once per unique label
+          if (!keyParts.includes(`${label}:[${performers.sort().join(',')}]`)) {
+            keyParts.push(`${label}:[${performers.sort().join(',')}]`);
+          }
+          // Remove the performers we've added to avoid duplicates
+          labelGroups.delete(label);
+        }
+      });
+
+      key = keyParts.join('|');
+    }
+
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 
   // Sort combinations by number of assignments (more complete first)
   finalCombinations.sort((a, b) => b.assignments.length - a.assignments.length);
