@@ -22,7 +22,7 @@ export interface ConfigState extends AppConfig {
     isLoading: boolean;
     error: string | null;
   };
-  correspondingTagMappings: Map<number, number>; // sourceTagId -> correspondingTagId
+  correspondingTagMappings: Record<number, number>; // sourceTagId -> correspondingTagId
 }
 
 const initialState: ConfigState = {
@@ -54,7 +54,7 @@ const initialState: ConfigState = {
     isLoading: false,
     error: null,
   },
-  correspondingTagMappings: new Map(),
+  correspondingTagMappings: {},
 };
 
 // Async thunk to load marker group tags
@@ -135,13 +135,13 @@ export const loadCorrespondingTagMappings = createAsyncThunk(
     }
     const mappings = await response.json() as Array<{ sourceTagId: number; correspondingTagId: number }>;
 
-    // Convert to Map for efficient lookups
-    const mappingMap = new Map<number, number>();
+    // Convert to plain object for Redux serialization
+    const mappingObject: Record<number, number> = {};
     for (const mapping of mappings) {
-      mappingMap.set(mapping.sourceTagId, mapping.correspondingTagId);
+      mappingObject[mapping.sourceTagId] = mapping.correspondingTagId;
     }
 
-    return mappingMap;
+    return mappingObject;
   }
 );
 

@@ -17,13 +17,13 @@ export type MarkerGroupInfo = {
  * Get corresponding tag ID from mappings
  * Returns null if no mapping exists
  */
-function getCorrespondingTagId(tagId: string, mappings?: Map<number, number>): number | null {
+function getCorrespondingTagId(tagId: string, mappings?: Record<number, number>): number | null {
   if (!mappings) {
     return null;
   }
 
   const tagIdNum = parseInt(tagId);
-  return mappings.get(tagIdNum) ?? null;
+  return mappings[tagIdNum] ?? null;
 }
 
 /**
@@ -120,7 +120,7 @@ export function groupMarkersByTags(
   markerGroupParentId: string,
   markerGroups?: Array<{ id: string; name: string; description?: string | null }>,
   tagSorting?: { [markerGroupId: string]: string[] },
-  correspondingTagMappings?: Map<number, number>,
+  correspondingTagMappings?: Record<number, number>,
   allTags?: Array<{ id: string; name: string }>
 ): TagGroup[] {
   console.log("🎯 [GROUPING] Starting groupMarkersByTags with:", {
@@ -130,7 +130,7 @@ export function groupMarkersByTags(
     hasTagSorting: !!tagSorting,
     tagSortingKeys: Object.keys(tagSorting || {}),
     hasMappings: !!correspondingTagMappings,
-    mappingsCount: correspondingTagMappings?.size || 0
+    mappingsCount: Object.keys(correspondingTagMappings || {}).length
   });
 
   // Group all markers by tag name (with corresponding tag support from database)
