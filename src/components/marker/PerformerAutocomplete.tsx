@@ -55,13 +55,9 @@ export function PerformerAutocomplete({
     }
   }, [autoFocus]);
 
-  // Filter performers by gender hints if specified
-  const genderFilteredPerformers = genderHints.length > 0
-    ? availablePerformers.filter((p) => genderHints.includes(p.gender as GenderHint))
-    : availablePerformers;
-
   // Filter and sort performers based on input
-  const filteredPerformers = genderFilteredPerformers
+  // Gender hints are used as soft prioritization, not hard filtering
+  const filteredPerformers = availablePerformers
     .filter((p) => p.name.toLowerCase().includes(inputValue.toLowerCase()))
     .sort((a, b) => {
       const aName = a.name.toLowerCase();
@@ -79,6 +75,14 @@ export function PerformerAutocomplete({
       const bStartsWith = bName.startsWith(searchTerm);
       if (aStartsWith && !bStartsWith) return -1;
       if (!aStartsWith && bStartsWith) return 1;
+
+      // Gender hint match gets third priority (soft hint, not hard filter)
+      if (genderHints.length > 0) {
+        const aMatchesGender = genderHints.includes(a.gender as GenderHint);
+        const bMatchesGender = genderHints.includes(b.gender as GenderHint);
+        if (aMatchesGender && !bMatchesGender) return -1;
+        if (!aMatchesGender && bMatchesGender) return 1;
+      }
 
       return aName.localeCompare(bName);
     });
@@ -264,7 +268,6 @@ export function PerformerAutocomplete({
         >
           <div className="px-3 py-2 text-gray-400 text-xs">
             No performers found
-            {genderHints.length > 0 && ` (filtered by ${genderHints.join('/')})`}
           </div>
         </div>
       )}
