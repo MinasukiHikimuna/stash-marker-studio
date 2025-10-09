@@ -15,7 +15,6 @@ export interface AppConfig {
 }
 
 export interface CompletionDefaults {
-  deleteVideoCutMarkers: boolean;
   generateMarkers: boolean;
   addAiReviewedTag: boolean;
   addPrimaryTags: boolean;

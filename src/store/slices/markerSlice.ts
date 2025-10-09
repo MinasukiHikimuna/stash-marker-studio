@@ -15,7 +15,6 @@ import { loadMarkerGroups } from "./configSlice";
 // Modal state types
 export type CompletionModalData = {
   warnings: string[];
-  videoCutMarkersToDelete: ShotBoundary[];
   hasAiReviewedTag: boolean;
   primaryTagsToAdd: Tag[];
   tagsToRemove: Tag[];

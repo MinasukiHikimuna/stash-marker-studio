@@ -382,28 +382,18 @@ export const useMarkerOperations = (
 
   // Execute the completion process
   const executeCompletion = useCallback(async (
-    shotBoundarySnapshot: ShotBoundary[],
     selectedActions: import("../serverConfig").CompletionDefaults
   ) => {
     if (!markers || markers.length === 0) return;
     if (!scene) return;
 
     try {
-      // Step 1: Handle shot boundaries (no remote deletion required)
-      if (selectedActions.deleteVideoCutMarkers) {
-        console.log("=== Shot Boundary Retention ===");
-        console.log(
-          `Shot boundaries remain in local database (count: ${shotBoundarySnapshot.length})`
-        );
-        console.log("=== End Shot Boundary Retention ===");
-      }
-
-      // Step 2: Generate markers for markers (if selected)
+      // Step 1: Generate markers for markers (if selected)
       if (selectedActions.generateMarkers) {
         await stashappService.generateMarkers(scene.id);
       }
 
-      // Step 3: Update scene tags (if any tag operations are selected)
+      // Step 2: Update scene tags (if any tag operations are selected)
       if (selectedActions.addAiReviewedTag || selectedActions.addPrimaryTags || selectedActions.removeCorrespondingTags) {
         if (!scene) {
           throw new Error("Scene data not found");

@@ -2,13 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { Tag } from "../../services/StashappService";
-import type { ShotBoundary } from "../../core/shotBoundary/types";
 import { CompletionDefaults } from "../../serverConfig";
 
 interface CompletionModalProps {
   isOpen: boolean;
   completionWarnings: string[];
-  videoCutMarkersToDelete: ShotBoundary[];
   hasAiReviewedTag: boolean;
   primaryTagsToAdd: Tag[];
   tagsToRemove: Tag[];
@@ -19,7 +17,6 @@ interface CompletionModalProps {
 export function CompletionModal({
   isOpen,
   completionWarnings,
-  videoCutMarkersToDelete,
   hasAiReviewedTag,
   primaryTagsToAdd,
   tagsToRemove,
@@ -27,7 +24,6 @@ export function CompletionModal({
   onConfirm,
 }: CompletionModalProps) {
   const [selectedActions, setSelectedActions] = useState<CompletionDefaults>({
-    deleteVideoCutMarkers: true,
     generateMarkers: true,
     addAiReviewedTag: true,
     addPrimaryTags: true,
@@ -118,24 +114,6 @@ export function CompletionModal({
         <div className="mb-4">
           <p className="mb-3">Select which actions to perform:</p>
           <div className="space-y-3">
-            <div className="flex items-start space-x-3">
-              <input
-                type="checkbox"
-                id="deleteVideoCutMarkers"
-                checked={selectedActions.deleteVideoCutMarkers}
-                onChange={() => handleActionToggle('deleteVideoCutMarkers')}
-                className="mt-1 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-              />
-              <label htmlFor="deleteVideoCutMarkers" className="text-sm text-gray-300 flex-1">
-                <span className="font-medium">Finalize shot boundaries (local DB only)</span>
-                <span className="text-gray-400">
-                  {" "}
-                  ({videoCutMarkersToDelete.length} boundar
-                  {videoCutMarkersToDelete.length === 1 ? "y" : "ies"}; retained in local database)
-                </span>
-              </label>
-            </div>
-
             <div className="flex items-start space-x-3">
               <input
                 type="checkbox"

@@ -434,7 +434,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     // Open completion modal with all the data
     dispatch(openCompletionModal({
       warnings,
-      videoCutMarkersToDelete: shotBoundariesForSummary,
       hasAiReviewedTag: hasAiReviewedTagAlready,
       primaryTagsToAdd,
       tagsToRemove
@@ -454,12 +453,12 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     // Get current modal data
     const modalData = completionModalData;
     if (!modalData) return;
-    
+
     // Close modal when completion starts
     dispatch(closeModal());
-    
-    // Call the hook's executeCompletion with the modal data and selected actions
-    await executeCompletion(modalData.videoCutMarkersToDelete, selectedActions);
+
+    // Call the hook's executeCompletion with the selected actions
+    await executeCompletion(selectedActions);
   }, [executeCompletion, completionModalData, dispatch]);
 
   // Wrapper for keyboard shortcuts - opens completion modal
@@ -1356,7 +1355,6 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       <CompletionModal
         isOpen={isCompletionModalOpen}
         completionWarnings={completionModalData?.warnings || []}
-        videoCutMarkersToDelete={completionModalData?.videoCutMarkersToDelete || []}
         hasAiReviewedTag={completionModalData?.hasAiReviewedTag || false}
         primaryTagsToAdd={completionModalData?.primaryTagsToAdd || []}
         tagsToRemove={completionModalData?.tagsToRemove || []}
