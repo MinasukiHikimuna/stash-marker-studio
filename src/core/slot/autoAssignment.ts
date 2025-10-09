@@ -1,4 +1,4 @@
-import type { SlotDefinition } from "./types";
+import type { SlotDefinition, GenderHint } from "./types";
 import type { Performer } from "@/services/StashappService";
 
 export interface AssignmentOption {
@@ -18,12 +18,14 @@ export interface AssignmentCombination {
  * @param slotDefinitions - The slot definitions to assign performers to
  * @param scenePerformers - Available performers in the scene
  * @param currentAssignments - Currently assigned performer IDs by slot definition ID
+ * @param allowSamePerformerInMultipleSlots - Whether to allow the same performer to be assigned to multiple slots (default: false)
  * @returns Array of valid assignment combinations
  */
 export function generateAssignmentCombinations(
   slotDefinitions: SlotDefinition[],
   scenePerformers: Performer[],
-  currentAssignments: Map<string, string | null>
+  currentAssignments: Map<string, string | null>,
+  allowSamePerformerInMultipleSlots = false
 ): AssignmentCombination[] {
   // Use all slot definitions (with or without gender hints)
   const slots = slotDefinitions;
@@ -38,7 +40,7 @@ export function generateAssignmentCombinations(
     if (slot.genderHints.length > 0) {
       // If gender hints exist, filter by matching genders
       const matching = scenePerformers.filter(
-        (p) => slot.genderHints.includes(p.gender as any)
+        (p) => slot.genderHints.includes(p.gender as GenderHint)
       );
       slotToPerformers.set(slot.id, matching);
     } else {
@@ -85,9 +87,13 @@ export function generateAssignmentCombinations(
 
     // Try assigning each matching performer
     for (const performer of matchingPerformers) {
-      if (!usedPerformerIds.has(performer.id)) {
+      // If allowSamePerformerInMultipleSlots is true, skip the uniqueness check
+      if (allowSamePerformerInMultipleSlots || !usedPerformerIds.has(performer.id)) {
         const newUsedPerformers = new Set(usedPerformerIds);
-        newUsedPerformers.add(performer.id);
+        // Only track as used if we're enforcing uniqueness
+        if (!allowSamePerformerInMultipleSlots) {
+          newUsedPerformers.add(performer.id);
+        }
 
         generateCombinations(
           slotIndex + 1,

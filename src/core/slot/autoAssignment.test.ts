@@ -150,7 +150,7 @@ describe('generateAssignmentCombinations', () => {
     });
   });
 
-  it('should not assign same performer to multiple slots', () => {
+  it('should not assign same performer to multiple slots by default', () => {
     const slotDefinitions = [
       createSlotDefinition('slot1', 'Person 1', ['MALE']),
       createSlotDefinition('slot2', 'Person 2', ['MALE']),
@@ -619,6 +619,237 @@ describe('generateAssignmentCombinations', () => {
       // p1 can only be in slot1 or slot3 (MALE accepted)
       // p2 can only be in slot2 or slot3 (TRANSGENDER_FEMALE accepted)
       // p3 can only be in slot2 or slot3 (FEMALE accepted)
+    });
+  });
+
+  describe('allowSamePerformerInMultipleSlots', () => {
+    it('should allow same performer in multiple slots when enabled', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Giver', ['FEMALE']),
+        createSlotDefinition('slot2', 'Receiver', ['FEMALE']),
+      ];
+      const performers = [createPerformer('p1', 'Jane Doe', 'FEMALE')];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments,
+        true // allowSamePerformerInMultipleSlots
+      );
+
+      // Should return 1 combination where Jane fills both slots
+      expect(result).toHaveLength(1);
+      expect(result[0].assignments).toEqual([
+        { slotDefinitionId: 'slot1', performerId: 'p1' },
+        { slotDefinitionId: 'slot2', performerId: 'p1' },
+      ]);
+      expect(result[0].description).toBe('Giver: Jane Doe, Receiver: Jane Doe');
+    });
+
+    it('should handle breast squeezing scenario (receiver has gender hint, giver does not)', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Giver', []), // No gender hint - anyone can be giver
+        createSlotDefinition('slot2', 'Receiver', ['FEMALE']), // Must be female
+      ];
+      const performers = [createPerformer('p1', 'Jane Doe', 'FEMALE')];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments,
+        true // allowSamePerformerInMultipleSlots
+      );
+
+      // Jane can squeeze her own breasts
+      expect(result).toHaveLength(1);
+      expect(result[0].assignments).toEqual([
+        { slotDefinitionId: 'slot1', performerId: 'p1' },
+        { slotDefinitionId: 'slot2', performerId: 'p1' },
+      ]);
+      expect(result[0].description).toBe('Giver: Jane Doe, Receiver: Jane Doe');
+    });
+
+    it('should generate multiple combinations with same performer when multiple performers available', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Giver', ['FEMALE']),
+        createSlotDefinition('slot2', 'Receiver', ['FEMALE']),
+      ];
+      const performers = [
+        createPerformer('p1', 'Jane Doe', 'FEMALE'),
+        createPerformer('p2', 'Mary Smith', 'FEMALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments,
+        true // allowSamePerformerInMultipleSlots
+      );
+
+      // Should generate 4 combinations:
+      // 1. Jane-Jane, 2. Jane-Mary, 3. Mary-Jane, 4. Mary-Mary
+      expect(result).toHaveLength(4);
+
+      expect(result).toContainEqual({
+        assignments: [
+          { slotDefinitionId: 'slot1', performerId: 'p1' },
+          { slotDefinitionId: 'slot2', performerId: 'p1' },
+        ],
+        description: 'Giver: Jane Doe, Receiver: Jane Doe',
+      });
+
+      expect(result).toContainEqual({
+        assignments: [
+          { slotDefinitionId: 'slot1', performerId: 'p1' },
+          { slotDefinitionId: 'slot2', performerId: 'p2' },
+        ],
+        description: 'Giver: Jane Doe, Receiver: Mary Smith',
+      });
+
+      expect(result).toContainEqual({
+        assignments: [
+          { slotDefinitionId: 'slot1', performerId: 'p2' },
+          { slotDefinitionId: 'slot2', performerId: 'p1' },
+        ],
+        description: 'Giver: Mary Smith, Receiver: Jane Doe',
+      });
+
+      expect(result).toContainEqual({
+        assignments: [
+          { slotDefinitionId: 'slot1', performerId: 'p2' },
+          { slotDefinitionId: 'slot2', performerId: 'p2' },
+        ],
+        description: 'Giver: Mary Smith, Receiver: Mary Smith',
+      });
+    });
+
+    it('should respect gender hints when allowing same performer', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Giver', ['MALE']),
+        createSlotDefinition('slot2', 'Receiver', ['FEMALE']),
+      ];
+      const performers = [createPerformer('p1', 'Jane Doe', 'FEMALE')];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments,
+        true // allowSamePerformerInMultipleSlots
+      );
+
+      // Should return empty because Jane doesn't match MALE gender hint for slot1
+      expect(result).toEqual([]);
+    });
+
+    it('should work with three slots and same performer allowed', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Person 1', ['FEMALE']),
+        createSlotDefinition('slot2', 'Person 2', ['FEMALE']),
+        createSlotDefinition('slot3', 'Person 3', ['FEMALE']),
+      ];
+      const performers = [createPerformer('p1', 'Jane Doe', 'FEMALE')];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments,
+        true // allowSamePerformerInMultipleSlots
+      );
+
+      // Should return 1 combination where Jane fills all three slots
+      expect(result).toHaveLength(1);
+      expect(result[0].assignments).toEqual([
+        { slotDefinitionId: 'slot1', performerId: 'p1' },
+        { slotDefinitionId: 'slot2', performerId: 'p1' },
+        { slotDefinitionId: 'slot3', performerId: 'p1' },
+      ]);
+    });
+
+    it('should handle mixed gender hints with same performer allowed', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Any Gender', []), // No gender hint
+        createSlotDefinition('slot2', 'Female Only', ['FEMALE']),
+      ];
+      const performers = [
+        createPerformer('p1', 'Jane Doe', 'FEMALE'),
+        createPerformer('p2', 'John Doe', 'MALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments,
+        true // allowSamePerformerInMultipleSlots
+      );
+
+      // Should generate 2 combinations:
+      // 1. Jane-Jane (Jane can fill both)
+      // 2. John-Jane (John fills slot1, Jane fills slot2)
+      expect(result).toHaveLength(2);
+
+      // Jane can be in both slots
+      expect(result).toContainEqual({
+        assignments: [
+          { slotDefinitionId: 'slot1', performerId: 'p1' },
+          { slotDefinitionId: 'slot2', performerId: 'p1' },
+        ],
+        description: 'Any Gender: Jane Doe, Female Only: Jane Doe',
+      });
+
+      // John in slot1, Jane in slot2
+      expect(result).toContainEqual({
+        assignments: [
+          { slotDefinitionId: 'slot1', performerId: 'p2' },
+          { slotDefinitionId: 'slot2', performerId: 'p1' },
+        ],
+        description: 'Any Gender: John Doe, Female Only: Jane Doe',
+      });
+    });
+
+    it('should not deduplicate when slots have labels and same performer is allowed', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Giver', ['FEMALE']),
+        createSlotDefinition('slot2', 'Receiver', ['FEMALE']),
+      ];
+      const performers = [createPerformer('p1', 'Jane Doe', 'FEMALE')];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments,
+        true // allowSamePerformerInMultipleSlots
+      );
+
+      // Should have exactly 1 combination (not deduplicated because slots have labels)
+      expect(result).toHaveLength(1);
+      expect(result[0].description).toBe('Giver: Jane Doe, Receiver: Jane Doe');
+    });
+
+    it('should deduplicate when all slots are unlabeled and same performer allowed', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', null, ['FEMALE']),
+        createSlotDefinition('slot2', null, ['FEMALE']),
+      ];
+      const performers = [createPerformer('p1', 'Jane Doe', 'FEMALE')];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments,
+        true // allowSamePerformerInMultipleSlots
+      );
+
+      // Should have exactly 1 combination (Jane filling both unlabeled slots)
+      expect(result).toHaveLength(1);
+      expect(result[0].description).toBe('Jane Doe, Jane Doe');
     });
   });
 });

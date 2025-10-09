@@ -8,6 +8,7 @@ import {
   generateAssignmentCombinations,
   type AssignmentCombination,
 } from "@/core/slot/autoAssignment";
+import type { GenderHint } from "@/core/slot/types";
 
 interface SlotValue {
   slotDefinitionId: string;
@@ -28,6 +29,7 @@ export function MarkerSlotsDialog({
   onCancel,
 }: MarkerSlotsDialogProps) {
   const [slotDefinitions, setSlotDefinitions] = useState<SlotDefinition[]>([]);
+  const [allowSamePerformerInMultipleSlots, setAllowSamePerformerInMultipleSlots] = useState(false);
   const [slotValues, setSlotValues] = useState<SlotValue[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,22 +51,52 @@ export function MarkerSlotsDialog({
         );
         if (response.ok) {
           const data = await response.json();
-          const sets = data.slotDefinitionSets || [];
+          // API response type (dates are serialized as strings in JSON)
+          type ApiSlotDefinitionSet = {
+            id: string;
+            stashappTagId: number;
+            allowSamePerformerInMultipleSlots: boolean;
+            createdAt: string;
+            updatedAt: string;
+            slotDefinitions: {
+              id: string;
+              slotDefinitionSetId: string;
+              slotLabel: string | null;
+              order: number;
+              createdAt: string;
+              updatedAt: string;
+              genderHints: {
+                id: string;
+                slotDefinitionId: string;
+                genderHint: GenderHint;
+                createdAt: string;
+                updatedAt: string;
+              }[];
+            }[];
+          };
+
+          const sets = data.slotDefinitionSets as ApiSlotDefinitionSet[] || [];
 
           // Get slot definitions from the first set (there should only be one per tag)
           const definitions: SlotDefinition[] = sets.length > 0
-            ? sets[0].slotDefinitions.map((slot: any) => ({
+            ? sets[0].slotDefinitions.map((slot) => ({
                 id: slot.id,
                 slotDefinitionSetId: slot.slotDefinitionSetId,
                 slotLabel: slot.slotLabel,
-                genderHints: slot.genderHints.map((gh: any) => gh.genderHint),
+                genderHints: slot.genderHints.map((gh) => gh.genderHint),
                 order: slot.order,
                 createdAt: slot.createdAt,
                 updatedAt: slot.updatedAt,
               }))
             : [];
 
+          // Store the allowSamePerformerInMultipleSlots flag from the set
+          const allowSamePerformer = sets.length > 0
+            ? sets[0].allowSamePerformerInMultipleSlots
+            : false;
+
           setSlotDefinitions(definitions);
+          setAllowSamePerformerInMultipleSlots(allowSamePerformer);
 
           // Initialize slot values with existing assignments or empty
           const existingSlots = marker.slots || [];
@@ -123,9 +155,10 @@ export function MarkerSlotsDialog({
     return generateAssignmentCombinations(
       slotDefinitions,
       scenePerformers,
-      currentAssignments
+      currentAssignments,
+      allowSamePerformerInMultipleSlots
     );
-  }, [slotValues, slotDefinitions, scenePerformers]);
+  }, [slotValues, slotDefinitions, scenePerformers, allowSamePerformerInMultipleSlots]);
 
   const handleApplyAssignment = (combination: AssignmentCombination) => {
     const newSlotValues = slotValues.map((sv) => {
