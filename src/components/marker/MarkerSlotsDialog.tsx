@@ -232,9 +232,9 @@ export function MarkerSlotsDialog({
                 <div key={definition.id} className="flex items-center gap-3">
                   <label className="text-sm text-gray-300 w-32 flex-shrink-0">
                     {definition.slotLabel}
-                    {definition.genderHint && (
+                    {definition.genderHints.length > 0 && (
                       <span className="text-gray-500 ml-1 text-xs">
-                        ({definition.genderHint})
+                        ({definition.genderHints.join('/')})
                       </span>
                     )}
                   </label>
@@ -244,7 +244,7 @@ export function MarkerSlotsDialog({
                       handleSlotChange(definition.id, performerId)
                     }
                     availablePerformers={scenePerformers}
-                    genderHint={definition.genderHint}
+                    genderHints={definition.genderHints}
                     placeholder="Select performer..."
                     className="flex-1"
                     allowEmpty={true}

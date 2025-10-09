@@ -192,7 +192,7 @@ export function MarkerListItem({
                       <span
                         key={slot.id}
                         className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-900/50 text-blue-200 rounded text-xs"
-                        title={`${slot.slotLabel || `Slot ${index + 1}`}${slot.genderHint ? ` (${slot.genderHint})` : ''}`}
+                        title={`${slot.slotLabel || `Slot ${index + 1}`}${slot.genderHints.length > 0 ? ` (${slot.genderHints.join('/')})` : ''}`}
                       >
                         {slot.slotLabel && <span className="text-blue-400">{slot.slotLabel}:</span>}
                         <span>{slot.performer?.name || '—'}</span>

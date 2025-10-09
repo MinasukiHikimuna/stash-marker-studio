@@ -109,9 +109,9 @@ export function MarkerSlotsEditor({
           <div key={definition.id} className="flex items-center gap-2">
             <label className="text-xs text-gray-300 w-24 flex-shrink-0">
               {definition.slotLabel || `Slot ${slotDefinitions.indexOf(definition) + 1}`}
-              {definition.genderHint && (
+              {definition.genderHints.length > 0 && (
                 <span className="text-gray-500 ml-1">
-                  ({definition.genderHint})
+                  ({definition.genderHints.join('/')})
                 </span>
               )}
             </label>
@@ -121,7 +121,7 @@ export function MarkerSlotsEditor({
                 handleSlotChange(definition.id, performerId)
               }
               availablePerformers={availablePerformers}
-              genderHint={definition.genderHint}
+              genderHints={definition.genderHints}
               placeholder="Select performer..."
               className="flex-1"
               allowEmpty={true}

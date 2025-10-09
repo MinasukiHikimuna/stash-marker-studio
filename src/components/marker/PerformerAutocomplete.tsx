@@ -8,7 +8,7 @@ interface PerformerAutocompleteProps {
   value: string | null; // performer ID or null for empty
   onChange: (performerId: string | null) => void;
   availablePerformers: Performer[];
-  genderHint?: GenderHint | null;
+  genderHints?: GenderHint[];
   placeholder?: string;
   className?: string;
   autoFocus?: boolean;
@@ -19,7 +19,7 @@ export function PerformerAutocomplete({
   value,
   onChange,
   availablePerformers,
-  genderHint = null,
+  genderHints = [],
   placeholder = "Type to search performers...",
   className = "",
   autoFocus = false,
@@ -55,9 +55,9 @@ export function PerformerAutocomplete({
     }
   }, [autoFocus]);
 
-  // Filter performers by gender hint if specified
-  const genderFilteredPerformers = genderHint
-    ? availablePerformers.filter((p) => p.gender === genderHint)
+  // Filter performers by gender hints if specified
+  const genderFilteredPerformers = genderHints.length > 0
+    ? availablePerformers.filter((p) => genderHints.includes(p.gender as GenderHint))
     : availablePerformers;
 
   // Filter and sort performers based on input
@@ -264,7 +264,7 @@ export function PerformerAutocomplete({
         >
           <div className="px-3 py-2 text-gray-400 text-xs">
             No performers found
-            {genderHint && ` (filtered by ${genderHint})`}
+            {genderHints.length > 0 && ` (filtered by ${genderHints.join('/')})`}
           </div>
         </div>
       )}
