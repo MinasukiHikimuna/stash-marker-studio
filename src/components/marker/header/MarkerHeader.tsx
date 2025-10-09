@@ -11,7 +11,7 @@ import {
   openCorrespondingTagConversionModal,
   setError,
 } from "@/store/slices/markerSlice";
-import { selectStashUrl } from "@/store/slices/configSlice";
+import { selectStashUrl, selectCorrespondingTagMappings } from "@/store/slices/configSlice";
 import {
   isMarkerConfirmed,
   isMarkerRejected,
@@ -25,8 +25,9 @@ interface MarkerHeaderProps {
 export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
   const dispatch = useAppDispatch();
   const stashUrl = useAppSelector(selectStashUrl);
+  const correspondingTagMappings = useAppSelector(selectCorrespondingTagMappings);
   const router = useRouter();
-  
+
   // Redux selectors
   const markers = useAppSelector(selectMarkers);
   const scene = useAppSelector(selectScene);
@@ -50,23 +51,13 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
   
   // Calculate counts for button display
   const rejectedMarkersCount = markers?.filter(isMarkerRejected).length || 0;
-  
-  // Count confirmed markers that have corresponding tag metadata (simplified check)
+
+  // Count confirmed markers that have corresponding tag mappings in database
   const correspondingTagsCount = markers?.filter(marker => {
     const isConfirmed = isMarkerConfirmed(marker);
-    // Check if primary tag description contains "Corresponding Tag:" (case insensitive)
-    const description = marker.primary_tag.description || '';
-    const hasCorrespondingTag = description.toLowerCase().includes('corresponding tag:');
-    
-    // Debug logging
-    if (isConfirmed && hasCorrespondingTag) {
-      console.log('Found corresponding tag marker:', {
-        tag: marker.primary_tag.name,
-        description: description,
-        isConfirmed
-      });
-    }
-    
+    // Check if this tag has a corresponding tag mapping in the database
+    const hasCorrespondingTag = correspondingTagMappings.has(parseInt(marker.primary_tag.id));
+
     return isConfirmed && hasCorrespondingTag;
   }).length || 0;
 

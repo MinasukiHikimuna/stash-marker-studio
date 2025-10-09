@@ -979,19 +979,24 @@ export class StashappService {
       { id: string; name: string; correspondingTag: Tag | null }
     >();
 
-    for (const tag of allTags.findTags.tags) {
-      if (tag.description?.includes("Corresponding Tag: ")) {
-        const correspondingTagName = tag.description
-          .split("Corresponding Tag: ")[1]
-          .trim();
+    // Fetch corresponding tag mappings from database
+    const response = await fetch('/api/corresponding-tag-mappings');
+    if (!response.ok) {
+      console.error('Failed to fetch corresponding tag mappings');
+      return lookupTable;
+    }
 
-        const correspondingTag = allTags.findTags.tags.find(
-          (t) => t.name === correspondingTagName
-        );
+    const mappings = await response.json() as Array<{ sourceTagId: number; correspondingTagId: number }>;
 
-        lookupTable.set(tag.id, {
-          id: tag.id,
-          name: tag.name,
+    // Build lookup table from database mappings
+    for (const mapping of mappings) {
+      const sourceTag = allTags.findTags.tags.find(t => parseInt(t.id) === mapping.sourceTagId);
+      const correspondingTag = allTags.findTags.tags.find(t => parseInt(t.id) === mapping.correspondingTagId);
+
+      if (sourceTag) {
+        lookupTable.set(sourceTag.id, {
+          id: sourceTag.id,
+          name: sourceTag.name,
           correspondingTag: correspondingTag || null,
         });
       }

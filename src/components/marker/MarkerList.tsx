@@ -5,8 +5,9 @@ import { SceneMarker, type Tag } from "../../services/StashappService";
 import { MarkerListItem } from "./MarkerListItem";
 import { IncorrectMarker } from "../../utils/incorrectMarkerStorage";
 import { useAppSelector } from "../../store/hooks";
-import { selectMarkerGroupParentId, selectMarkerGroups, selectMarkerGroupTagSorting } from "../../store/slices/configSlice";
+import { selectMarkerGroupParentId, selectMarkerGroups, selectMarkerGroupTagSorting, selectCorrespondingTagMappings } from "../../store/slices/configSlice";
 import { groupMarkersByTags, getMarkerGroupName } from "../../core/marker/markerGrouping";
+import { selectAllTags } from "../../store/slices/searchSlice";
 
 interface MarkerListProps {
   markers: SceneMarker[] | null;
@@ -40,13 +41,14 @@ export function MarkerList({
   const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
   const markerGroups = useAppSelector(selectMarkerGroups);
   const tagSorting = useAppSelector(selectMarkerGroupTagSorting);
-
+  const correspondingTagMappings = useAppSelector(selectCorrespondingTagMappings);
+  const allTags = useAppSelector(selectAllTags);
 
   // Memoize tagGroups to prevent unnecessary re-sorting
   const tagGroups = useMemo(() => {
     if (!markers || markers.length === 0) return [];
-    return groupMarkersByTags(markers, markerGroupParentId, markerGroups, tagSorting);
-  }, [markers, markerGroupParentId, markerGroups, tagSorting]);
+    return groupMarkersByTags(markers, markerGroupParentId, markerGroups, tagSorting, correspondingTagMappings, allTags);
+  }, [markers, markerGroupParentId, markerGroups, tagSorting, correspondingTagMappings, allTags]);
 
   if (!markers || markers.length === 0) {
     return (

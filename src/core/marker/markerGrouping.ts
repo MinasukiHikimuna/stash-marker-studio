@@ -2,7 +2,7 @@
  * Shared marker grouping algorithms for consistent sorting between display and navigation
  */
 
-import { SceneMarker, Tag } from "../../services/StashappService";
+import { SceneMarker } from "../../services/StashappService";
 import { TagGroup, MarkerWithTrack } from "./types";
 import { getMarkerStatus } from "./markerLogic";
 import { MarkerStatus } from "./types";
@@ -14,18 +14,16 @@ export type MarkerGroupInfo = {
 } | null;
 
 /**
- * Extract corresponding tag name from tag description
+ * Get corresponding tag ID from mappings
+ * Returns null if no mapping exists
  */
-function getCorrespondingTagName(tag: Tag): string | null {
-  if (!tag.description?.includes("Corresponding Tag: ")) {
+function getCorrespondingTagId(tagId: string, mappings?: Map<number, number>): number | null {
+  if (!mappings) {
     return null;
   }
-  
-  const correspondingTagName = tag.description
-    .split("Corresponding Tag: ")[1]
-    .trim();
-    
-  return correspondingTagName || null;
+
+  const tagIdNum = parseInt(tagId);
+  return mappings.get(tagIdNum) ?? null;
 }
 
 /**
@@ -118,26 +116,38 @@ export function getMarkerGroupName(marker: SceneMarker, markerGroupParentId: str
  * This is the shared algorithm used by both Timeline display and keyboard navigation
  */
 export function groupMarkersByTags(
-  markers: SceneMarker[], 
-  markerGroupParentId: string, 
+  markers: SceneMarker[],
+  markerGroupParentId: string,
   markerGroups?: Array<{ id: string; name: string; description?: string | null }>,
-  tagSorting?: { [markerGroupId: string]: string[] }
+  tagSorting?: { [markerGroupId: string]: string[] },
+  correspondingTagMappings?: Map<number, number>,
+  allTags?: Array<{ id: string; name: string }>
 ): TagGroup[] {
   console.log("🎯 [GROUPING] Starting groupMarkersByTags with:", {
     markersCount: markers.length,
     markerGroupParentId,
     markerGroupsCount: markerGroups?.length || 0,
     hasTagSorting: !!tagSorting,
-    tagSortingKeys: Object.keys(tagSorting || {})
+    tagSortingKeys: Object.keys(tagSorting || {}),
+    hasMappings: !!correspondingTagMappings,
+    mappingsCount: correspondingTagMappings?.size || 0
   });
 
-  // Group all markers by tag name (with corresponding tag support)
+  // Group all markers by tag name (with corresponding tag support from database)
   const tagGroupMap = new Map<string, SceneMarker[]>();
 
   for (const marker of markers) {
-    // Check if this tag has a corresponding tag defined
-    const correspondingTag = getCorrespondingTagName(marker.primary_tag);
-    const groupName = correspondingTag || marker.primary_tag.name;
+    // Check if this tag has a corresponding tag defined in database
+    const correspondingTagId = getCorrespondingTagId(marker.primary_tag.id, correspondingTagMappings);
+
+    let groupName: string;
+    if (correspondingTagId && allTags) {
+      // Find the corresponding tag name from allTags
+      const correspondingTag = allTags.find(t => parseInt(t.id) === correspondingTagId);
+      groupName = correspondingTag?.name || marker.primary_tag.name;
+    } else {
+      groupName = marker.primary_tag.name;
+    }
 
     if (!tagGroupMap.has(groupName)) {
       tagGroupMap.set(groupName, []);

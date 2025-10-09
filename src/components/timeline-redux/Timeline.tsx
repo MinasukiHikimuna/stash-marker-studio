@@ -36,6 +36,7 @@ import {
   selectMarkerGroupParentId,
   selectMarkerGroups,
   selectMarkerGroupTagSorting,
+  selectCorrespondingTagMappings,
 } from "../../store/slices/configSlice";
 import { loadAvailableTags, loadMarkers, seekToTime, selectSceneId } from "../../store/slices/markerSlice";
 import { selectAllTags, loadAllTags } from "../../store/slices/searchSlice";
@@ -92,6 +93,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
     const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
     const markerGroups = useAppSelector(selectMarkerGroups);
     const tagSorting = useAppSelector(selectMarkerGroupTagSorting);
+    const correspondingTagMappings = useAppSelector(selectCorrespondingTagMappings);
     const allTags = useAppSelector(selectAllTags);
     const sceneId = useAppSelector(selectSceneId);
 
@@ -142,9 +144,11 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
         markers,
         markerGroupParentId,
         markerGroups,
-        tagSorting
+        tagSorting,
+        correspondingTagMappings,
+        allTags
       );
-    }, [markers, markerGroupParentId, markerGroups, tagSorting]);
+    }, [markers, markerGroupParentId, markerGroups, tagSorting, correspondingTagMappings, allTags]);
 
     // Create markers with track data for keyboard navigation
     const markersWithTracks = useMemo(() => {

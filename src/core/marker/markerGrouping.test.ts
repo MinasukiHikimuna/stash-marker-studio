@@ -30,7 +30,6 @@ import {
 import {
   createTestMarker,
   createMarkerWithTag,
-  createMarkerWithCorrespondingTag,
   createMarkerWithMarkerGroup,
   createOverlappingMarkers,
   createConfirmedMarker,
@@ -197,13 +196,22 @@ describe("groupMarkersByTags", () => {
     expect(result[0].markers[2].seconds).toBe(10);
   });
 
-  it("should group by corresponding tag when specified", () => {
-    const markers = [
-      createMarkerWithCorrespondingTag("Blowjob_AI", "Blowjob", 0),
-      createMarkerWithTag("Blowjob", 5),
+  it("should group by corresponding tag when mapping exists in database", () => {
+    const blowjobAIMarker = createMarkerWithTag("Blowjob_AI", 0);
+    const blowjobMarker = createMarkerWithTag("Blowjob", 5);
+    const markers = [blowjobAIMarker, blowjobMarker];
+
+    // Create corresponding tag mapping (sourceTagId -> correspondingTagId)
+    const mappings = new Map<number, number>();
+    mappings.set(parseInt(blowjobAIMarker.primary_tag.id.replace('tag-', '')), parseInt(blowjobMarker.primary_tag.id.replace('tag-', '')));
+
+    // Provide all tags for lookup
+    const allTags = [
+      { id: blowjobAIMarker.primary_tag.id, name: "Blowjob_AI" },
+      { id: blowjobMarker.primary_tag.id, name: "Blowjob" },
     ];
 
-    const result = groupMarkersByTags(markers, MARKER_GROUP_PARENT_ID);
+    const result = groupMarkersByTags(markers, MARKER_GROUP_PARENT_ID, undefined, undefined, mappings, allTags);
 
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("Blowjob");

@@ -6,7 +6,7 @@ import type { AppConfig } from "@/serverConfig";
 import { stashappService } from "@/services/StashappService";
 import { keyboardShortcutService } from "@/services/KeyboardShortcutService";
 import { useAppDispatch } from "@/store/hooks";
-import { setFullConfig } from "@/store/slices/configSlice";
+import { setFullConfig, loadCorrespondingTagMappings } from "@/store/slices/configSlice";
 
 interface ConfigContextValue {
   config: AppConfig | null;
@@ -83,9 +83,12 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
       
       setConfig(json);
       setIsConfigured(true);
-      
-      // Dispatch config directly to Redux store 
+
+      // Dispatch config directly to Redux store
       dispatch(setFullConfig(json));
+
+      // Load corresponding tag mappings from database
+      dispatch(loadCorrespondingTagMappings());
     } catch (err) {
       console.error("Failed to load configuration", err);
       setIsConfigured(false);

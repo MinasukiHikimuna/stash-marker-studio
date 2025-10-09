@@ -22,6 +22,7 @@ export interface ConfigState extends AppConfig {
     isLoading: boolean;
     error: string | null;
   };
+  correspondingTagMappings: Map<number, number>; // sourceTagId -> correspondingTagId
 }
 
 const initialState: ConfigState = {
@@ -53,6 +54,7 @@ const initialState: ConfigState = {
     isLoading: false,
     error: null,
   },
+  correspondingTagMappings: new Map(),
 };
 
 // Async thunk to load marker group tags
@@ -101,14 +103,14 @@ export const loadChildTags = createAsyncThunk(
   async (markerGroupId: string, { getState }) => {
     const state = getState() as { config: ConfigState; marker: { availableTags: Array<{ id: string; name: string; description?: string | null; parents?: Array<{ id: string }> }> } };
     const availableTags = state.marker.availableTags;
-    
+
     if (!availableTags.length) {
       return { markerGroupId, childTags: [] };
     }
 
     // Filter child tags that have this marker group as parent
     const childTags = availableTags
-      .filter(tag => 
+      .filter(tag =>
         tag.parents?.some(parent => parent.id === markerGroupId) &&
         !tag.name.startsWith("Marker Group: ") // Exclude other marker groups
       )
@@ -123,13 +125,34 @@ export const loadChildTags = createAsyncThunk(
   }
 );
 
+// Async thunk to load corresponding tag mappings from database
+export const loadCorrespondingTagMappings = createAsyncThunk(
+  'config/loadCorrespondingTagMappings',
+  async () => {
+    const response = await fetch('/api/corresponding-tag-mappings');
+    if (!response.ok) {
+      throw new Error('Failed to load corresponding tag mappings');
+    }
+    const mappings = await response.json() as Array<{ sourceTagId: number; correspondingTagId: number }>;
+
+    // Convert to Map for efficient lookups
+    const mappingMap = new Map<number, number>();
+    for (const mapping of mappings) {
+      mappingMap.set(mapping.sourceTagId, mapping.correspondingTagId);
+    }
+
+    return mappingMap;
+  }
+);
+
 const configSlice = createSlice({
   name: 'config',
   initialState,
   reducers: {
     setFullConfig: (state, action: PayloadAction<AppConfig>) => {
       const markerGroups = state.markerGroups; // Preserve marker groups state
-      return { ...action.payload, isLoaded: true, markerGroups };
+      const correspondingTagMappings = state.correspondingTagMappings; // Preserve mappings state
+      return { ...action.payload, isLoaded: true, markerGroups, correspondingTagMappings };
     },
     setMarkerGroupingConfig: (state, action: PayloadAction<{ markerGroupParent: string }>) => {
       state.markerGroupingConfig = action.payload;
@@ -168,6 +191,9 @@ const configSlice = createSlice({
         if (markerGroup) {
           markerGroup.childTags = childTags;
         }
+      })
+      .addCase(loadCorrespondingTagMappings.fulfilled, (state, action) => {
+        state.correspondingTagMappings = action.payload;
       });
   },
 });
@@ -194,5 +220,6 @@ export const selectMarkerStatusRejected = (state: { config: ConfigState }) => st
 export const selectMarkerSourceManual = (state: { config: ConfigState }) => state.config.markerConfig.sourceManual;
 export const selectMarkerAiReviewed = (state: { config: ConfigState }) => state.config.markerConfig.aiReviewed;
 export const selectMarkerGroupTagSorting = (state: { config: ConfigState }) => state.config.markerGroupTagSorting || {};
+export const selectCorrespondingTagMappings = (state: { config: ConfigState }) => state.config.correspondingTagMappings;
 
 export default configSlice.reducer;
