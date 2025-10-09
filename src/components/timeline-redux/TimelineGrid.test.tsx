@@ -73,6 +73,7 @@ function createMockTagGroup(
 ): TagGroup {
   return {
     name,
+    groupKey: name, // For tests, groupKey equals name
     markers,
     tags: tags.length > 0 ? tags : [createTestTag({ id: `tag-${name}`, name })],
     isRejected: false,

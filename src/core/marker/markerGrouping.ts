@@ -112,6 +112,61 @@ export function getMarkerGroupName(marker: SceneMarker, markerGroupParentId: str
 }
 
 /**
+ * Extract performer combination from marker slots
+ * Returns ordered array of performer IDs and names preserving slot order
+ *
+ * Slot order matters! For actions like "Blowjob", the first slot might be
+ * the performer doing the action, and the second slot the receiver.
+ * "Jessica blows Danny" is different from "Danny blows Jessica".
+ */
+function getPerformerCombination(marker: SceneMarker): {
+  performerIds: string[];
+  performerNames: string[];
+} {
+  if (!marker.slots || marker.slots.length === 0) {
+    return { performerIds: [], performerNames: [] };
+  }
+
+  // Sort slots by order to preserve positional meaning
+  const sortedSlots = [...marker.slots]
+    .filter(slot => slot.performer)
+    .sort((a, b) => a.order - b.order);
+
+  // Extract performers in slot order (order matters!)
+  const performerIds = sortedSlots.map(slot => slot.performer!.id);
+  const performerNames = sortedSlots.map(slot => slot.performer!.name);
+
+  return {
+    performerIds,
+    performerNames
+  };
+}
+
+/**
+ * Create grouping key from tag name and performer IDs
+ */
+function createGroupingKey(tagName: string, performerIds: string[]): string {
+  if (performerIds.length === 0) {
+    return tagName;
+  }
+  return `${tagName}|${performerIds.join(',')}`;
+}
+
+/**
+ * Create display name from tag name and performer names
+ * Uses " → " separator to indicate ordered slots (e.g., "Blowjob [Jessica → Danny]")
+ * Order matters: first performer performs action on second performer
+ */
+function createDisplayName(tagName: string, performerNames: string[]): string {
+  if (performerNames.length === 0) {
+    return tagName;
+  }
+  // Use arrow to indicate direction/order when multiple performers
+  const separator = performerNames.length > 1 ? ' → ' : '';
+  return `${tagName} [${performerNames.join(separator)}]`;
+}
+
+/**
  * Group markers by tags with proper marker group ordering and corresponding tag support
  * This is the shared algorithm used by both Timeline display and keyboard navigation
  */
@@ -133,42 +188,58 @@ export function groupMarkersByTags(
     mappingsCount: Object.keys(correspondingTagMappings || {}).length
   });
 
-  // Group all markers by tag name (with corresponding tag support from database)
-  const tagGroupMap = new Map<string, SceneMarker[]>();
+  // Group all markers by tag name + performer combination (with corresponding tag support from database)
+  const tagGroupMap = new Map<string, {
+    markers: SceneMarker[];
+    tagName: string;
+    performerIds: string[];
+    performerNames: string[];
+  }>();
 
   for (const marker of markers) {
     // Check if this tag has a corresponding tag defined in database
     const correspondingTagId = getCorrespondingTagId(marker.primary_tag.id, correspondingTagMappings);
 
-    let groupName: string;
+    let tagName: string;
     if (correspondingTagId && allTags) {
       // Find the corresponding tag name from allTags
       const correspondingTag = allTags.find(t => parseInt(t.id) === correspondingTagId);
-      groupName = correspondingTag?.name || marker.primary_tag.name;
+      tagName = correspondingTag?.name || marker.primary_tag.name;
     } else {
-      groupName = marker.primary_tag.name;
+      tagName = marker.primary_tag.name;
     }
 
-    if (!tagGroupMap.has(groupName)) {
-      tagGroupMap.set(groupName, []);
+    // Get performer combination for this marker
+    const { performerIds, performerNames } = getPerformerCombination(marker);
+
+    // Create grouping key
+    const groupKey = createGroupingKey(tagName, performerIds);
+
+    if (!tagGroupMap.has(groupKey)) {
+      tagGroupMap.set(groupKey, {
+        markers: [],
+        tagName,
+        performerIds,
+        performerNames
+      });
     }
-    tagGroupMap.get(groupName)!.push(marker);
+    tagGroupMap.get(groupKey)!.markers.push(marker);
   }
 
   // Convert to array of tag groups with consistent sorting
   const tagGroups: TagGroup[] = Array.from(tagGroupMap.entries())
-    .map(([name, markers]) => {
+    .map(([groupKey, groupData]) => {
       // A group is considered rejected only if ALL markers in it are rejected
-      const isRejected = markers.every(
+      const isRejected = groupData.markers.every(
         (marker) => getMarkerStatus(marker) === MarkerStatus.REJECTED
       );
 
       // Get unique tags from markers
       const uniqueTags = Array.from(
-        new Set(markers.map((m) => m.primary_tag.id))
+        new Set(groupData.markers.map((m) => m.primary_tag.id))
       )
         .map((tagId) => {
-          const marker = markers.find((m) => m.primary_tag.id === tagId);
+          const marker = groupData.markers.find((m) => m.primary_tag.id === tagId);
           if (!marker) return null;
           return {
             id: marker.primary_tag.id,
@@ -179,11 +250,17 @@ export function groupMarkersByTags(
         })
         .filter((tag): tag is NonNullable<typeof tag> => tag !== null);
 
+      // Create display name
+      const displayName = createDisplayName(groupData.tagName, groupData.performerNames);
+
       return {
-        name,
-        markers: markers.sort((a, b) => a.seconds - b.seconds),
+        name: displayName,
+        groupKey: groupKey,
+        markers: groupData.markers.sort((a, b) => a.seconds - b.seconds),
         tags: uniqueTags,
         isRejected,
+        performerIds: groupData.performerIds.length > 0 ? groupData.performerIds : undefined,
+        performerNames: groupData.performerNames.length > 0 ? groupData.performerNames : undefined,
       };
     })
     .sort((a, b) => {
@@ -194,12 +271,12 @@ export function groupMarkersByTags(
       // If both have marker groups, sort by the full name using natural sorting
       if (aMarkerGroup && bMarkerGroup) {
         if (aMarkerGroup.fullName !== bMarkerGroup.fullName) {
-          return aMarkerGroup.fullName.localeCompare(bMarkerGroup.fullName, undefined, { 
-            numeric: true, 
-            sensitivity: 'base' 
+          return aMarkerGroup.fullName.localeCompare(bMarkerGroup.fullName, undefined, {
+            numeric: true,
+            sensitivity: 'base'
           });
         }
-        
+
         // Within the same marker group, use sort order from app config if available
         console.log("🔍 [SORT] Within same marker group:", {
           aGroup: aMarkerGroup.fullName,
@@ -209,7 +286,7 @@ export function groupMarkersByTags(
           hasMarkerGroups: !!markerGroups,
           hasTagSorting: !!tagSorting
         });
-        
+
         if (markerGroups && tagSorting) {
           const markerGroupTag = markerGroups.find(mg => mg.name === aMarkerGroup.fullName);
           console.log("🏷️ [SORT] Marker group lookup:", {
@@ -217,7 +294,7 @@ export function groupMarkersByTags(
             found: !!markerGroupTag,
             markerGroupId: markerGroupTag?.id
           });
-          
+
           if (markerGroupTag) {
             const sortOrder = tagSorting[markerGroupTag.id] || [];
             console.log("📋 [SORT] Sort order from config:", {
@@ -225,13 +302,13 @@ export function groupMarkersByTags(
               sortOrder,
               sortOrderLength: sortOrder.length
             });
-            
+
             if (sortOrder.length > 0) {
               const aTagId = a.tags[0]?.id;
               const bTagId = b.tags[0]?.id;
               const aIndex = aTagId ? sortOrder.indexOf(aTagId) : -1;
               const bIndex = bTagId ? sortOrder.indexOf(bTagId) : -1;
-              
+
               console.log("📍 [SORT] Tag position lookup:", {
                 aTagId,
                 bTagId,
@@ -240,10 +317,16 @@ export function groupMarkersByTags(
                 aTagName: a.name,
                 bTagName: b.name
               });
-              
+
               // If both tags are in sort order, use that order
               if (aIndex !== -1 && bIndex !== -1) {
                 console.log("✅ [SORT] Both in sort order, returning:", aIndex - bIndex);
+                // If same tag order, sort by performer combination (preserving order)
+                if (aIndex === bIndex) {
+                  const aPerformers = (a.performerIds || []).join(',');
+                  const bPerformers = (b.performerIds || []).join(',');
+                  return aPerformers.localeCompare(bPerformers);
+                }
                 return aIndex - bIndex;
               }
               // If only one is in sort order, put it first
@@ -258,17 +341,31 @@ export function groupMarkersByTags(
             }
           }
         }
-        
+
         // Fallback to alphabetical sorting within same marker group
+        // First by tag name (extracted from groupKey), then by performer combination
         console.log("🔤 [SORT] Falling back to alphabetical sort:", {
           aName: a.name,
           bName: b.name,
           result: a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
         });
-        return a.name.localeCompare(b.name, undefined, { 
-          numeric: true, 
-          sensitivity: 'base' 
+
+        // Extract base tag names for comparison (before " [" if performers exist)
+        const aBaseTag = a.groupKey.split('|')[0];
+        const bBaseTag = b.groupKey.split('|')[0];
+        const tagCompare = aBaseTag.localeCompare(bBaseTag, undefined, {
+          numeric: true,
+          sensitivity: 'base'
         });
+
+        if (tagCompare !== 0) {
+          return tagCompare;
+        }
+
+        // Same tag, sort by performer combination (preserving order)
+        const aPerformers = (a.performerIds || []).join(',');
+        const bPerformers = (b.performerIds || []).join(',');
+        return aPerformers.localeCompare(bPerformers);
       }
 
       // If only one has a marker group, put the one with marker group first
@@ -279,11 +376,22 @@ export function groupMarkersByTags(
         return 1;
       }
 
-      // If neither has a marker group, sort alphabetically by tag name
-      return a.name.localeCompare(b.name, undefined, { 
-        numeric: true, 
-        sensitivity: 'base' 
+      // If neither has a marker group, sort by base tag name then performer combination
+      const aBaseTag = a.groupKey.split('|')[0];
+      const bBaseTag = b.groupKey.split('|')[0];
+      const tagCompare = aBaseTag.localeCompare(bBaseTag, undefined, {
+        numeric: true,
+        sensitivity: 'base'
       });
+
+      if (tagCompare !== 0) {
+        return tagCompare;
+      }
+
+      // Same tag, sort by performer combination (preserving order)
+      const aPerformers = (a.performerIds || []).join(',');
+      const bPerformers = (b.performerIds || []).join(',');
+      return aPerformers.localeCompare(bPerformers);
     });
 
   return tagGroups;

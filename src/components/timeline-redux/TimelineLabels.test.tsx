@@ -45,6 +45,7 @@ function createMockTagGroup(
 ): TagGroup {
   return {
     name,
+    groupKey: name, // For tests, groupKey equals name
     markers,
     tags: [createTestTag({ id: `tag-${name}`, name })],
     isRejected,
@@ -485,7 +486,7 @@ describe("TimelineLabels", () => {
       );
 
       // Find button by title attribute since it doesn't have an accessible name
-      const button = screen.getByTitle("Reassign to different marker group and set corresponding tag");
+      const button = screen.getByTitle("Reassign marker group, set corresponding tag, and edit slot definitions");
       expect(button).toBeInTheDocument();
       expect(button).toHaveTextContent("⚙️");
     });

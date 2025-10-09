@@ -18,10 +18,13 @@ export type MarkerWithTrack = SceneMarker & {
 };
 
 export type TagGroup = {
-  name: string;
+  name: string; // Display name: "Blowjob" or "Blowjob [Alice & Bob]"
+  groupKey: string; // Internal key for grouping: "Blowjob" or "Blowjob|123,456"
   tags: Tag[];
   markers: SceneMarker[];
   isRejected: boolean;
+  performerIds?: string[]; // Sorted performer IDs if grouped by performers
+  performerNames?: string[]; // Display names if grouped by performers
 };
 
 export type MarkerFormProps = {

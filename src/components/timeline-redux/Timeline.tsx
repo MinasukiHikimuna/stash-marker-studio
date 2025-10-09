@@ -385,14 +385,17 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
     }, [allTags, dispatch, sceneId]);
 
     // Handle clicking the reassignment icon (now opens combined dialog)
-    const handleReassignmentIconClick = useCallback((tagName: string, _tagGroup: TagGroup) => {
-      // Find the tag that matches the swimlane label (tagName)
-      // The swimlane label represents the base tag name (e.g., "Blowjob")
+    const handleReassignmentIconClick = useCallback((displayName: string, tagGroup: TagGroup) => {
+      // Extract base tag name from groupKey (before the "|" separator)
+      // groupKey format: "Blowjob" or "Blowjob|123,456"
+      const baseTagName = tagGroup.groupKey.split('|')[0];
+
+      // Find the tag that matches the base tag name
       // We need to find this tag in allTags, not in tagGroup.tags
       // because tagGroup.tags contains the actual marker tags (e.g., "Blowjob_AI")
-      const baseTag = allTags.find(tag => tag.name === tagName);
+      const baseTag = allTags.find(tag => tag.name === baseTagName);
       if (!baseTag) {
-        console.error(`Base tag not found for swimlane label: ${tagName}`);
+        console.error(`Base tag not found for base tag name: ${baseTagName}`);
         return;
       }
 
@@ -401,7 +404,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
       const tagsPointingToThisAsCorresponding = allTags.filter(tag => {
         if (!tag.description?.includes("Corresponding Tag: ")) return false;
         const correspondingTagName = tag.description.split("Corresponding Tag: ")[1].trim();
-        return correspondingTagName === tagName; // tagName is the base tag name
+        return correspondingTagName === baseTagName;
       });
 
       // Determine which state to show based on whether other tags point to this as corresponding
@@ -409,12 +412,12 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
         ? tagsPointingToThisAsCorresponding.map(tag => ({
             tagId: tag.id,
             tagName: tag.name,
-            correspondingTagName: tagName // This base tag name
+            correspondingTagName: baseTagName
           }))
         : undefined; // undefined means State 1, defined means State 2
 
       setReassignmentUI({
-        tagName: tagName,
+        tagName: baseTagName,
         currentTagId: baseTag.id,
         correspondingTagRelationships, // undefined for State 1, array for State 2
       });
