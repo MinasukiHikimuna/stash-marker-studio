@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { type SceneMarker, type Scene } from "@/services/StashappService";
 import { type SlotDefinition } from "@/core/slot/types";
 import { PerformerAutocomplete } from "./PerformerAutocomplete";
+import {
+  generateAssignmentCombinations,
+  type AssignmentCombination,
+} from "@/core/slot/autoAssignment";
 
 interface SlotValue {
   slotDefinitionId: string;
@@ -27,6 +31,7 @@ export function MarkerSlotsDialog({
   const [slotValues, setSlotValues] = useState<SlotValue[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // Filter performers to only those assigned to this scene
   const scenePerformers = useMemo(() => {
@@ -70,6 +75,11 @@ export function MarkerSlotsDialog({
     void loadData();
   }, [marker.primary_tag.id, marker.slots]);
 
+  // Auto-focus the dialog when it mounts
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
+
   const handleSlotChange = (slotDefinitionId: string, performerId: string | null) => {
     setSlotValues((prev) =>
       prev.map((sv) =>
@@ -89,18 +99,79 @@ export function MarkerSlotsDialog({
     }
   };
 
+  // Calculate all possible assignment combinations
+  const assignmentCombinations = useMemo(() => {
+    const currentAssignments = new Map<string, string | null>();
+    slotValues.forEach((sv) => {
+      currentAssignments.set(sv.slotDefinitionId, sv.performerId);
+    });
+
+    return generateAssignmentCombinations(
+      slotDefinitions,
+      scenePerformers,
+      currentAssignments
+    );
+  }, [slotValues, slotDefinitions, scenePerformers]);
+
+  const handleApplyAssignment = (combination: AssignmentCombination) => {
+    const newSlotValues = slotValues.map((sv) => {
+      const assignment = combination.assignments.find(
+        (a) => a.slotDefinitionId === sv.slotDefinitionId
+      );
+      if (assignment) {
+        return {
+          ...sv,
+          performerId: assignment.performerId,
+        };
+      }
+      return sv;
+    });
+
+    setSlotValues(newSlotValues);
+  };
+
+  const handleApplyAndSave = async (combination: AssignmentCombination) => {
+    const newSlotValues = slotValues.map((sv) => {
+      const assignment = combination.assignments.find(
+        (a) => a.slotDefinitionId === sv.slotDefinitionId
+      );
+      if (assignment) {
+        return {
+          ...sv,
+          performerId: assignment.performerId,
+        };
+      }
+      return sv;
+    });
+
+    setSaving(true);
+    try {
+      await onSave(newSlotValues);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       onCancel();
     } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       void handleSave();
+    } else if (e.key >= "1" && e.key <= "9") {
+      const index = parseInt(e.key, 10) - 1;
+      if (index < assignmentCombinations.length) {
+        e.preventDefault();
+        void handleApplyAndSave(assignmentCombinations[index]);
+      }
     }
   };
 
   return (
     <>
       <div
-        className="fixed z-50 bg-gray-800 rounded-lg shadow-xl border border-gray-600 max-w-2xl w-full mx-4 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 p-6"
+        ref={dialogRef}
+        tabIndex={-1}
+        className="fixed z-50 bg-gray-800 rounded-lg shadow-xl border border-gray-600 max-w-2xl w-full mx-4 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 p-6 outline-none"
         onKeyDown={handleKeyDown}
       >
         <h2 className="text-xl font-bold text-white mb-4">
@@ -116,6 +187,32 @@ export function MarkerSlotsDialog({
             {marker.end_seconds && ` - ${marker.end_seconds.toFixed(1)}s`}
           </div>
         </div>
+
+        {assignmentCombinations.length > 0 && (
+          <div className="mb-4 bg-gray-700 p-3 rounded">
+            <div className="text-sm font-semibold text-green-400 mb-2">
+              Auto-assignment Options
+            </div>
+            <div className="space-y-2">
+              {assignmentCombinations.map((combination, index) => (
+                <button
+                  key={index}
+                  className="w-full text-left px-2 py-1.5 bg-gray-600 hover:bg-gray-500 rounded text-xs transition-colors"
+                  onClick={() => handleApplyAssignment(combination)}
+                  disabled={saving || loading}
+                >
+                  <span className="inline-flex items-center justify-center w-5 h-5 bg-green-600 text-white rounded font-bold mr-2 text-[10px]">
+                    {index + 1}
+                  </span>
+                  <span className="text-gray-200">{combination.description}</span>
+                </button>
+              ))}
+            </div>
+            <div className="text-xs text-gray-400 mt-2">
+              Press number keys 1-{Math.min(assignmentCombinations.length, 9)} to apply
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="text-gray-400 py-8 text-center">
@@ -176,7 +273,7 @@ export function MarkerSlotsDialog({
         </div>
 
         <div className="text-xs text-gray-500 mt-2 text-center">
-          Press Esc to cancel, Cmd/Ctrl+Enter to save
+          <kbd className="px-1 bg-gray-700 rounded">Esc</kbd> to cancel, <kbd className="px-1 bg-gray-700 rounded">Cmd/Ctrl+Enter</kbd> to save
         </div>
       </div>
 
