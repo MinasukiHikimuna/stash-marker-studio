@@ -278,30 +278,11 @@ export function groupMarkersByTags(
         }
 
         // Within the same marker group, use sort order from app config if available
-        console.log("🔍 [SORT] Within same marker group:", {
-          aGroup: aMarkerGroup.fullName,
-          bGroup: bMarkerGroup.fullName,
-          aName: a.name,
-          bName: b.name,
-          hasMarkerGroups: !!markerGroups,
-          hasTagSorting: !!tagSorting
-        });
-
         if (markerGroups && tagSorting) {
           const markerGroupTag = markerGroups.find(mg => mg.name === aMarkerGroup.fullName);
-          console.log("🏷️ [SORT] Marker group lookup:", {
-            searchingFor: aMarkerGroup.fullName,
-            found: !!markerGroupTag,
-            markerGroupId: markerGroupTag?.id
-          });
 
           if (markerGroupTag) {
             const sortOrder = tagSorting[markerGroupTag.id] || [];
-            console.log("📋 [SORT] Sort order from config:", {
-              markerGroupId: markerGroupTag.id,
-              sortOrder,
-              sortOrderLength: sortOrder.length
-            });
 
             if (sortOrder.length > 0) {
               const aTagId = a.tags[0]?.id;
@@ -309,18 +290,8 @@ export function groupMarkersByTags(
               const aIndex = aTagId ? sortOrder.indexOf(aTagId) : -1;
               const bIndex = bTagId ? sortOrder.indexOf(bTagId) : -1;
 
-              console.log("📍 [SORT] Tag position lookup:", {
-                aTagId,
-                bTagId,
-                aIndex,
-                bIndex,
-                aTagName: a.name,
-                bTagName: b.name
-              });
-
               // If both tags are in sort order, use that order
               if (aIndex !== -1 && bIndex !== -1) {
-                console.log("✅ [SORT] Both in sort order, returning:", aIndex - bIndex);
                 // If same tag order, sort by performer combination (preserving order)
                 if (aIndex === bIndex) {
                   const aPerformers = (a.performerIds || []).join(',');
@@ -331,11 +302,9 @@ export function groupMarkersByTags(
               }
               // If only one is in sort order, put it first
               if (aIndex !== -1 && bIndex === -1) {
-                console.log("✅ [SORT] Only A in sort order, A first");
                 return -1;
               }
               if (aIndex === -1 && bIndex !== -1) {
-                console.log("✅ [SORT] Only B in sort order, B first");
                 return 1;
               }
             }
@@ -344,11 +313,6 @@ export function groupMarkersByTags(
 
         // Fallback to alphabetical sorting within same marker group
         // First by tag name (extracted from groupKey), then by performer combination
-        console.log("🔤 [SORT] Falling back to alphabetical sort:", {
-          aName: a.name,
-          bName: b.name,
-          result: a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
-        });
 
         // Extract base tag names for comparison (before " [" if performers exist)
         const aBaseTag = a.groupKey.split('|')[0];
