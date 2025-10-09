@@ -34,8 +34,8 @@ model Marker {
   stashappMarkerId  Int?     @unique @map("stashapp_marker_id")
   stashappSceneId   Int      @map("stashapp_scene_id")
   title             String
-  seconds           Decimal
-  endSeconds        Decimal? @map("end_seconds")
+  seconds           Decimal  @db.Decimal(8, 3)
+  endSeconds        Decimal? @map("end_seconds") @db.Decimal(8, 3)
   primaryTagId      Int?     @map("primary_tag_id")
 
   lastSyncedAt      DateTime? @map("last_synced_at")
