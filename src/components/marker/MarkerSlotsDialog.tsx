@@ -43,13 +43,27 @@ export function MarkerSlotsDialog({
     const loadData = async () => {
       setLoading(true);
       try {
-        // Load slot definitions for this tag
+        // Load slot definitions for this tag from slot definition sets
         const response = await fetch(
-          `/api/slot-definitions?tagId=${marker.primary_tag.id}`
+          `/api/slot-definition-sets?tagId=${marker.primary_tag.id}`
         );
         if (response.ok) {
           const data = await response.json();
-          const definitions = data.slotDefinitions || [];
+          const sets = data.slotDefinitionSets || [];
+
+          // Get slot definitions from the first set (there should only be one per tag)
+          const definitions: SlotDefinition[] = sets.length > 0
+            ? sets[0].slotDefinitions.map((slot: any) => ({
+                id: slot.id,
+                slotDefinitionSetId: slot.slotDefinitionSetId,
+                slotLabel: slot.slotLabel,
+                genderHints: slot.genderHints.map((gh: any) => gh.genderHint),
+                order: slot.order,
+                createdAt: slot.createdAt,
+                updatedAt: slot.updatedAt,
+              }))
+            : [];
+
           setSlotDefinitions(definitions);
 
           // Initialize slot values with existing assignments or empty
