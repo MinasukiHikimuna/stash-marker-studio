@@ -16,11 +16,11 @@ async function loadConfig(): Promise<AppConfig> {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { stashappSceneId, title, seconds, endSeconds, primaryTagId, tagIds, slots } = body;
+    const { stashappSceneId, seconds, endSeconds, primaryTagId, tagIds, slots } = body;
 
-    if (!stashappSceneId || !title || seconds === undefined) {
+    if (!stashappSceneId || seconds === undefined) {
       return NextResponse.json(
-        { error: 'stashappSceneId, title, and seconds are required' },
+        { error: 'stashappSceneId and seconds are required' },
         { status: 400 }
       );
     }
@@ -29,7 +29,6 @@ export async function POST(request: NextRequest) {
     const marker = await prisma.marker.create({
       data: {
         stashappSceneId: parseInt(stashappSceneId),
-        title,
         seconds,
         endSeconds: endSeconds ?? null,
         primaryTagId: primaryTagId ? parseInt(primaryTagId) : null,
@@ -194,7 +193,7 @@ export async function GET(request: NextRequest) {
 
       return {
         id: dbMarker.id.toString(), // Always use internal database ID
-        title: dbMarker.title,
+        title: primaryTag?.name || '',
         seconds: Number(dbMarker.seconds),
         end_seconds: dbMarker.endSeconds ? Number(dbMarker.endSeconds) : undefined,
         // These fields are not used by the app but required by the type

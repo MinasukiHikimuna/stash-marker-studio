@@ -9,7 +9,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { seconds, endSeconds, title, primaryTagId } = body;
+    const { seconds, endSeconds, primaryTagId } = body;
 
     // Convert id to number (internal database ID)
     const markerId = parseInt(id);
@@ -25,7 +25,6 @@ export async function PATCH(
     const updateData: {
       seconds?: number;
       endSeconds?: number | null;
-      title?: string;
       primaryTagId?: number | null;
       updatedAt: Date;
     } = {
@@ -34,7 +33,6 @@ export async function PATCH(
 
     if (seconds !== undefined) updateData.seconds = seconds;
     if (endSeconds !== undefined) updateData.endSeconds = endSeconds ?? null;
-    if (title !== undefined) updateData.title = title;
     if (primaryTagId !== undefined) updateData.primaryTagId = primaryTagId ? parseInt(primaryTagId) : null;
 
     // Update in local database using internal ID

@@ -33,7 +33,6 @@ model Marker {
   id                Int      @id @default(autoincrement())
   stashappMarkerId  Int?     @unique @map("stashapp_marker_id")
   stashappSceneId   Int      @map("stashapp_scene_id")
-  title             String
   seconds           Decimal  @db.Decimal(8, 3)
   endSeconds        Decimal? @map("end_seconds") @db.Decimal(8, 3)
   primaryTagId      Int?     @map("primary_tag_id")
@@ -130,4 +129,16 @@ model MarkerSlot {
   @@index([slotDefinitionId])
   @@index([stashappPerformerId])
   @@map("marker_slots")
+}
+
+model CorrespondingTagMapping {
+  id                     String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  sourceTagId            Int      @unique @map("source_tag_id")
+  correspondingTagId     Int      @map("corresponding_tag_id")
+
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  @@index([correspondingTagId])
+  @@map("corresponding_tag_mappings")
 }

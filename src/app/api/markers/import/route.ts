@@ -67,7 +67,6 @@ async function importMarkersFromStashapp(
       create: {
         stashappMarkerId,
         stashappSceneId: sceneId,
-        title: stashMarker.title,
         seconds: stashMarker.seconds,
         endSeconds: stashMarker.end_seconds ?? null,
         primaryTagId: stashMarker.primary_tag
@@ -76,7 +75,6 @@ async function importMarkersFromStashapp(
         lastSyncedAt: new Date(),
       },
       update: {
-        title: stashMarker.title,
         seconds: stashMarker.seconds,
         endSeconds: stashMarker.end_seconds ?? null,
         primaryTagId: stashMarker.primary_tag
