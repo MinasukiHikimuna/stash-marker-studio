@@ -295,9 +295,15 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
 
     // Handle clicking the reassignment icon (now opens combined dialog)
     const handleReassignmentIconClick = useCallback((tagName: string, tagGroup: TagGroup) => {
-      // Find the primary tag from the first marker in the group (for marker group reassignment)
-      const primaryTag = tagGroup.markers[0]?.primary_tag;
-      if (!primaryTag) return;
+      // Find the tag that matches the swimlane label (tagName)
+      // The swimlane label represents the base tag name (e.g., "Blowjob")
+      // We need to find this tag in allTags, not in tagGroup.tags
+      // because tagGroup.tags contains the actual marker tags (e.g., "Blowjob_AI")
+      const baseTag = allTags.find(tag => tag.name === tagName);
+      if (!baseTag) {
+        console.error(`Base tag not found for swimlane label: ${tagName}`);
+        return;
+      }
 
       // Find all tags in the system that point to this base tag as their corresponding tag
       // This determines which state we should show
@@ -318,7 +324,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
 
       setReassignmentUI({
         tagName: tagName,
-        currentTagId: primaryTag.id,
+        currentTagId: baseTag.id,
         correspondingTagRelationships, // undefined for State 1, array for State 2
       });
     }, [allTags]);
