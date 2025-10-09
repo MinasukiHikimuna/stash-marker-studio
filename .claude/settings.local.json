@@ -31,7 +31,8 @@
       "Bash(npm test)",
       "Bash(npm test:*)",
       "Bash(git log:*)",
-      "Bash(npx prisma migrate dev:*)"
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(git restore:*)"
     ],
     "deny": []
   }

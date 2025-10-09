@@ -48,9 +48,7 @@ import {
 import { calculateTimelineWidth } from "../../core/timeline/calculations";
 import { isPlatformModifierPressed } from "../../utils/platform";
 import { useThrottledResize } from "../../hooks/useThrottledResize";
-import { MarkerGroupAutocomplete } from "../marker/MarkerGroupAutocomplete";
-import { TagAutocomplete } from "../marker/TagAutocomplete";
-import { SlotDefinitionDialog } from "../marker/SlotDefinitionDialog";
+import { MarkerGroupReassignDialog } from "../marker/MarkerGroupReassignDialog";
 
 export type TimelineProps = {
   markers: SceneMarker[];
@@ -111,21 +109,11 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
     const [reassignmentUI, setReassignmentUI] = useState<{
       tagName: string;
       currentTagId: string;
-      currentCorrespondingTagId: string | null;
       correspondingTagRelationships?: Array<{
         tagId: string;
         tagName: string;
         correspondingTagName: string;
       }>;
-      x: number;
-      y: number;
-    } | null>(null);
-    const [correspondingTagId, setCorrespondingTagId] = useState<string>("");
-
-    // Slot definition dialog state
-    const [slotDefinitionDialog, setSlotDefinitionDialog] = useState<{
-      tagId: string;
-      tagName: string;
     } | null>(null);
 
     // Window dimensions state
@@ -305,7 +293,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
       }
     }, [allTags, dispatch, sceneId]);
 
-    // Handle clicking the reassignment icon
+    // Handle clicking the reassignment icon (now opens combined dialog)
     const handleReassignmentIconClick = useCallback((tagName: string, tagGroup: TagGroup) => {
       // Find the primary tag from the first marker in the group (for marker group reassignment)
       const primaryTag = tagGroup.markers[0]?.primary_tag;
@@ -328,26 +316,13 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
           }))
         : undefined; // undefined means State 1, defined means State 2
 
-      // For State 1, we'll show TagAutocomplete, so initialize correspondingTagId
-      setCorrespondingTagId("");
-
-      // Calculate position - use center of screen as a fallback
-      const x = window.innerWidth / 2;
-      const y = window.innerHeight / 2;
-
       setReassignmentUI({
         tagName: tagName,
         currentTagId: primaryTag.id,
-        currentCorrespondingTagId: null, // Not used in new logic
         correspondingTagRelationships, // undefined for State 1, array for State 2
-        x: x,
-        y: y,
       });
     }, [allTags]);
 
-    const handleSlotDefinitionClick = useCallback((tagId: string, tagName: string) => {
-      setSlotDefinitionDialog({ tagId, tagName });
-    }, []);
 
     // Handle swimlane resize keyboard shortcuts
     const handleSwimlaneResize = useCallback(
@@ -648,7 +623,6 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
               selectedMarkerId={selectedMarkerId}
               markerGroupParentId={markerGroupParentId}
               onReassignClick={handleReassignmentIconClick}
-              onSlotDefinitionClick={handleSlotDefinitionClick}
             />
 
             {/* Grid column */}
@@ -667,107 +641,17 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
           </div>
         </div>
 
-        {/* Marker Group Reassignment UI */}
+        {/* Combined Marker Group Reassignment and Slot Definition Dialog */}
         {reassignmentUI && (
-          <div
-            className="fixed z-[9001] bg-gray-900 text-white p-3 rounded-lg shadow-lg border border-gray-600 w-80"
-            style={{
-              left: `${Math.max(16, Math.min(reassignmentUI.x, window.innerWidth - 320 - 16))}px`,
-              top: `${Math.max(16, reassignmentUI.y - 200)}px`,
-            }}
-          >
-            <div className="space-y-3">
-              <div className="font-bold text-sm">
-                Reassign &ldquo;{reassignmentUI.tagName}&rdquo;
-              </div>
-
-              {/* Marker Group Selection */}
-              <div className="space-y-1">
-                <div className="text-xs text-gray-400">
-                  Select new marker group:
-                </div>
-                <MarkerGroupAutocomplete
-                  value=""
-                  onChange={(newMarkerGroupId) => {
-                    handleReassignMarkerGroup(reassignmentUI.currentTagId, newMarkerGroupId);
-                  }}
-                  availableTags={allTags}
-                  placeholder="Search marker groups..."
-                  autoFocus={true}
-                  onCancel={() => setReassignmentUI(null)}
-                />
-              </div>
-
-              {/* Divider */}
-              <div className="border-t border-gray-600"></div>
-
-              {/* Corresponding Tag Selection */}
-              <div className="space-y-1">
-                <div className="text-xs text-gray-400">
-                  Set corresponding tag:
-                </div>
-
-                {/* State 2: Show list of tags that point to this base tag as corresponding */}
-                {reassignmentUI.correspondingTagRelationships ? (
-                  <div className="space-y-2">
-                    <div className="text-xs text-blue-300 mb-2">
-                      {reassignmentUI.tagName} has the following corresponding tags:
-                    </div>
-                    {reassignmentUI.correspondingTagRelationships.map((relationship) => (
-                      <div key={relationship.tagId} className="flex items-center justify-between bg-gray-600 px-3 py-2 rounded">
-                        <span className="text-xs text-gray-200">
-                          - {relationship.tagName}
-                        </span>
-                        <button
-                          className="text-xs bg-red-600 hover:bg-red-700 px-2 py-1 rounded"
-                          onClick={() => {
-                            handleSetCorrespondingTag(relationship.tagId, null);
-                          }}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  /* State 1: Show autocomplete for setting corresponding tag */
-                  <div className="space-y-1">
-                    <TagAutocomplete
-                      value={correspondingTagId}
-                      onChange={setCorrespondingTagId}
-                      availableTags={allTags}
-                      placeholder="Search for corresponding tag..."
-                      onSave={(tagId) => {
-                        handleSetCorrespondingTag(reassignmentUI.currentTagId, tagId || null);
-                      }}
-                      onCancel={() => setReassignmentUI(null)}
-                    />
-                    <div className="text-xs text-gray-500">
-                      Set a corresponding tag that will be converted upon completion of review.
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Note! This will overwrite the existing description of this tag with &ldquo;Corresponding Tag: Target Tag&rdquo;. Target tag is not modified.
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Click outside to close */}
-            <div
-              className="fixed inset-0 -z-10"
-              onClick={() => setReassignmentUI(null)}
-            />
-          </div>
-        )}
-
-        {/* Slot Definition Dialog */}
-        {slotDefinitionDialog && (
-          <SlotDefinitionDialog
-            tagId={slotDefinitionDialog.tagId}
-            tagName={slotDefinitionDialog.tagName}
-            onClose={() => setSlotDefinitionDialog(null)}
-            onSave={async () => {
+          <MarkerGroupReassignDialog
+            tagId={reassignmentUI.currentTagId}
+            tagName={reassignmentUI.tagName}
+            correspondingTagRelationships={reassignmentUI.correspondingTagRelationships}
+            availableTags={allTags}
+            onReassignMarkerGroup={handleReassignMarkerGroup}
+            onSetCorrespondingTag={handleSetCorrespondingTag}
+            onClose={() => setReassignmentUI(null)}
+            onSlotsSaved={async () => {
               // Reload markers to refresh slot data
               if (sceneId) {
                 await dispatch(loadMarkers(sceneId));
