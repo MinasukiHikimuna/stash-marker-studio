@@ -2,7 +2,7 @@
  * Shot Boundary Types
  *
  * Shot boundaries are stored in the local PostgreSQL database and are
- * completely separate from Stashapp markers. They represent video cut
+ * completely separate from Stashapp markers. They represent shot boundary
  * points detected by PySceneDetect or manually created by the user.
  */
 

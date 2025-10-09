@@ -37,7 +37,7 @@ Stash Marker Studio is a companion app for Stashapp that makes working with vide
 - Markers have status tags: CONFIRMED, REJECTED, or unprocessed
 - Tags with corresponding tag metadata can be converted to their corresponding real tags
 
-**Shot Boundaries**: Shot boundaries are stored in a separate PostgreSQL database (`shot_boundaries` table) and are completely independent from Stashapp markers. They represent video cut points detected by PySceneDetect or manually created. Shot boundaries:
+**Shot Boundaries**: Shot boundaries are stored in a separate PostgreSQL database (`shot_boundaries` table) and are completely independent from Stashapp markers. They represent shot boundary points detected by PySceneDetect or manually created. Shot boundaries:
 
 - Are NOT Stashapp markers (separate entity type)
 - Are displayed in their own timeline header row
@@ -110,7 +110,7 @@ The app requires runtime configuration injection for Stashapp connection and tag
 - **Connection**: `src/lib/prisma.ts` provides singleton Prisma client
 
 **Shot Boundaries Table** (`shot_boundaries`):
-- Stores PySceneDetect video cut points
+- Stores PySceneDetect shot boundary points
 - Prevents overloading Stashapp player with 100+ markers per scene
 - Simple schema: `id`, `stashappSceneId`, `startTime`, `endTime`, `createdAt`, `updatedAt`
 
