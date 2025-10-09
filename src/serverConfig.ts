@@ -7,7 +7,6 @@ export interface AppConfig {
   serverConfig: ServerConfig;
   markerConfig: MarkerConfig;
   markerGroupingConfig: MarkerGroupingConfig;
-  shotBoundaryConfig: ShotBoundaryConfig;
   markerGroupTagSorting?: MarkerGroupTagSorting;
   videoPlaybackConfig?: VideoPlaybackConfig;
   keyboardShortcuts?: KeyboardShortcutConfig;
@@ -51,17 +50,6 @@ export interface MarkerGroupingConfig {
 export interface MarkerGroupTagSorting {
   // Map of marker group tag IDs to arrays of child tag IDs in desired sort order
   [markerGroupId: string]: string[];
-}
-
-export interface ShotBoundaryConfig {
-  // Tag for scenes which have been AI analyzed.
-  aiTagged: string;
-
-  // Tag for markers to indicate that the source of the marker is shot boundary analysis and not e.g. manual or AI.
-  sourceShotBoundaryAnalysis: string;
-
-  // Tag for scenes which have been processed with shot boundary analysis.
-  shotBoundaryProcessed: string;
 }
 
 export interface VideoPlaybackConfig {

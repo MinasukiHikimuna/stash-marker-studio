@@ -12,12 +12,6 @@
   "markerGroupingConfig": {
     "markerGroupParent": ""
   },
-  "shotBoundaryConfig": {
-    "aiTagged": "",
-    "shotBoundary": "",
-    "sourceShotBoundaryAnalysis": "",
-    "shotBoundaryProcessed": ""
-  },
   "videoPlaybackConfig": {
     "smallSeekTime": 5,
     "mediumSeekTime": 10,

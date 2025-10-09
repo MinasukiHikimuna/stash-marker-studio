@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import { AppConfig, ShotBoundaryConfig } from '@/serverConfig';
+import { AppConfig } from '@/serverConfig';
 
 export type MarkerGroupTag = {
   id: string;
@@ -37,11 +37,6 @@ const initialState: ConfigState = {
   },
   markerGroupingConfig: {
     markerGroupParent: '',
-  },
-  shotBoundaryConfig: {
-    aiTagged: '',
-    sourceShotBoundaryAnalysis: '',
-    shotBoundaryProcessed: '',
   },
   markerGroupTagSorting: {},
   videoPlaybackConfig: {
@@ -141,9 +136,6 @@ const configSlice = createSlice({
       // Clear marker groups when parent changes
       state.markerGroups.tags = [];
     },
-    setShotBoundaryConfig: (state, action: PayloadAction<ShotBoundaryConfig>) => {
-      state.shotBoundaryConfig = action.payload;
-    },
     clearMarkerGroups: (state) => {
       state.markerGroups.tags = [];
       state.markerGroups.error = null;
@@ -180,13 +172,12 @@ const configSlice = createSlice({
   },
 });
 
-export const { setFullConfig, setMarkerGroupingConfig, setShotBoundaryConfig, clearMarkerGroups, setMarkerGroupTagSorting } = configSlice.actions;
+export const { setFullConfig, setMarkerGroupingConfig, clearMarkerGroups, setMarkerGroupTagSorting } = configSlice.actions;
 
 // Selectors for each group
 export const selectServerConfig = (state: { config: ConfigState }) => state.config.serverConfig;
 export const selectMarkerConfig = (state: { config: ConfigState }) => state.config.markerConfig;
 export const selectMarkerGroupingConfig = (state: { config: ConfigState }) => state.config.markerGroupingConfig;
-export const selectShotBoundaryConfig = (state: { config: ConfigState }) => state.config.shotBoundaryConfig;
 export const selectVideoPlaybackConfig = (state: { config: ConfigState }) => state.config.videoPlaybackConfig;
 
 // Marker groups selectors

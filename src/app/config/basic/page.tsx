@@ -7,7 +7,6 @@ import {
   selectServerConfig,
   selectMarkerConfig,
   selectMarkerGroupingConfig,
-  selectShotBoundaryConfig,
   setFullConfig,
 } from "@/store/slices/configSlice";
 import {
@@ -24,7 +23,6 @@ export default function ServerConfigPage() {
   const serverConfig = useAppSelector(selectServerConfig);
   const markerConfig = useAppSelector(selectMarkerConfig);
   const markerGroupingConfig = useAppSelector(selectMarkerGroupingConfig);
-  const shotBoundaryConfig = useAppSelector(selectShotBoundaryConfig);
   const availableTags = useAppSelector(selectAvailableTags);
 
   const [formData, setFormData] = useState({
@@ -73,10 +71,9 @@ export default function ServerConfigPage() {
       serverConfig,
       markerConfig,
       markerGroupingConfig,
-      shotBoundaryConfig,
     } as AppConfig);
     setConfigValidation(validation);
-  }, [serverConfig, markerConfig, markerGroupingConfig, shotBoundaryConfig]);
+  }, [serverConfig, markerConfig, markerGroupingConfig]);
 
   // Load tags and test connection when server config is available
   useEffect(() => {
@@ -133,7 +130,6 @@ export default function ServerConfigPage() {
               },
               markerConfig,
               markerGroupingConfig,
-              shotBoundaryConfig,
             };
             const { stashappService } = await import(
               "@/services/StashappService"
@@ -161,7 +157,6 @@ export default function ServerConfigPage() {
     serverConfig,
     markerConfig,
     markerGroupingConfig,
-    shotBoundaryConfig,
     tagsLoaded,
     isServerConfigured,
     dispatch,
@@ -205,7 +200,6 @@ export default function ServerConfigPage() {
     };
     const validation = validateConfiguration({
       ...updatedFormData,
-      shotBoundaryConfig,
     } as AppConfig);
     setConfigValidation(validation);
   };
@@ -224,7 +218,7 @@ export default function ServerConfigPage() {
 
       // Convert form data to AppConfig format with normalized URL
       const appConfig: AppConfig = {
-        ...(existingConfig as AppConfig), // Preserve existing config (like keyboardShortcuts and shotBoundaryConfig)
+        ...(existingConfig as AppConfig), // Preserve existing config (like keyboardShortcuts)
         ...formData,
         serverConfig: {
           ...formData.serverConfig,
@@ -353,7 +347,6 @@ export default function ServerConfigPage() {
               },
               markerConfig: formData.markerConfig,
               markerGroupingConfig: formData.markerGroupingConfig,
-              shotBoundaryConfig,
             };
             const { stashappService } = await import("@/services/StashappService");
             stashappService.applyConfig(appConfig);
