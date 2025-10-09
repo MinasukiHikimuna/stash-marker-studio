@@ -35,14 +35,14 @@ export function generateAssignmentCombinations(
   // Build a map of slot -> matching performers
   const slotToPerformers = new Map<string, Performer[]>();
   slots.forEach((slot) => {
-    if (slot.genderHint) {
-      // If gender hint exists, filter by gender
+    if (slot.genderHints.length > 0) {
+      // If gender hints exist, filter by matching genders
       const matching = scenePerformers.filter(
-        (p) => p.gender === slot.genderHint
+        (p) => slot.genderHints.includes(p.gender as any)
       );
       slotToPerformers.set(slot.id, matching);
     } else {
-      // No gender hint - all performers are valid
+      // No gender hints - all performers are valid
       slotToPerformers.set(slot.id, scenePerformers);
     }
   });

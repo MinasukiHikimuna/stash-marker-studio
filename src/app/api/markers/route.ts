@@ -99,11 +99,16 @@ export async function GET(request: NextRequest) {
         markerTags: true,
         markerSlots: {
           include: {
-            slotDefinition: true,
+            slotDefinition: {
+              include: {
+                genderHints: true,
+                slotDefinitionSet: true,
+              },
+            },
           },
           orderBy: {
             slotDefinition: {
-              displayOrder: 'asc',
+              order: 'asc',
             },
           },
         },
@@ -180,8 +185,8 @@ export async function GET(request: NextRequest) {
         slotDefinitionId: slot.slotDefinitionId,
         stashappPerformerId: slot.stashappPerformerId,
         slotLabel: slot.slotDefinition.slotLabel,
-        genderHint: slot.slotDefinition.genderHint,
-        displayOrder: slot.slotDefinition.displayOrder,
+        genderHints: slot.slotDefinition.genderHints.map(gh => gh.genderHint),
+        order: slot.slotDefinition.order,
         performer: slot.stashappPerformerId
           ? performerMap.get(slot.stashappPerformerId)
           : undefined,

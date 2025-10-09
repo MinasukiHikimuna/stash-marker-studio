@@ -6,14 +6,15 @@ describe('generateAssignmentCombinations', () => {
   const createSlotDefinition = (
     id: string,
     slotLabel: string | null,
-    genderHint: GenderHint | null
+    genderHints: GenderHint[]
   ): SlotDefinition => ({
     id,
-    stashappTagId: 1,
+    slotDefinitionSetId: 'set1',
     slotLabel,
-    genderHint,
-    displayOrder: 0,
+    genderHints,
+    order: 0,
     createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2025-01-01T00:00:00Z',
   });
 
   const createPerformer = (
@@ -28,8 +29,8 @@ describe('generateAssignmentCombinations', () => {
 
   it('should generate combinations when slots have labels and no gender hints', () => {
     const slotDefinitions = [
-      createSlotDefinition('slot1', 'Slot 1', null),
-      createSlotDefinition('slot2', 'Slot 2', null),
+      createSlotDefinition('slot1', 'Slot 1', []),
+      createSlotDefinition('slot2', 'Slot 2', []),
     ];
     const performers = [
       createPerformer('p1', 'Performer 1', 'MALE'),
@@ -64,8 +65,8 @@ describe('generateAssignmentCombinations', () => {
 
   it('should deduplicate combinations when all slots have no labels', () => {
     const slotDefinitions = [
-      createSlotDefinition('slot1', null, null),
-      createSlotDefinition('slot2', null, null),
+      createSlotDefinition('slot1', null, []),
+      createSlotDefinition('slot2', null, []),
     ];
     const performers = [
       createPerformer('p1', 'Performer 1', 'MALE'),
@@ -91,8 +92,8 @@ describe('generateAssignmentCombinations', () => {
 
   it('should generate single combination for two slots with matching performers', () => {
     const slotDefinitions = [
-      createSlotDefinition('slot1', 'Giver', 'FEMALE'),
-      createSlotDefinition('slot2', 'Receiver', 'MALE'),
+      createSlotDefinition('slot1', 'Giver', ['FEMALE']),
+      createSlotDefinition('slot2', 'Receiver', ['MALE']),
     ];
     const performers = [
       createPerformer('p1', 'Jane Doe', 'FEMALE'),
@@ -116,8 +117,8 @@ describe('generateAssignmentCombinations', () => {
 
   it('should generate multiple combinations when multiple performers match same gender hint', () => {
     const slotDefinitions = [
-      createSlotDefinition('slot1', 'Giver', 'FEMALE'),
-      createSlotDefinition('slot2', 'Receiver', 'FEMALE'),
+      createSlotDefinition('slot1', 'Giver', ['FEMALE']),
+      createSlotDefinition('slot2', 'Receiver', ['FEMALE']),
     ];
     const performers = [
       createPerformer('p1', 'Jane Doe', 'FEMALE'),
@@ -151,8 +152,8 @@ describe('generateAssignmentCombinations', () => {
 
   it('should not assign same performer to multiple slots', () => {
     const slotDefinitions = [
-      createSlotDefinition('slot1', 'Person 1', 'MALE'),
-      createSlotDefinition('slot2', 'Person 2', 'MALE'),
+      createSlotDefinition('slot1', 'Person 1', ['MALE']),
+      createSlotDefinition('slot2', 'Person 2', ['MALE']),
     ];
     const performers = [createPerformer('p1', 'John Doe', 'MALE')];
     const currentAssignments = new Map<string, string | null>();
@@ -169,8 +170,8 @@ describe('generateAssignmentCombinations', () => {
 
   it('should return empty array when no performers match gender hints', () => {
     const slotDefinitions = [
-      createSlotDefinition('slot1', 'Giver', 'FEMALE'),
-      createSlotDefinition('slot2', 'Receiver', 'MALE'),
+      createSlotDefinition('slot1', 'Giver', ['FEMALE']),
+      createSlotDefinition('slot2', 'Receiver', ['MALE']),
     ];
     const performers = [createPerformer('p1', 'Person', 'NON_BINARY')];
     const currentAssignments = new Map<string, string | null>();
@@ -186,8 +187,8 @@ describe('generateAssignmentCombinations', () => {
 
   it('should only return complete combinations (all slots filled)', () => {
     const slotDefinitions = [
-      createSlotDefinition('slot1', 'Giver', 'FEMALE'),
-      createSlotDefinition('slot2', 'Receiver', 'MALE'),
+      createSlotDefinition('slot1', 'Giver', ['FEMALE']),
+      createSlotDefinition('slot2', 'Receiver', ['MALE']),
     ];
     const performers = [
       createPerformer('p1', 'Jane Doe', 'FEMALE'),
@@ -207,9 +208,9 @@ describe('generateAssignmentCombinations', () => {
 
   it('should handle mixed slots with and without gender hints', () => {
     const slotDefinitions = [
-      createSlotDefinition('slot1', 'Giver', 'FEMALE'),
-      createSlotDefinition('slot2', 'Receiver', 'MALE'),
-      createSlotDefinition('slot3', 'Other', null), // No gender hint - accepts any
+      createSlotDefinition('slot1', 'Giver', ['FEMALE']),
+      createSlotDefinition('slot2', 'Receiver', ['MALE']),
+      createSlotDefinition('slot3', 'Other', []), // No gender hints - accepts any
     ];
     const performers = [
       createPerformer('p1', 'Jane Doe', 'FEMALE'),
@@ -246,8 +247,8 @@ describe('generateAssignmentCombinations', () => {
 
   it('should generate combinations even when slots are already assigned', () => {
     const slotDefinitions = [
-      createSlotDefinition('slot1', 'Giver', 'FEMALE'),
-      createSlotDefinition('slot2', 'Receiver', 'MALE'),
+      createSlotDefinition('slot1', 'Giver', ['FEMALE']),
+      createSlotDefinition('slot2', 'Receiver', ['MALE']),
     ];
     const performers = [
       createPerformer('p1', 'Jane Doe', 'FEMALE'),
@@ -276,10 +277,10 @@ describe('generateAssignmentCombinations', () => {
     // Create 4 slots with FEMALE gender hint and 4 female performers
     // This should generate 4! = 24 permutations, but we limit to 9
     const slotDefinitions = [
-      createSlotDefinition('slot1', 'Person 1', 'FEMALE'),
-      createSlotDefinition('slot2', 'Person 2', 'FEMALE'),
-      createSlotDefinition('slot3', 'Person 3', 'FEMALE'),
-      createSlotDefinition('slot4', 'Person 4', 'FEMALE'),
+      createSlotDefinition('slot1', 'Person 1', ['FEMALE']),
+      createSlotDefinition('slot2', 'Person 2', ['FEMALE']),
+      createSlotDefinition('slot3', 'Person 3', ['FEMALE']),
+      createSlotDefinition('slot4', 'Person 4', ['FEMALE']),
     ];
     const performers = [
       createPerformer('p1', 'Person A', 'FEMALE'),
@@ -300,8 +301,8 @@ describe('generateAssignmentCombinations', () => {
 
   it('should handle transgender gender hints', () => {
     const slotDefinitions = [
-      createSlotDefinition('slot1', 'Person 1', 'TRANSGENDER_MALE'),
-      createSlotDefinition('slot2', 'Person 2', 'TRANSGENDER_FEMALE'),
+      createSlotDefinition('slot1', 'Person 1', ['TRANSGENDER_MALE']),
+      createSlotDefinition('slot2', 'Person 2', ['TRANSGENDER_FEMALE']),
     ];
     const performers = [
       createPerformer('p1', 'Trans Man', 'TRANSGENDER_MALE'),
@@ -324,9 +325,9 @@ describe('generateAssignmentCombinations', () => {
 
   it('should handle three-way scenarios with multiple valid combinations', () => {
     const slotDefinitions = [
-      createSlotDefinition('slot1', 'Female 1', 'FEMALE'),
-      createSlotDefinition('slot2', 'Female 2', 'FEMALE'),
-      createSlotDefinition('slot3', 'Male', 'MALE'),
+      createSlotDefinition('slot1', 'Female 1', ['FEMALE']),
+      createSlotDefinition('slot2', 'Female 2', ['FEMALE']),
+      createSlotDefinition('slot3', 'Male', ['MALE']),
     ];
     const performers = [
       createPerformer('p1', 'Jane', 'FEMALE'),
@@ -355,8 +356,8 @@ describe('generateAssignmentCombinations', () => {
 
   it('should generate combinations for 2 slots with 3 performers (with labels, no gender hints)', () => {
     const slotDefinitions = [
-      createSlotDefinition('slot1', 'Person 1', null),
-      createSlotDefinition('slot2', 'Person 2', null),
+      createSlotDefinition('slot1', 'Person 1', []),
+      createSlotDefinition('slot2', 'Person 2', []),
     ];
     const performers = [
       createPerformer('p1', 'Alice', 'FEMALE'),
@@ -392,8 +393,8 @@ describe('generateAssignmentCombinations', () => {
 
   it('should deduplicate combinations for 2 unlabeled slots with 3 performers', () => {
     const slotDefinitions = [
-      createSlotDefinition('slot1', null, null),
-      createSlotDefinition('slot2', null, null),
+      createSlotDefinition('slot1', null, []),
+      createSlotDefinition('slot2', null, []),
     ];
     const performers = [
       createPerformer('p1', 'Alice', 'FEMALE'),
@@ -421,5 +422,203 @@ describe('generateAssignmentCombinations', () => {
     expect(performerSets).toContainEqual('p1,p2');
     expect(performerSets).toContainEqual('p1,p3');
     expect(performerSets).toContainEqual('p2,p3');
+  });
+
+  describe('Multiple gender hints per slot', () => {
+    it('should accept performers matching any gender hint in the array', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Person 1', ['MALE', 'FEMALE']),
+        createSlotDefinition('slot2', 'Person 2', ['TRANSGENDER_MALE', 'TRANSGENDER_FEMALE']),
+      ];
+      const performers = [
+        createPerformer('p1', 'Jane', 'FEMALE'),
+        createPerformer('p2', 'Trans Man', 'TRANSGENDER_MALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].assignments).toEqual([
+        { slotDefinitionId: 'slot1', performerId: 'p1' },
+        { slotDefinitionId: 'slot2', performerId: 'p2' },
+      ]);
+    });
+
+    it('should generate multiple combinations when multiple performers match multiple gender hints', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Person 1', ['MALE', 'FEMALE']),
+        createSlotDefinition('slot2', 'Person 2', ['MALE', 'FEMALE']),
+      ];
+      const performers = [
+        createPerformer('p1', 'John', 'MALE'),
+        createPerformer('p2', 'Jane', 'FEMALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // Should have 2 combinations: John-Jane and Jane-John
+      expect(result).toHaveLength(2);
+      expect(result).toContainEqual({
+        assignments: [
+          { slotDefinitionId: 'slot1', performerId: 'p1' },
+          { slotDefinitionId: 'slot2', performerId: 'p2' },
+        ],
+        description: 'Person 1: John, Person 2: Jane',
+      });
+      expect(result).toContainEqual({
+        assignments: [
+          { slotDefinitionId: 'slot1', performerId: 'p2' },
+          { slotDefinitionId: 'slot2', performerId: 'p1' },
+        ],
+        description: 'Person 1: Jane, Person 2: John',
+      });
+    });
+
+    it('should handle mix of single and multiple gender hints', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Giver', ['MALE']), // Only male
+        createSlotDefinition('slot2', 'Receiver', ['MALE', 'FEMALE']), // Male or female
+      ];
+      const performers = [
+        createPerformer('p1', 'John', 'MALE'),
+        createPerformer('p2', 'Jane', 'FEMALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // Only 1 combination: John must be Giver (only male), Jane must be Receiver
+      expect(result).toHaveLength(1);
+      expect(result[0].assignments).toEqual([
+        { slotDefinitionId: 'slot1', performerId: 'p1' },
+        { slotDefinitionId: 'slot2', performerId: 'p2' },
+      ]);
+    });
+
+    it('should handle multiple performers matching multi-gender slot', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Person 1', ['MALE', 'FEMALE']),
+        createSlotDefinition('slot2', 'Person 2', ['FEMALE']),
+      ];
+      const performers = [
+        createPerformer('p1', 'John', 'MALE'),
+        createPerformer('p2', 'Jane', 'FEMALE'),
+        createPerformer('p3', 'Mary', 'FEMALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // Slot1 can be John, Jane, or Mary (multi-gender accepts MALE and FEMALE)
+      // Slot2 can only be Jane or Mary (only FEMALE)
+      // Valid combinations:
+      // - John-Jane, John-Mary (John fills slot1, remaining female fills slot2)
+      // - Jane-Mary, Mary-Jane (one female fills slot1, other fills slot2)
+      // Total: 4 combinations
+      expect(result).toHaveLength(4);
+
+      const combinations = result.map((r) => ({
+        slot1: r.assignments.find((a) => a.slotDefinitionId === 'slot1')?.performerId,
+        slot2: r.assignments.find((a) => a.slotDefinitionId === 'slot2')?.performerId,
+      }));
+
+      expect(combinations).toContainEqual({ slot1: 'p1', slot2: 'p2' });
+      expect(combinations).toContainEqual({ slot1: 'p1', slot2: 'p3' });
+      expect(combinations).toContainEqual({ slot1: 'p2', slot2: 'p3' });
+      expect(combinations).toContainEqual({ slot1: 'p3', slot2: 'p2' });
+    });
+
+    it('should return empty when no performers match any gender hint in array', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Person', ['MALE', 'FEMALE']),
+      ];
+      const performers = [
+        createPerformer('p1', 'Alex', 'NON_BINARY'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      expect(result).toEqual([]);
+    });
+
+    it('should handle all transgender variants in multi-gender hint', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Any Trans', ['TRANSGENDER_MALE', 'TRANSGENDER_FEMALE']),
+      ];
+      const performers = [
+        createPerformer('p1', 'Trans Man', 'TRANSGENDER_MALE'),
+        createPerformer('p2', 'Trans Woman', 'TRANSGENDER_FEMALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // With only one slot and two performers, we get 2 partial combinations
+      // (one for each performer filling the slot)
+      // But the function only returns COMPLETE combinations (all slots filled)
+      // Since there's only one slot, each combination with one assignment IS complete
+      expect(result).toHaveLength(2);
+      expect(result[0].assignments).toHaveLength(1);
+      expect(result[1].assignments).toHaveLength(1);
+
+      const performerIds = result.map(r => r.assignments[0].performerId);
+      expect(performerIds).toContain('p1');
+      expect(performerIds).toContain('p2');
+    });
+
+    it('should handle complex scenario with multiple multi-gender slots', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Flexible 1', ['MALE', 'TRANSGENDER_MALE']),
+        createSlotDefinition('slot2', 'Flexible 2', ['FEMALE', 'TRANSGENDER_FEMALE']),
+        createSlotDefinition('slot3', 'Any', ['MALE', 'FEMALE', 'TRANSGENDER_MALE', 'TRANSGENDER_FEMALE']),
+      ];
+      const performers = [
+        createPerformer('p1', 'Cis Male', 'MALE'),
+        createPerformer('p2', 'Trans Woman', 'TRANSGENDER_FEMALE'),
+        createPerformer('p3', 'Cis Female', 'FEMALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // Should generate multiple valid combinations
+      expect(result.length).toBeGreaterThan(0);
+      expect(result.every((r) => r.assignments.length === 3)).toBe(true);
+
+      // p1 can only be in slot1 or slot3 (MALE accepted)
+      // p2 can only be in slot2 or slot3 (TRANSGENDER_FEMALE accepted)
+      // p3 can only be in slot2 or slot3 (FEMALE accepted)
+    });
   });
 });

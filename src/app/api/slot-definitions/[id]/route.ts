@@ -16,6 +16,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       where: {
         id,
       },
+      include: {
+        slotDefinitionSet: true,
+        genderHints: true,
+      },
     });
 
     if (!slotDefinition) {
@@ -31,28 +35,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
+// TODO: This endpoint needs to be redesigned for SlotDefinitionSet structure
 // Update a slot definition
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
-    const body = await request.json();
-    const { slotLabel, genderHint, displayOrder } = body;
-
-    const slotDefinition = await prisma.slotDefinition.update({
-      where: {
-        id,
-      },
-      data: {
-        ...(slotLabel !== undefined && { slotLabel: slotLabel?.trim() || null }),
-        ...(genderHint !== undefined && { genderHint: genderHint ?? null }),
-        ...(displayOrder !== undefined && { displayOrder }),
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      slotDefinition,
-    });
+    return NextResponse.json(
+      { error: 'This endpoint is being redesigned for the new SlotDefinitionSet structure' },
+      { status: 501 }
+    );
   } catch (error) {
     console.error('Error updating slot definition:', error);
     return NextResponse.json({ error: 'Failed to update slot definition' }, { status: 500 });

@@ -4,16 +4,31 @@
 export type GenderHint = 'MALE' | 'FEMALE' | 'TRANSGENDER_MALE' | 'TRANSGENDER_FEMALE';
 
 /**
- * Slot definition defines a role/position for a marker tag
+ * Slot definition set defines the complete slot structure for a marker primary tag
+ * Example: "Pussy Rubbing_AI" tag has a set with allowSamePerformerInMultipleSlots=true
+ */
+export interface SlotDefinitionSet {
+  id: string;
+  stashappTagId: number;
+  allowSamePerformerInMultipleSlots: boolean;
+  createdAt: string;
+  updatedAt: string;
+  slotDefinitions?: SlotDefinition[];
+}
+
+/**
+ * Slot definition defines a role/position within a slot definition set
  * Example: BJ tag might have "giver" and "receiver" slots
  */
 export interface SlotDefinition {
   id: string;
-  stashappTagId: number;
+  slotDefinitionSetId: string;
   slotLabel: string | null;
-  genderHint: GenderHint | null;
-  displayOrder: number;
+  genderHints: GenderHint[];
+  order: number;
   createdAt: string;
+  updatedAt: string;
+  slotDefinitionSet?: SlotDefinitionSet;
 }
 
 /**

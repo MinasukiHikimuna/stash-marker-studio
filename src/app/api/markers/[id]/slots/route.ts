@@ -17,11 +17,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         markerId: parseInt(id),
       },
       include: {
-        slotDefinition: true,
+        slotDefinition: {
+          include: {
+            genderHints: true,
+            slotDefinitionSet: true,
+          },
+        },
       },
       orderBy: {
         slotDefinition: {
-          displayOrder: 'asc',
+          order: 'asc',
         },
       },
     });
@@ -65,7 +70,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
               stashappPerformerId: slot.stashappPerformerId ?? null,
             },
             include: {
-              slotDefinition: true,
+              slotDefinition: {
+                include: {
+                  genderHints: true,
+                  slotDefinitionSet: true,
+                },
+              },
             },
           })
         )

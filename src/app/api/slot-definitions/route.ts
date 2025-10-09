@@ -10,10 +10,16 @@ export async function GET(request: NextRequest) {
     const slotDefinitions = await prisma.slotDefinition.findMany({
       where: tagId
         ? {
-            stashappTagId: parseInt(tagId),
+            slotDefinitionSet: {
+              stashappTagId: parseInt(tagId),
+            },
           }
         : undefined,
-      orderBy: [{ stashappTagId: 'asc' }, { displayOrder: 'asc' }],
+      include: {
+        slotDefinitionSet: true,
+        genderHints: true,
+      },
+      orderBy: [{ slotDefinitionSetId: 'asc' }, { order: 'asc' }],
     });
 
     return NextResponse.json({
@@ -25,32 +31,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// TODO: This endpoint needs to be redesigned for SlotDefinitionSet structure
 // Create a new slot definition
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { stashappTagId, slotLabel, genderHint, displayOrder } = body;
-
-    if (!stashappTagId) {
-      return NextResponse.json(
-        { error: 'stashappTagId is required' },
-        { status: 400 }
-      );
-    }
-
-    const slotDefinition = await prisma.slotDefinition.create({
-      data: {
-        stashappTagId: parseInt(stashappTagId),
-        slotLabel: slotLabel?.trim() || null,
-        genderHint: genderHint ?? null,
-        displayOrder: displayOrder ?? 0,
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      slotDefinition,
-    });
+    return NextResponse.json(
+      { error: 'This endpoint is being redesigned for the new SlotDefinitionSet structure' },
+      { status: 501 }
+    );
   } catch (error) {
     console.error('Error creating slot definition:', error);
     return NextResponse.json({ error: 'Failed to create slot definition' }, { status: 500 });

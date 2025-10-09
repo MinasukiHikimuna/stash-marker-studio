@@ -74,19 +74,44 @@ enum GenderHint {
   TRANSGENDER_FEMALE
 }
 
+model SlotDefinitionSet {
+  id                                String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  stashappTagId                     Int              @unique @map("stashapp_tag_id")
+  allowSamePerformerInMultipleSlots Boolean          @default(false) @map("allow_same_performer_in_multiple_slots")
+
+  createdAt                         DateTime         @default(now()) @map("created_at")
+  updatedAt                         DateTime         @updatedAt @map("updated_at")
+
+  slotDefinitions                   SlotDefinition[]
+
+  @@map("slot_definition_sets")
+}
+
 model SlotDefinition {
-  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  stashappTagId  Int          @map("stashapp_tag_id")
-  slotLabel      String?      @map("slot_label")
-  genderHint     GenderHint?  @map("gender_hint")
-  displayOrder   Int          @default(0) @map("display_order")
+  id                   String                       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  slotDefinitionSetId  String                       @map("slot_definition_set_id") @db.Uuid
+  slotLabel            String?                      @map("slot_label")
+  order                Int                          @default(0)
 
-  createdAt      DateTime     @default(now()) @map("created_at")
+  createdAt            DateTime                     @default(now()) @map("created_at")
+  updatedAt            DateTime                     @updatedAt @map("updated_at")
 
-  markerSlots    MarkerSlot[]
+  slotDefinitionSet    SlotDefinitionSet            @relation(fields: [slotDefinitionSetId], references: [id], onDelete: Cascade)
+  genderHints          SlotDefinitionGenderHint[]
+  markerSlots          MarkerSlot[]
 
-  @@index([stashappTagId])
+  @@index([slotDefinitionSetId])
   @@map("slot_definitions")
+}
+
+model SlotDefinitionGenderHint {
+  slotDefinitionId String         @map("slot_definition_id") @db.Uuid
+  genderHint       GenderHint     @map("gender_hint")
+
+  slotDefinition   SlotDefinition @relation(fields: [slotDefinitionId], references: [id], onDelete: Cascade)
+
+  @@id([slotDefinitionId, genderHint])
+  @@map("slot_definition_gender_hints")
 }
 
 model MarkerSlot {
