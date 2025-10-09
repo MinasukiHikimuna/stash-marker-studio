@@ -263,6 +263,33 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
           return;
         }
 
+        // If setting a corresponding tag (not removing), show confirmation with count of affected markers
+        if (correspondingTagId) {
+          const correspondingTag = allTags.find(tag => tag.id === correspondingTagId);
+          if (!correspondingTag) {
+            console.error('Corresponding tag not found:', correspondingTagId);
+            return;
+          }
+
+          // Count how many markers across all scenes would be affected
+          const countResponse = await fetch(`/api/markers/count-by-tag?tagId=${tagId}`);
+          const countData = await countResponse.json();
+          const markerCount = countData.count || 0;
+
+          const confirmMessage = markerCount > 0
+            ? `This will set "${currentTag.name}" to convert to "${correspondingTag.name}".\n\nThis will also convert ${markerCount} existing marker${markerCount === 1 ? '' : 's'} across all scenes from "${currentTag.name}" to "${correspondingTag.name}".\n\nDo you want to continue?`
+            : `This will set "${currentTag.name}" to convert to "${correspondingTag.name}" during future imports.\n\nNo existing markers will be affected.\n\nDo you want to continue?`;
+
+          if (!confirm(confirmMessage)) {
+            return;
+          }
+        } else {
+          // Removing corresponding tag mapping
+          if (!confirm(`Remove corresponding tag mapping for "${currentTag.name}"?`)) {
+            return;
+          }
+        }
+
         let newDescription = currentTag.description || '';
 
         // Remove existing "Corresponding Tag: " entry if it exists
@@ -281,6 +308,65 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
 
         await stashappService.updateTag(tagId, undefined, newDescription);
 
+        // Create/update or delete corresponding tag mapping in database
+        if (correspondingTagId) {
+          // Create or update mapping
+          const mappingResponse = await fetch('/api/corresponding-tag-mappings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sourceTagId: parseInt(tagId),
+              correspondingTagId: parseInt(correspondingTagId),
+            }),
+          });
+
+          if (!mappingResponse.ok && mappingResponse.status !== 409) {
+            // 409 means mapping already exists, which is fine
+            const error = await mappingResponse.json();
+            throw new Error(error.error || 'Failed to create corresponding tag mapping');
+          }
+
+          // If mapping already exists (409), update it
+          if (mappingResponse.status === 409) {
+            const updateResponse = await fetch(`/api/corresponding-tag-mappings/by-source-tag/${tagId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                correspondingTagId: parseInt(correspondingTagId),
+              }),
+            });
+
+            if (!updateResponse.ok) {
+              const error = await updateResponse.json();
+              throw new Error(error.error || 'Failed to update corresponding tag mapping');
+            }
+          }
+
+          // Batch convert all existing markers with this primary tag
+          const convertResponse = await fetch('/api/markers/convert-by-tag', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sourceTagId: parseInt(tagId),
+              correspondingTagId: parseInt(correspondingTagId),
+            }),
+          });
+
+          if (!convertResponse.ok) {
+            console.error('Failed to convert existing markers, but mapping was created');
+          }
+        } else {
+          // Delete mapping if it exists
+          const deleteResponse = await fetch(`/api/corresponding-tag-mappings/by-source-tag/${tagId}`, {
+            method: 'DELETE',
+          });
+
+          if (!deleteResponse.ok && deleteResponse.status !== 404) {
+            // 404 means no mapping exists, which is fine
+            console.error('Failed to delete corresponding tag mapping');
+          }
+        }
+
         // Refresh tags to reflect the change
         dispatch(loadAvailableTags());
         dispatch(loadAllTags());
@@ -294,11 +380,12 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
         setReassignmentUI(null);
       } catch (error) {
         console.error('Failed to set corresponding tag:', error);
+        alert('Failed to set corresponding tag: ' + (error as Error).message);
       }
     }, [allTags, dispatch, sceneId]);
 
     // Handle clicking the reassignment icon (now opens combined dialog)
-    const handleReassignmentIconClick = useCallback((tagName: string, tagGroup: TagGroup) => {
+    const handleReassignmentIconClick = useCallback((tagName: string, _tagGroup: TagGroup) => {
       // Find the tag that matches the swimlane label (tagName)
       // The swimlane label represents the base tag name (e.g., "Blowjob")
       // We need to find this tag in allTags, not in tagGroup.tags

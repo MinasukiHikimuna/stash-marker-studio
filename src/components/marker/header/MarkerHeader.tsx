@@ -56,7 +56,8 @@ export function MarkerHeader({ className = "" }: MarkerHeaderProps) {
   const correspondingTagsCount = markers?.filter(marker => {
     const isConfirmed = isMarkerConfirmed(marker);
     // Check if this tag has a corresponding tag mapping in the database
-    const hasCorrespondingTag = correspondingTagMappings.has(parseInt(marker.primary_tag.id));
+    const tagId = parseInt(marker.primary_tag.id);
+    const hasCorrespondingTag = tagId in correspondingTagMappings;
 
     return isConfirmed && hasCorrespondingTag;
   }).length || 0;

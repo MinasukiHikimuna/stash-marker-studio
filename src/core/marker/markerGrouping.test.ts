@@ -202,8 +202,9 @@ describe("groupMarkersByTags", () => {
     const markers = [blowjobAIMarker, blowjobMarker];
 
     // Create corresponding tag mapping (sourceTagId -> correspondingTagId)
-    const mappings = new Map<number, number>();
-    mappings.set(parseInt(blowjobAIMarker.primary_tag.id.replace('tag-', '')), parseInt(blowjobMarker.primary_tag.id.replace('tag-', '')));
+    const mappings: Record<number, number> = {
+      [parseInt(blowjobAIMarker.primary_tag.id.replace('tag-', ''))]: parseInt(blowjobMarker.primary_tag.id.replace('tag-', ''))
+    };
 
     // Provide all tags for lookup
     const allTags = [

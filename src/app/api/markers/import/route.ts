@@ -58,8 +58,28 @@ async function importMarkersFromStashapp(
 ): Promise<number> {
   let importedCount = 0;
 
+  // Fetch all corresponding tag mappings once for efficiency
+  const correspondingTagMappings = await prisma.correspondingTagMapping.findMany();
+  const tagMappingMap = new Map<number, number>();
+  for (const mapping of correspondingTagMappings) {
+    tagMappingMap.set(mapping.sourceTagId, mapping.correspondingTagId);
+  }
+
   for (const stashMarker of stashappMarkers) {
     const stashappMarkerId = parseInt(stashMarker.id);
+
+    // Check if primary tag should be converted via corresponding tag mapping
+    let primaryTagId = stashMarker.primary_tag
+      ? parseInt(stashMarker.primary_tag.id)
+      : null;
+
+    if (primaryTagId) {
+      const correspondingTagId = tagMappingMap.get(primaryTagId);
+      if (correspondingTagId) {
+        // Auto-convert to corresponding tag during import
+        primaryTagId = correspondingTagId;
+      }
+    }
 
     // Upsert marker (update if exists, create if not)
     const marker = await prisma.marker.upsert({
@@ -69,17 +89,13 @@ async function importMarkersFromStashapp(
         stashappSceneId: sceneId,
         seconds: stashMarker.seconds,
         endSeconds: stashMarker.end_seconds ?? null,
-        primaryTagId: stashMarker.primary_tag
-          ? parseInt(stashMarker.primary_tag.id)
-          : null,
+        primaryTagId,
         lastSyncedAt: new Date(),
       },
       update: {
         seconds: stashMarker.seconds,
         endSeconds: stashMarker.end_seconds ?? null,
-        primaryTagId: stashMarker.primary_tag
-          ? parseInt(stashMarker.primary_tag.id)
-          : null,
+        primaryTagId,
         lastSyncedAt: new Date(),
       },
     });
@@ -89,14 +105,20 @@ async function importMarkersFromStashapp(
       where: { markerId: marker.id },
     });
 
-    // Create marker tags
+    // Create marker tags (also convert tags in the tag list)
     if (stashMarker.tags && stashMarker.tags.length > 0) {
-      await prisma.markerTag.createMany({
-        data: stashMarker.tags.map((tag) => ({
+      const convertedTags = stashMarker.tags.map((tag) => {
+        const tagId = parseInt(tag.id);
+        const correspondingTagId = tagMappingMap.get(tagId);
+        return {
           markerId: marker.id,
-          tagId: parseInt(tag.id),
-          isPrimary: stashMarker.primary_tag?.id === tag.id,
-        })),
+          tagId: correspondingTagId ?? tagId, // Use corresponding tag if mapping exists
+          isPrimary: (correspondingTagId ?? tagId) === primaryTagId,
+        };
+      });
+
+      await prisma.markerTag.createMany({
+        data: convertedTags,
       });
     }
 
