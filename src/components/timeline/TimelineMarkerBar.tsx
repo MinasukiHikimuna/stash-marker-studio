@@ -12,6 +12,8 @@ import React from "react";
 import { SceneMarker } from "../../services/StashappService";
 import { MarkerStatus } from "../../core/marker/types";
 import { getMarkerStatus } from "../../core/marker/markerLogic";
+import { useAppSelector } from "../../store/hooks";
+import { selectDerivedMarkerIds, selectSourceMarkerIds } from "../../store/slices/markerSlice";
 
 export interface TimelineMarkerBarProps {
   marker: SceneMarker;
@@ -22,15 +24,34 @@ export interface TimelineMarkerBarProps {
 }
 
 /**
- * Get marker color classes based on status
+ * Get marker color classes based on status and derivation relationship
  */
-function getMarkerColorClasses(status: MarkerStatus, isSelected: boolean): string {
+function getMarkerColorClasses(
+  status: MarkerStatus,
+  isSelected: boolean,
+  isDerivedRelationship: boolean
+): string {
   let baseClasses = "transition-colors duration-150";
 
   if (isSelected) {
     baseClasses = `${baseClasses} ring-2 ring-white`;
   }
 
+  // If this marker has a derivation relationship with the selected marker, use darker colors
+  if (isDerivedRelationship) {
+    switch (status) {
+      case MarkerStatus.CONFIRMED:
+        return `${baseClasses} bg-green-800 hover:bg-green-700`;
+      case MarkerStatus.REJECTED:
+        return `${baseClasses} bg-red-800 hover:bg-red-700`;
+      case MarkerStatus.UNPROCESSED:
+        return `${baseClasses} bg-yellow-800 hover:bg-yellow-600`;
+      default:
+        return `${baseClasses} bg-gray-700 hover:bg-gray-600`;
+    }
+  }
+
+  // Normal colors for non-derived markers
   switch (status) {
     case MarkerStatus.CONFIRMED:
       return `${baseClasses} bg-green-600 hover:bg-green-700`;
@@ -50,8 +71,17 @@ export const TimelineMarkerBar: React.FC<TimelineMarkerBarProps> = ({
   isSelected,
   onClick,
 }) => {
+  const derivedMarkerIds = useAppSelector(selectDerivedMarkerIds);
+  const sourceMarkerIds = useAppSelector(selectSourceMarkerIds);
+
   const status = getMarkerStatus(marker);
-  const colorClasses = getMarkerColorClasses(status, isSelected);
+
+  // Check if this marker is related to the selected marker through derivation
+  const isDerivedFromSelected = sourceMarkerIds.has(marker.id);
+  const isSourceForSelected = derivedMarkerIds.has(marker.id);
+  const isDerivedRelationship = isDerivedFromSelected || isSourceForSelected;
+
+  const colorClasses = getMarkerColorClasses(status, isSelected, isDerivedRelationship);
 
   // Marker height is reduced from track height for visual clarity
   const MARKER_HEIGHT = 18; // TRACK_HEIGHT (24) - 6

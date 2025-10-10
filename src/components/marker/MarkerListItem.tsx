@@ -13,6 +13,8 @@ import {
   setDuplicatingMarker,
   setError,
   createMarker,
+  selectDerivedMarkerIds,
+  selectSourceMarkerIds,
 } from "../../store/slices/markerSlice";
 import { selectMarkerStatusConfirmed, selectMarkerStatusRejected } from "@/store/slices/configSlice";
 import { type Tag } from "../../services/StashappService";
@@ -52,24 +54,50 @@ export function MarkerListItem({
   const dispatch = useAppDispatch();
   const markerStatusConfirmed = useAppSelector(selectMarkerStatusConfirmed);
   const markerStatusRejected = useAppSelector(selectMarkerStatusRejected);
+  const derivedMarkerIds = useAppSelector(selectDerivedMarkerIds);
+  const sourceMarkerIds = useAppSelector(selectSourceMarkerIds);
 
   const isEditing = editingMarkerId === marker.id;
   const isSelected = marker.id === selectedMarkerId;
   const isTemp = marker.id === "temp-new" || marker.id === "temp-duplicate";
+  const isDerivedFromSelected = sourceMarkerIds.has(marker.id);
+  const isSourceForSelected = derivedMarkerIds.has(marker.id);
+
+
+  // Determine status-based highlighting for derived markers
+  const isConfirmed = isMarkerConfirmed(marker);
+  const isRejected = isMarkerRejected(marker);
+
+  const getDerivedHighlightClasses = () => {
+    if (isRejected) {
+      return "bg-red-800 border-red-500 hover:bg-red-700";
+    } else if (isConfirmed) {
+      return "bg-green-800 border-green-500 hover:bg-green-700";
+    } else {
+      // Unprocessed
+      return "bg-yellow-800 border-yellow-500 hover:bg-yellow-700";
+    }
+  };
+
+  // Determine which CSS classes to apply
+  let appliedClasses = "";
+  if (isTemp) {
+    appliedClasses = "bg-blue-800 border-blue-400";
+  } else if (isSelected) {
+    appliedClasses = "bg-gray-700 text-white border-blue-500";
+  } else if (isSourceForSelected || isDerivedFromSelected) {
+    appliedClasses = getDerivedHighlightClasses();
+  } else if (incorrectMarkers.some((m) => m.markerId === marker.id)) {
+    appliedClasses = "bg-purple-900/50 border-purple-500 hover:bg-purple-800";
+  } else {
+    appliedClasses = "hover:bg-gray-600 hover:text-white border-transparent";
+  }
 
   return (
     <div
       key={marker.id}
       data-marker-id={marker.id}
-      className={`p-2 border-l-4 ${
-        isTemp
-          ? "bg-blue-800 border-blue-400"
-          : isSelected
-          ? "bg-gray-700 text-white border-blue-500"
-          : incorrectMarkers.some((m) => m.markerId === marker.id)
-          ? "bg-purple-900/50 border-purple-500 hover:bg-purple-800"
-          : "hover:bg-gray-600 hover:text-white border-transparent"
-      }`}
+      className={`p-2 border-l-4 ${appliedClasses}`}
       onClick={() => onMarkerClick(marker)}
       onMouseEnter={() => {}}
       onMouseLeave={() => {}}

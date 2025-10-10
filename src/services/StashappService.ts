@@ -43,6 +43,17 @@ export type SceneMarker = {
       gender?: string;
     };
   }>;
+  // Derived marker relationships (loaded from local database)
+  derivations?: Array<{
+    derivedMarkerId: string;
+    ruleId: string;
+    depth: number;
+  }>;
+  derivedFrom?: Array<{
+    sourceMarkerId: string;
+    ruleId: string;
+    depth: number;
+  }>;
 };
 
 type SceneMarkersResponse = {

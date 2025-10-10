@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     const stashappService = new StashappService();
     stashappService.applyConfig(config);
 
-    // Fetch markers from local database with slots
+    // Fetch markers from local database with slots and derivation relationships
     const dbMarkers = await prisma.marker.findMany({
       where: {
         stashappSceneId: parseInt(sceneId),
@@ -111,6 +111,8 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        derivations: true,
+        derivedFrom: true,
       },
       orderBy: {
         seconds: 'asc',
@@ -191,6 +193,19 @@ export async function GET(request: NextRequest) {
           : undefined,
       }));
 
+      // Convert derivation relationships
+      const derivations = dbMarker.derivations?.map((d) => ({
+        derivedMarkerId: d.derivedMarkerId.toString(),
+        ruleId: d.ruleId,
+        depth: d.depth,
+      }));
+
+      const derivedFrom = dbMarker.derivedFrom?.map((d) => ({
+        sourceMarkerId: d.sourceMarkerId.toString(),
+        ruleId: d.ruleId,
+        depth: d.depth,
+      }));
+
       return {
         id: dbMarker.id.toString(), // Always use internal database ID
         title: primaryTag?.name || '',
@@ -210,6 +225,8 @@ export async function GET(request: NextRequest) {
         },
         tags,
         slots: slots.length > 0 ? slots : undefined,
+        derivations: derivations && derivations.length > 0 ? derivations : undefined,
+        derivedFrom: derivedFrom && derivedFrom.length > 0 ? derivedFrom : undefined,
       };
     });
 

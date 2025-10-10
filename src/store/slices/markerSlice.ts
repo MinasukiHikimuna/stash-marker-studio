@@ -1788,4 +1788,33 @@ export const selectMarkerInitializing = (state: { marker: MarkerState }) =>
 export const selectInitializationError = (state: { marker: MarkerState }) =>
   state.marker.initializationError;
 
+// Derived marker selectors
+export const selectDerivedMarkerIds = (state: { marker: MarkerState }): Set<string> => {
+  const selectedMarkerId = state.marker.ui.selectedMarkerId;
+  if (!selectedMarkerId) {
+    return new Set();
+  }
+
+  const selectedMarker = state.marker.markers.find(m => m.id === selectedMarkerId);
+  if (!selectedMarker?.derivations) {
+    return new Set();
+  }
+
+  return new Set(selectedMarker.derivations.map(d => d.derivedMarkerId));
+};
+
+export const selectSourceMarkerIds = (state: { marker: MarkerState }): Set<string> => {
+  const selectedMarkerId = state.marker.ui.selectedMarkerId;
+  if (!selectedMarkerId) {
+    return new Set();
+  }
+
+  const selectedMarker = state.marker.markers.find(m => m.id === selectedMarkerId);
+  if (!selectedMarker?.derivedFrom) {
+    return new Set();
+  }
+
+  return new Set(selectedMarker.derivedFrom.map(d => d.sourceMarkerId));
+};
+
 export default markerSlice.reducer;
