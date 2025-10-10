@@ -79,6 +79,7 @@ import { selectMarkerAiReviewed, selectDerivedMarkers, selectMaxDerivationDepth 
 import Toast from "../../components/Toast";
 import { useRouter } from "next/navigation";
 import { incorrectMarkerStorage } from "@/utils/incorrectMarkerStorage";
+import { markerPreferences } from "@/utils/markerPreferences";
 import { IncorrectMarkerCollectionModal } from "../../components/IncorrectMarkerCollectionModal";
 import {
   formatSeconds,
@@ -211,6 +212,19 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Load hideDerivedMarkers preference from localStorage on mount
+  useEffect(() => {
+    const savedPreference = markerPreferences.getHideDerivedMarkers();
+    if (savedPreference !== hideDerivedMarkers) {
+      dispatch(setHideDerivedMarkers(savedPreference));
+    }
+  }, [dispatch]); // Only run once on mount, ignore hideDerivedMarkers to avoid loop
+
+  // Persist hideDerivedMarkers preference to localStorage when it changes
+  useEffect(() => {
+    markerPreferences.setHideDerivedMarkers(hideDerivedMarkers);
+  }, [hideDerivedMarkers]);
 
   useEffect(() => {
     const handlePopState = () => {
