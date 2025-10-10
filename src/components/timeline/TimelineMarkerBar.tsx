@@ -35,7 +35,7 @@ function getMarkerStyleClasses(
   status: MarkerStatus,
   isSelected: boolean,
   depth: number
-): { colorClasses: string; borderStyle: string } {
+): string {
   let baseClasses = "transition-colors duration-150";
 
   if (isSelected) {
@@ -135,7 +135,7 @@ function getMarkerStyleClasses(
     }
   }
 
-  return { colorClasses, borderStyle };
+  return colorClasses;
 }
 
 export const TimelineMarkerBar: React.FC<TimelineMarkerBarProps> = ({
@@ -154,7 +154,7 @@ export const TimelineMarkerBar: React.FC<TimelineMarkerBarProps> = ({
   const depth = depthMap.get(marker.id) ?? 0;
   const hasDerivationRelationship = depthMap.has(marker.id);
 
-  const { colorClasses, borderStyle } = hasDerivationRelationship
+  const colorClasses = hasDerivationRelationship
     ? getMarkerStyleClasses(status, isSelected, depth)
     : getMarkerStyleClasses(status, isSelected, 0);
 
