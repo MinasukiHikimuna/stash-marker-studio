@@ -11,6 +11,31 @@ interface SlotFormData {
   genderHints: GenderHint[];
 }
 
+interface SlotDefinitionGenderHintApiModel {
+  id: number;
+  slotDefinitionId: number;
+  genderHint: GenderHint;
+}
+
+interface SlotDefinitionApiModel {
+  id: number;
+  slotDefinitionSetId: number;
+  slotLabel: string | null;
+  order: number;
+  genderHints: SlotDefinitionGenderHintApiModel[];
+}
+
+interface SlotDefinitionSetApiModel {
+  id: number;
+  stashappTagId: number;
+  allowSamePerformerInMultipleSlots: boolean;
+  slotDefinitions: SlotDefinitionApiModel[];
+}
+
+interface SlotDefinitionSetsResponse {
+  slotDefinitionSets?: SlotDefinitionSetApiModel[];
+}
+
 interface MarkerGroupReassignDialogProps {
   tagId: string;
   tagName: string;
@@ -66,18 +91,18 @@ export function MarkerGroupReassignDialog({
       if (!response.ok) {
         throw new Error('Failed to load slot definitions');
       }
-      const data = await response.json();
-      const sets = data.slotDefinitionSets || [];
+      const data = (await response.json()) as SlotDefinitionSetsResponse;
+      const sets = data.slotDefinitionSets ?? [];
 
       if (sets.length > 0) {
-        const set = sets[0];
-        setAllowSamePerformer(set.allowSamePerformerInMultipleSlots);
+        const set = sets[0]!;
+        setAllowSamePerformer(Boolean(set.allowSamePerformerInMultipleSlots));
 
-        const slots: SlotFormData[] = set.slotDefinitions
-          .sort((a: any, b: any) => a.order - b.order)
-          .map((slot: any) => ({
-            slotLabel: slot.slotLabel || '',
-            genderHints: slot.genderHints.map((gh: any) => gh.genderHint as GenderHint),
+        const slots: SlotFormData[] = [...set.slotDefinitions]
+          .sort((a, b) => a.order - b.order)
+          .map((slot) => ({
+            slotLabel: slot.slotLabel ?? '',
+            genderHints: slot.genderHints.map((gh) => gh.genderHint),
           }));
 
         setEditingSlots(slots.length > 0 ? slots : [{ slotLabel: '', genderHints: [] }]);
@@ -302,6 +327,18 @@ export function MarkerGroupReassignDialog({
                 Set
               </button>
             </div>
+            {correspondingTagRelationships?.length ? (
+              <div className="mt-3 text-xs text-gray-300">
+                <p>The following tags currently convert to this tag:</p>
+                <ul className="list-disc list-inside text-gray-400">
+                  {correspondingTagRelationships.map((relationship) => (
+                    <li key={relationship.tagId}>
+                      {`${relationship.tagName} -> ${relationship.correspondingTagName}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
 
           {/* Slot Definitions Section */}
