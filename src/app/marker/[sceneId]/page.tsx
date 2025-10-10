@@ -89,7 +89,11 @@ import {
 } from "../../../core/marker/markerLogic";
 import { MarkerStatus } from "../../../core/marker/types";
 import type { ShotBoundary } from "../../../core/shotBoundary/types";
-import { ShotBoundarySource } from "../../../core/shotBoundary/types";
+import {
+  planAddShotBoundaryAtPlayhead,
+  planRemoveShotBoundaryMarker,
+  type ShotBoundaryPlanAction,
+} from "../../../core/shotBoundary/shotBoundaryOperations";
 
 
 // Add toast state type
@@ -866,118 +870,47 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     const shotBoundaries = getShotBoundaries();
     const currentTime = currentVideoTime;
 
-    // Find if playhead is inside an existing shot boundary
-    const containingShot = shotBoundaries.find(
-      (shot) =>
-        shot.startTime <= currentTime &&
-        shot.endTime !== null &&
-        shot.endTime !== undefined &&
-        shot.endTime > currentTime
-    );
+    const plan = planAddShotBoundaryAtPlayhead({
+      shotBoundaries,
+      currentTime,
+      videoDuration,
+    });
 
-    if (containingShot) {
-      // Split the existing shot boundary at playhead
-      if (containingShot.endTime === null || containingShot.endTime === undefined) {
-        showToast("Cannot split shot boundary without end time", "error");
-        return;
-      }
-
-      try {
-        console.log("Splitting shot boundary at playhead:", {
-          shotId: containingShot.id,
-          originalStart: containingShot.startTime,
-          originalEnd: containingShot.endTime,
-          splitTime: currentTime,
-        });
-
-        // Update first shot to end at playhead
-        // When splitting, mark both boundaries as Manual (even if original was PySceneDetect)
-        await dispatch(updateShotBoundary({
-          sceneId: scene.id,
-          shotBoundaryId: containingShot.id,
-          startTime: containingShot.startTime,
-          endTime: currentTime,
-          source: ShotBoundarySource.MANUAL,
-        })).unwrap();
-
-        // Create new shot from playhead to original end
-        await dispatch(createShotBoundary({
-          sceneId: scene.id,
-          startTime: currentTime,
-          endTime: containingShot.endTime,
-        })).unwrap();
-
-        showToast(`Split shot boundary at ${formatSeconds(currentTime)}`, "success");
-      } catch (error) {
-        console.error("Error splitting shot boundary:", error);
-        showToast("Failed to split shot boundary", "error");
-      }
+    if (plan.status === "error") {
+      showToast(plan.message, "error");
       return;
     }
 
-    // Playhead is not inside any shot boundary - create new boundaries
-    const nextShot = shotBoundaries.find((shot) => shot.startTime > currentTime);
-    const endTime = nextShot ? nextShot.startTime : (videoDuration || currentTime + 20);
-
-    const previousShot = [...shotBoundaries]
-      .reverse()
-      .find((shot) => shot.startTime < currentTime);
+    if (plan.log) {
+      console.log(plan.log.message + ":", plan.log.data);
+    }
 
     try {
-      if (
-        previousShot &&
-        previousShot.endTime !== null &&
-        previousShot.endTime !== undefined &&
-        previousShot.endTime < currentTime
-      ) {
-        // There's a gap - create shot from previous end to playhead, then playhead to next
-        console.log("Creating shot boundaries to fill gap:", {
-          gapStart: previousShot.endTime,
-          splitPoint: currentTime,
-          gapEnd: endTime,
-        });
-
-        await dispatch(createShotBoundary({
-          sceneId: scene.id,
-          startTime: previousShot.endTime,
-          endTime: currentTime,
-        })).unwrap();
-
-        await dispatch(createShotBoundary({
-          sceneId: scene.id,
-          startTime: currentTime,
-          endTime: endTime,
-        })).unwrap();
-      } else if (!previousShot) {
-        // No previous shot - create from start of video
-        console.log("Creating shot boundaries from start:", {
-          firstShotEnd: currentTime,
-          secondShotEnd: endTime,
-        });
-
-        await dispatch(createShotBoundary({
-          sceneId: scene.id,
-          startTime: 0,
-          endTime: currentTime,
-        })).unwrap();
-
-        await dispatch(createShotBoundary({
-          sceneId: scene.id,
-          startTime: currentTime,
-          endTime: endTime,
-        })).unwrap();
-      } else {
-        // Previous shot extends to playhead, just create from playhead onward
-        await dispatch(createShotBoundary({
-          sceneId: scene.id,
-          startTime: currentTime,
-          endTime: endTime,
-        })).unwrap();
+      for (const action of plan.actions) {
+        if (action.type === "update") {
+          await dispatch(updateShotBoundary({
+            sceneId: scene.id,
+            shotBoundaryId: action.boundaryId,
+            startTime: action.startTime,
+            endTime: action.endTime,
+            source: action.source,
+          })).unwrap();
+        } else if (action.type === "create") {
+          await dispatch(createShotBoundary({
+            sceneId: scene.id,
+            startTime: action.startTime,
+            endTime: action.endTime,
+          })).unwrap();
+        }
       }
 
-      showToast(`Created shot boundary at ${formatSeconds(currentTime)}`, "success");
+      const toastMessage =
+        plan.outcome === "split-existing"
+          ? `Split shot boundary at ${formatSeconds(currentTime)}`
+          : `Created shot boundary at ${formatSeconds(currentTime)}`;
+      showToast(toastMessage, "success");
     } catch (error) {
-      console.error("Error creating shot boundary:", error);
+      console.error("Error applying shot boundary plan:", error);
       showToast("Failed to create shot boundary", "error");
     }
   }, [
@@ -997,93 +930,60 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     }
 
     const shotBoundaries = getShotBoundaries();
-    if (shotBoundaries.length === 0) {
-      showToast("No shot boundaries found", "error");
+    const plan = planRemoveShotBoundaryMarker({
+      shotBoundaries,
+      currentTime: currentVideoTime,
+      videoDuration,
+    });
+
+    if (plan.status === "error") {
+      showToast(plan.message, "error");
       return;
     }
 
-    // Find the shot boundary marker that starts at or near the current playhead position
-    // Allow for small tolerance (0.5 seconds) to account for precision issues
-    const currentShotBoundary = shotBoundaries.find(
-      (shot) => Math.abs(shot.startTime - currentVideoTime) <= 0.5
-    );
-
-    if (!currentShotBoundary) {
-      showToast("No shot boundary marker found at current playhead position", "error");
-      return;
+    if (plan.log) {
+      console.log(plan.log.message + ":", plan.log.data);
     }
-
-    // Find the previous and next shot boundary markers
-    const previousShotBoundary = [...shotBoundaries]
-      .reverse()
-      .find((shot) => shot.startTime < currentShotBoundary.startTime);
-
-    const nextShotBoundary = shotBoundaries.find(
-      (shot) => shot.startTime > currentShotBoundary.startTime
-    );
 
     try {
-      if (!previousShotBoundary) {
-        // Removing first boundary - extend next boundary to start from 0
-        if (!nextShotBoundary) {
-          showToast("Cannot remove the only shot boundary", "error");
-          return;
+      for (const action of plan.actions) {
+        if (action.type === "update") {
+          await dispatch(updateShotBoundary({
+            sceneId: scene.id,
+            shotBoundaryId: action.boundaryId,
+            startTime: action.startTime,
+            endTime: action.endTime,
+          })).unwrap();
+        } else if (action.type === "delete") {
+          await dispatch(deleteShotBoundary({
+            sceneId: scene.id,
+            shotBoundaryId: action.boundaryId,
+          })).unwrap();
         }
+      }
 
-        console.log("Removing first shot boundary:", {
-          currentShotId: currentShotBoundary.id,
-          nextShotId: nextShotBoundary.id,
-          nextShotOldStart: nextShotBoundary.startTime,
-        });
-
-        await dispatch(updateShotBoundary({
-          sceneId: scene.id,
-          shotBoundaryId: nextShotBoundary.id,
-          startTime: 0,
-          endTime: nextShotBoundary.endTime ?? null,
-        })).unwrap();
-
-        await dispatch(deleteShotBoundary({
-          sceneId: scene.id,
-          shotBoundaryId: currentShotBoundary.id,
-        })).unwrap();
-
-        showToast(`Removed first shot boundary, extended next to start from beginning`, "success");
-      } else {
-        // Normal case - extend previous boundary
-        const newEndTime =
-          currentShotBoundary.endTime ??
-          videoDuration ??
-          currentVideoTime + 20;
-
-        console.log("Removing shot boundary marker:", {
-          currentShotId: currentShotBoundary.id,
-          currentShotStart: currentShotBoundary.startTime,
-          previousShotId: previousShotBoundary.id,
-          previousShotStart: previousShotBoundary.startTime,
-          previousShotOldEnd: previousShotBoundary.endTime,
-          newEndTime,
-        });
-
-        await dispatch(updateShotBoundary({
-          sceneId: scene.id,
-          shotBoundaryId: previousShotBoundary.id,
-          startTime: previousShotBoundary.startTime,
-          endTime: newEndTime,
-        })).unwrap();
-
-        await dispatch(deleteShotBoundary({
-          sceneId: scene.id,
-          shotBoundaryId: currentShotBoundary.id,
-        })).unwrap();
-
+      if (plan.outcome === "remove-first") {
         showToast(
-          `Merged shot boundaries: ${formatSeconds(previousShotBoundary.startTime)} - ${formatSeconds(newEndTime)}`,
+          "Removed first shot boundary, extended next to start from beginning",
+          "success"
+        );
+      } else {
+        const updateAction = plan.actions.find(
+          (
+            action
+          ): action is Extract<ShotBoundaryPlanAction, { type: "update" }> =>
+            action.type === "update"
+        );
+        const startTime = updateAction?.startTime ?? 0;
+        const endTime =
+          updateAction?.endTime ?? videoDuration ?? currentVideoTime;
+        showToast(
+          `Merged shot boundaries: ${formatSeconds(startTime)} - ${formatSeconds(endTime)}`,
           "success"
         );
       }
     } catch (error) {
-      console.error("Error removing shot boundary marker:", error);
+      console.error("Error applying remove shot boundary plan:", error);
       showToast("Failed to remove shot boundary marker", "error");
     }
   }, [
