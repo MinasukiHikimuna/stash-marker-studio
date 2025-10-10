@@ -39,6 +39,9 @@ export interface MarkerConfig {
   // Tag for markers which have been created manually.
   sourceManual: string;
 
+  // Tag for markers which have been created via derived marker materialization.
+  sourceDerived?: string;
+
   // Tag for scenes which AI analysis has been reviewed.
   aiReviewed: string;
 }

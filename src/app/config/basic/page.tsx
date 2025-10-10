@@ -31,6 +31,7 @@ export default function ServerConfigPage() {
       statusConfirmed: "",
       statusRejected: "",
       sourceManual: "",
+      sourceDerived: "" as string | undefined,
       aiReviewed: "",
     },
     markerGroupingConfig: { markerGroupParent: "" },
@@ -62,7 +63,10 @@ export default function ServerConfigPage() {
 
     setFormData({
       serverConfig,
-      markerConfig,
+      markerConfig: {
+        ...markerConfig,
+        sourceDerived: markerConfig.sourceDerived ?? "",
+      },
       markerGroupingConfig,
     });
 
@@ -542,6 +546,21 @@ export default function ServerConfigPage() {
               }
               availableTags={availableTags}
               placeholder={isConnectionTested ? "Search for manual source tag..." : "Test connection first"}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
+              disabled={!isConnectionTested}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Derived Source Tag ID (Optional)
+            </label>
+            <ConfigTagAutocomplete
+              value={formData.markerConfig.sourceDerived || ""}
+              onChange={(tagId) =>
+                handleInputChange("markerConfig", "sourceDerived", tagId)
+              }
+              availableTags={availableTags}
+              placeholder={isConnectionTested ? "Search for derived source tag..." : "Test connection first"}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:border-blue-500 focus:outline-none"
               disabled={!isConnectionTested}
             />

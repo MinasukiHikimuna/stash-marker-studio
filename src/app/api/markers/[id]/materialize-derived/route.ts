@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { type AppConfig } from '@/serverConfig';
+import { promises as fs } from 'fs';
+import path from 'path';
+
+const CONFIG_FILE_PATH = path.join(process.cwd(), 'app-config.json');
+
+async function loadConfig(): Promise<AppConfig> {
+  const configData = await fs.readFile(CONFIG_FILE_PATH, 'utf-8');
+  return JSON.parse(configData) as AppConfig;
+}
 
 // Materialize derived markers for a source marker by creating actual markers
 export async function POST(
@@ -44,6 +54,10 @@ export async function POST(
       );
     }
 
+    // Load configuration to get the derived source tag
+    const config = await loadConfig();
+    const derivedSourceTagId = config.markerConfig.sourceDerived;
+
     // Extract status tags from source marker (exclude primary tag)
     const statusTagIds = sourceMarker.markerTags
       .filter((mt) => !mt.isPrimary)
@@ -56,7 +70,12 @@ export async function POST(
       const { derivedTagId, tags, slots } = derivedMarker;
 
       // Combine derived tags with status tags from source marker
-      const allTagIds = [...tags, ...statusTagIds.map(String)];
+      // Also add the derived source tag if configured
+      const additionalTags = [...statusTagIds.map(String)];
+      if (derivedSourceTagId) {
+        additionalTags.push(derivedSourceTagId);
+      }
+      const allTagIds = [...tags, ...additionalTags];
 
       // Look up slot definitions for the derived tag to map slot labels to IDs
       let slotDefinitionsForTag: Array<{ id: string; slotLabel: string | null }> = [];
