@@ -11,6 +11,7 @@ export interface AppConfig {
   videoPlaybackConfig?: VideoPlaybackConfig;
   keyboardShortcuts?: KeyboardShortcutConfig;
   completionDefaults?: CompletionDefaults;
+  derivedMarkers?: DerivedMarkerConfig[];
 }
 
 export interface CompletionDefaults {
@@ -55,19 +56,26 @@ export interface MarkerGroupTagSorting {
 export interface VideoPlaybackConfig {
   // Time interval in seconds for small seeks (default: 5)
   smallSeekTime: number;
-  
+
   // Time interval in seconds for medium seeks (default: 10)
   mediumSeekTime: number;
-  
+
   // Time interval in seconds for long seeks (default: 30)
   longSeekTime: number;
-  
+
   // Frame count for small frame steps (default: 1)
   smallFrameStep: number;
-  
+
   // Frame count for medium frame steps (default: 10)
   mediumFrameStep: number;
-  
+
   // Frame count for long frame steps (default: 30)
   longFrameStep: number;
+}
+
+export interface DerivedMarkerConfig {
+  sourceTagId: string;
+  derivedTagId: string;
+  relationshipType: 'implies' | 'conflicts';
+  slotMapping?: Record<string, string>;
 }

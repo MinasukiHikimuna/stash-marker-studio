@@ -1039,6 +1039,42 @@ export const splitMarker = createAsyncThunk(
   }
 );
 
+// Materialize derived markers for a source marker
+export const materializeDerivedMarkers = createAsyncThunk(
+  "marker/materializeDerivedMarkers",
+  async (
+    params: {
+      markerId: string;
+      derivedMarkers: Array<{
+        derivedTagId: string;
+        tags: string[];
+        slots: Array<{ label: string; performerId: string }>;
+      }>;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await fetch(`/api/markers/${params.markerId}/materialize-derived`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ derivedMarkers: params.derivedMarkers }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to materialize derived markers');
+      }
+
+      const result = await response.json();
+      return result.materializedMarkers;
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to materialize derived markers"
+      );
+    }
+  }
+);
+
 // Create the slice with basic sync actions
 const markerSlice = createSlice({
   name: "marker",

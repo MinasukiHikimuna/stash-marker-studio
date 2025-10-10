@@ -221,5 +221,6 @@ export const selectMarkerSourceManual = (state: { config: ConfigState }) => stat
 export const selectMarkerAiReviewed = (state: { config: ConfigState }) => state.config.markerConfig.aiReviewed;
 export const selectMarkerGroupTagSorting = (state: { config: ConfigState }) => state.config.markerGroupTagSorting || {};
 export const selectCorrespondingTagMappings = (state: { config: ConfigState }) => state.config.correspondingTagMappings;
+export const selectDerivedMarkers = (state: { config: ConfigState }) => state.config.derivedMarkers || [];
 
 export default configSlice.reducer;

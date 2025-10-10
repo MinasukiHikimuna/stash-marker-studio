@@ -15,10 +15,13 @@ interface MarkerPageHeaderProps {
   markers: SceneMarker[] | null;
   incorrectMarkers: IncorrectMarker[];
   isLoading: boolean;
+  selectedMarkerId: string | null;
+  derivedMarkersCount: number;
   checkAllMarkersApproved: () => boolean;
   onDeleteRejected: () => void;
   onOpenCollectModal: () => void;
   onCorrespondingTagConversion: () => void;
+  onMaterializeDerived: () => void;
   onComplete: () => void;
   onImportMarkers: () => void;
 }
@@ -28,10 +31,13 @@ export function MarkerPageHeader({
   markers,
   incorrectMarkers,
   isLoading,
+  selectedMarkerId,
+  derivedMarkersCount,
   checkAllMarkersApproved,
   onDeleteRejected,
   onOpenCollectModal,
   onCorrespondingTagConversion,
+  onMaterializeDerived,
   onComplete,
   onImportMarkers,
 }: MarkerPageHeaderProps) {
@@ -143,6 +149,19 @@ export function MarkerPageHeader({
             >
               Convert Corresponding Tags{" "}
               {correspondingTagsCount > 0 && `(${correspondingTagsCount})`}
+            </button>
+            <button
+              onClick={onMaterializeDerived}
+              disabled={!selectedMarkerId || derivedMarkersCount === 0}
+              className={`px-3 py-1.5 rounded-sm text-sm transition-colors ${
+                derivedMarkersCount > 0
+                  ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                  : "bg-gray-600 hover:bg-gray-500 text-white"
+              } disabled:bg-gray-600 disabled:cursor-not-allowed`}
+              title={selectedMarkerId ? "Materialize derived markers for selected marker" : "Select a marker first"}
+            >
+              Materialize{" "}
+              {derivedMarkersCount > 0 && `(${derivedMarkersCount})`}
             </button>
             <button
               onClick={onComplete}

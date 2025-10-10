@@ -22,6 +22,7 @@ import { useMarkerNavigation } from "../../../hooks/useMarkerNavigation";
 import { useTimelineZoom } from "../../../hooks/useTimelineZoom";
 import { useMarkerOperations } from "../../../hooks/useMarkerOperations";
 import { useDynamicKeyboardShortcuts } from "../../../hooks/useDynamicKeyboardShortcuts";
+import { computeAllDerivedMarkers } from "../../../core/marker/derivedMarkers";
 import {
   selectMarkers,
   selectShotBoundaries,
@@ -69,9 +70,10 @@ import {
   updateMarkerTimes,
   deleteMarker,
   seekToTime,
-  setError
+  setError,
+  materializeDerivedMarkers,
 } from "../../../store/slices/markerSlice";
-import { selectMarkerAiReviewed } from "../../../store/slices/configSlice";
+import { selectMarkerAiReviewed, selectDerivedMarkers } from "../../../store/slices/configSlice";
 import Toast from "../../components/Toast";
 import { useRouter } from "next/navigation";
 import { incorrectMarkerStorage } from "@/utils/incorrectMarkerStorage";
@@ -104,6 +106,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   const availableTags = useAppSelector(selectAvailableTags);
   const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
   const incorrectMarkers = useAppSelector(selectIncorrectMarkers);
+  const derivedMarkerConfigs = useAppSelector(selectDerivedMarkers);
   const videoDuration = useAppSelector(selectVideoDuration);
   const currentVideoTime = useAppSelector(selectCurrentVideoTime);
   const isLoading = useAppSelector(selectMarkerLoading);
@@ -335,6 +338,49 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       showToast("Failed to import markers from Stashapp", "error");
     }
   }, [scene, showToast, dispatch]);
+
+  // Handle materialize derived markers
+  const handleMaterializeDerived = useCallback(async () => {
+    if (!selectedMarkerId || !scene) {
+      dispatch(setError("No marker selected"));
+      return;
+    }
+
+    const selectedMarker = markers.find(m => m.id === selectedMarkerId);
+    if (!selectedMarker) {
+      dispatch(setError("Selected marker not found"));
+      return;
+    }
+
+    try {
+      const derivedMarkers = computeAllDerivedMarkers(selectedMarker, derivedMarkerConfigs);
+
+      if (derivedMarkers.length === 0) {
+        showToast("No derived markers found for this marker", "error");
+        return;
+      }
+
+      await dispatch(materializeDerivedMarkers({
+        markerId: selectedMarkerId,
+        derivedMarkers,
+      })).unwrap();
+
+      // Refresh markers to show the newly created derived markers
+      await dispatch(loadMarkers(scene.id));
+
+      showToast(`Created ${derivedMarkers.length} derived marker(s)`, "success");
+    } catch (err) {
+      console.error("Error materializing derived markers:", err);
+      showToast("Failed to materialize derived markers", "error");
+    }
+  }, [selectedMarkerId, markers, derivedMarkerConfigs, scene, dispatch, showToast]);
+
+  // Calculate derived markers count for selected marker
+  const derivedMarkersCount = selectedMarkerId && markers ? (() => {
+    const selectedMarker = markers.find(m => m.id === selectedMarkerId);
+    if (!selectedMarker) return 0;
+    return computeAllDerivedMarkers(selectedMarker, derivedMarkerConfigs).length;
+  })() : 0;
 
   // Handle completion button click
   const handleComplete = useCallback(async () => {
@@ -1205,10 +1251,13 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         markers={markers}
         incorrectMarkers={incorrectMarkers}
         isLoading={isLoading}
+        selectedMarkerId={selectedMarkerId}
+        derivedMarkersCount={derivedMarkersCount}
         checkAllMarkersApproved={checkAllMarkersApproved}
         onDeleteRejected={handleDeleteRejectedMarkers}
         onOpenCollectModal={() => dispatch(openCollectingModal())}
         onCorrespondingTagConversion={handleCorrespondingTagConversion}
+        onMaterializeDerived={handleMaterializeDerived}
         onComplete={handleComplete}
         onImportMarkers={handleImportMarkers}
       />
