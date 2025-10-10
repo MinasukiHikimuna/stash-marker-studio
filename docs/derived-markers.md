@@ -84,10 +84,65 @@ Starting from a general tag, find all more specific tags:
 - Stashapp parent tags are Stashapp's built-in tag hierarchy (different system)
 - These are separate concepts and should not be confused
 
+## Multi-Level Derivation
+
+The system supports chaining derived markers across multiple levels. For example:
+- "Reverse Cowgirl (DP)" → "Reverse Cowgirl" → "Vaginal Sex" → "Vaginal Penetration"
+
+### Configuration
+
+Uses a flat array with automatic chaining detection:
+
+```json
+{
+  "derivedMarkers": [
+    {"sourceTagId": "6890", "derivedTagId": "5120", ...},
+    {"sourceTagId": "5120", "derivedTagId": "XXXX", ...}
+  ],
+  "maxDerivationDepth": 3
+}
+```
+
+The system processes derivations in multiple passes, automatically detecting when a `derivedTagId` matches another rule's `sourceTagId`.
+
 ## Storage
 
-Tag ontology is stored as static configuration in `app-config.json`. This is version-controlled and requires redeployment to update.
+### Tag Ontology Configuration
+Tag ontology rules are stored as static configuration in `app-config.json`. This is version-controlled and requires redeployment to update.
 
-Future considerations:
-- PostgreSQL storage for dynamic user-defined relationships
-- UI for managing relationships
+### Derivation Graph Database (Option 4: Separate Derivation Graph Table)
+
+Tracks the actual derivation relationships between materialized markers:
+
+```prisma
+model Marker {
+  id              String
+  derivations     MarkerDerivation[] @relation("source")
+  derivedFrom     MarkerDerivation[] @relation("derived")
+}
+
+model MarkerDerivation {
+  id              String   @id @default(cuid())
+  sourceMarkerId  String
+  derivedMarkerId String
+  ruleId          String   // Which config rule created this
+  depth           Int      // Level in derivation chain (0=direct, 1=second-level, etc.)
+  createdAt       DateTime @default(now())
+  source          Marker   @relation("source")
+  derived         Marker   @relation("derived")
+  @@unique([sourceMarkerId, derivedMarkerId])
+}
+```
+
+**Benefits**:
+- Explicit relationship tracking with full audit trail
+- Easy queries: "what derived from this marker?" or "what is this derived from?"
+- Tracks which configuration rule created each derivation
+- Supports depth tracking for multi-level chains
+- No complex recursive queries needed
+
+**Implementation Plan**:
+1. Add `MarkerDerivation` table to Prisma schema
+2. Update derivation logic to record relationships when materializing markers
+3. Add depth tracking during multi-pass derivation processing
+4. Support querying derivation chains for display/debugging

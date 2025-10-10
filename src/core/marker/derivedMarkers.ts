@@ -5,14 +5,19 @@ export interface DerivedMarker {
   derivedTagId: string;
   tags: string[];
   slots: Array<{ label: string; performerId: string }>;
+  depth: number;
+  ruleId: string;
+  sourceMarkerId?: number;
 }
 
 /**
- * Computes all derived markers for a given source marker based on the ontology configuration
+ * Computes direct derived markers (depth 0) for a given source marker
  */
 export function computeDerivedMarkers(
   marker: SceneMarker,
-  derivedMarkerConfigs: DerivedMarkerConfig[]
+  derivedMarkerConfigs: DerivedMarkerConfig[],
+  depth: number = 0,
+  sourceMarkerId?: number
 ): DerivedMarker[] {
   const derivedMarkers: DerivedMarker[] = [];
 
@@ -26,11 +31,16 @@ export function computeDerivedMarkers(
 
   for (const config of applicableConfigs) {
     if (config.relationshipType === 'implies') {
+      const ruleId = `${config.sourceTagId}->${config.derivedTagId}`;
+
       // Create a derived marker
       const derivedMarker: DerivedMarker = {
         derivedTagId: config.derivedTagId,
         tags: [config.derivedTagId], // The derived tag becomes the primary tag
         slots: [],
+        depth,
+        ruleId,
+        sourceMarkerId,
       };
 
       // Map slots from source to derived based on slotMapping
@@ -55,17 +65,28 @@ export function computeDerivedMarkers(
 }
 
 /**
- * Recursively traverse the ontology graph upward to find all implied derived markers
+ * Computes all derived markers using multi-level chaining with depth tracking.
+ * Processes derivations in multiple passes, detecting when a derivedTagId matches another rule's sourceTagId.
  */
 export function computeAllDerivedMarkers(
   marker: SceneMarker,
-  derivedMarkerConfigs: DerivedMarkerConfig[]
+  derivedMarkerConfigs: DerivedMarkerConfig[],
+  maxDepth: number = 3
 ): DerivedMarker[] {
   const allDerived: DerivedMarker[] = [];
   const visited = new Set<string>();
 
-  function traverse(currentMarker: SceneMarker) {
-    const directDerived = computeDerivedMarkers(currentMarker, derivedMarkerConfigs);
+  function traverse(currentMarker: SceneMarker, currentDepth: number, currentSourceMarkerId?: number) {
+    if (currentDepth > maxDepth) {
+      return;
+    }
+
+    const directDerived = computeDerivedMarkers(
+      currentMarker,
+      derivedMarkerConfigs,
+      currentDepth,
+      currentSourceMarkerId
+    );
 
     for (const derived of directDerived) {
       if (!visited.has(derived.derivedTagId)) {
@@ -81,11 +102,11 @@ export function computeAllDerivedMarkers(
           },
         };
 
-        traverse(tempMarker);
+        traverse(tempMarker, currentDepth + 1, currentSourceMarkerId);
       }
     }
   }
 
-  traverse(marker);
+  traverse(marker, 0, undefined);
   return allDerived;
 }

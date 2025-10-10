@@ -73,7 +73,7 @@ import {
   setError,
   materializeDerivedMarkers,
 } from "../../../store/slices/markerSlice";
-import { selectMarkerAiReviewed, selectDerivedMarkers } from "../../../store/slices/configSlice";
+import { selectMarkerAiReviewed, selectDerivedMarkers, selectMaxDerivationDepth } from "../../../store/slices/configSlice";
 import Toast from "../../components/Toast";
 import { useRouter } from "next/navigation";
 import { incorrectMarkerStorage } from "@/utils/incorrectMarkerStorage";
@@ -107,6 +107,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
   const incorrectMarkers = useAppSelector(selectIncorrectMarkers);
   const derivedMarkerConfigs = useAppSelector(selectDerivedMarkers);
+  const maxDerivationDepth = useAppSelector(selectMaxDerivationDepth);
   const videoDuration = useAppSelector(selectVideoDuration);
   const currentVideoTime = useAppSelector(selectCurrentVideoTime);
   const isLoading = useAppSelector(selectMarkerLoading);
@@ -353,7 +354,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     }
 
     try {
-      const derivedMarkers = computeAllDerivedMarkers(selectedMarker, derivedMarkerConfigs);
+      const derivedMarkers = computeAllDerivedMarkers(selectedMarker, derivedMarkerConfigs, maxDerivationDepth);
 
       if (derivedMarkers.length === 0) {
         showToast("No derived markers found for this marker", "error");
@@ -373,13 +374,13 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       console.error("Error materializing derived markers:", err);
       showToast("Failed to materialize derived markers", "error");
     }
-  }, [selectedMarkerId, markers, derivedMarkerConfigs, scene, dispatch, showToast]);
+  }, [selectedMarkerId, markers, derivedMarkerConfigs, maxDerivationDepth, scene, dispatch, showToast]);
 
   // Calculate derived markers count for selected marker
   const derivedMarkersCount = selectedMarkerId && markers ? (() => {
     const selectedMarker = markers.find(m => m.id === selectedMarkerId);
     if (!selectedMarker) return 0;
-    return computeAllDerivedMarkers(selectedMarker, derivedMarkerConfigs).length;
+    return computeAllDerivedMarkers(selectedMarker, derivedMarkerConfigs, maxDerivationDepth).length;
   })() : 0;
 
   // Handle completion button click

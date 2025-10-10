@@ -222,5 +222,6 @@ export const selectMarkerAiReviewed = (state: { config: ConfigState }) => state.
 export const selectMarkerGroupTagSorting = (state: { config: ConfigState }) => state.config.markerGroupTagSorting || {};
 export const selectCorrespondingTagMappings = (state: { config: ConfigState }) => state.config.correspondingTagMappings;
 export const selectDerivedMarkers = (state: { config: ConfigState }) => state.config.derivedMarkers || [];
+export const selectMaxDerivationDepth = (state: { config: ConfigState }) => state.config.maxDerivationDepth || 3;
 
 export default configSlice.reducer;

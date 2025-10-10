@@ -44,6 +44,8 @@ model Marker {
 
   markerTags        MarkerTag[]
   markerSlots       MarkerSlot[]
+  derivations       MarkerDerivation[] @relation("source")
+  derivedFrom       MarkerDerivation[] @relation("derived")
 
   @@index([stashappSceneId])
   @@index([stashappMarkerId])
@@ -141,4 +143,23 @@ model CorrespondingTagMapping {
 
   @@index([correspondingTagId])
   @@map("corresponding_tag_mappings")
+}
+
+model MarkerDerivation {
+  id                String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  sourceMarkerId    Int      @map("source_marker_id")
+  derivedMarkerId   Int      @map("derived_marker_id")
+  ruleId            String   @map("rule_id")
+  depth             Int      @default(0)
+
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  sourceMarker      Marker   @relation("source", fields: [sourceMarkerId], references: [id], onDelete: Cascade)
+  derivedMarker     Marker   @relation("derived", fields: [derivedMarkerId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceMarkerId, derivedMarkerId])
+  @@index([derivedMarkerId])
+  @@index([ruleId])
+  @@index([depth])
+  @@map("marker_derivations")
 }

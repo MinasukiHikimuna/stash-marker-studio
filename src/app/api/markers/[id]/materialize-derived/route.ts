@@ -67,7 +67,7 @@ export async function POST(
     const createdMarkers = [];
 
     for (const derivedMarker of derivedMarkers) {
-      const { derivedTagId, tags, slots } = derivedMarker;
+      const { derivedTagId, tags, slots, depth, ruleId } = derivedMarker;
 
       // Combine derived tags with status tags from source marker
       // Also add the derived source tag if configured
@@ -138,6 +138,16 @@ export async function POST(
         include: {
           markerTags: true,
           markerSlots: true,
+        },
+      });
+
+      // Create MarkerDerivation relationship record
+      await prisma.markerDerivation.create({
+        data: {
+          sourceMarkerId: markerId,
+          derivedMarkerId: newMarker.id,
+          ruleId: ruleId || `${sourceMarker.primaryTagId}->${derivedTagId}`,
+          depth: depth || 0,
         },
       });
 

@@ -12,6 +12,7 @@ export interface AppConfig {
   keyboardShortcuts?: KeyboardShortcutConfig;
   completionDefaults?: CompletionDefaults;
   derivedMarkers?: DerivedMarkerConfig[];
+  maxDerivationDepth?: number;
 }
 
 export interface CompletionDefaults {
