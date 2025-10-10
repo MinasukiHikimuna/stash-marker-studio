@@ -107,7 +107,7 @@ export function MarkerListItem({
           marker={marker}
           availableTags={availableTags}
           videoElement={videoElementRef.current}
-          onSave={async (newStart, newEnd, newTagId) => {
+          onSave={async (newStart, newEnd, newTagId, slots, tags) => {
             try {
               // Remove temp markers first
               const realMarkers = (markers || []).filter(
@@ -115,12 +115,23 @@ export function MarkerListItem({
               );
               dispatch(setMarkers(realMarkers));
 
+              // Prepare slots data for API - convert from SceneMarker slots format to API format
+              const slotsForAPI = slots?.map(slot => ({
+                slotDefinitionId: slot.slotDefinitionId,
+                performerId: slot.stashappPerformerId?.toString() ?? null,
+              }));
+
+              // Prepare tag IDs - extract IDs from tags array, or use defaults
+              const tagIds = tags?.map(tag => tag.id);
+
               // Create marker using Redux thunk (selection is handled automatically)
               await dispatch(createMarker({
                 sceneId: marker.scene.id,
                 startTime: newStart,
                 endTime: newEnd ?? null,
                 tagId: newTagId,
+                slots: slotsForAPI,
+                tagIds,
               })).unwrap();
 
               // Clear UI flags

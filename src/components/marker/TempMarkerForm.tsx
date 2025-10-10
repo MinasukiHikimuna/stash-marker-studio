@@ -9,7 +9,7 @@ interface TempMarkerFormProps {
   marker: SceneMarker;
   availableTags: Tag[];
   videoElement: HTMLVideoElement | null;
-  onSave: (start: number, end: number | null, tagId: string) => void;
+  onSave: (start: number, end: number | null, tagId: string, slots?: SceneMarker['slots'], tags?: SceneMarker['tags']) => void;
   onCancel: () => void;
   isDuplicate?: boolean;
 }
@@ -109,7 +109,9 @@ export function TempMarkerForm({
                 onSave(
                   parseTimeColonDot(start),
                   end === "" ? null : parseTimeColonDot(end),
-                  selectedTagId
+                  selectedTagId,
+                  marker.slots,
+                  marker.tags
                 );
               }
             }}
@@ -120,7 +122,9 @@ export function TempMarkerForm({
               onSave(
                 parseTimeColonDot(start),
                 end === "" ? null : parseTimeColonDot(end),
-                tagId
+                tagId,
+                marker.slots,
+                marker.tags
               );
             }}
           >

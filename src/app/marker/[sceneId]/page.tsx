@@ -65,6 +65,7 @@ import {
   setVideoDuration,
   initializeMarkerPage,
   loadMarkers,
+  createMarker,
   createShotBoundary,
   updateShotBoundary,
   deleteShotBoundary,
@@ -594,11 +595,12 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         end_seconds: endTime ?? undefined,
         primary_tag: selectedTag,
         scene: scene,
-        tags: isDuplicate ? [] : [], // Both start with empty tags array
+        tags: isDuplicate ? sourceMarker.tags : [], // Preserve tags when duplicating
         title: isDuplicate ? sourceMarker.title : "",
         stream: isDuplicate ? sourceMarker.stream : "",
         preview: isDuplicate ? sourceMarker.preview : "",
         screenshot: isDuplicate ? sourceMarker.screenshot : "",
+        slots: isDuplicate ? sourceMarker.slots : undefined, // Preserve slots when duplicating
       };
 
       const insertIndex = (markers || []).findIndex(m => m.seconds > tempMarker.seconds);
@@ -631,6 +633,55 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     const currentTime = currentVideoTime;
     createOrDuplicateMarker(currentTime, currentTime + 20);
   }, [createOrDuplicateMarker, currentVideoTime]);
+
+  // Duplicate marker at playhead with all properties (no UI prompt)
+  const duplicateMarkerAtPlayhead = useCallback(async () => {
+    if (!markers || !selectedMarkerId || !scene) {
+      console.log("Cannot duplicate marker at playhead:", {
+        hasMarkers: !!markers,
+        selectedMarkerId,
+        hasScene: !!scene,
+      });
+      return;
+    }
+
+    const currentMarker = markers.find(m => m.id === selectedMarkerId);
+    if (!currentMarker) {
+      console.log("Cannot duplicate: No current marker found");
+      return;
+    }
+
+    // Calculate duration and new times
+    const duration = (currentMarker.end_seconds ?? currentMarker.seconds + 20) - currentMarker.seconds;
+    const startTime = currentVideoTime;
+    const endTime = startTime + duration;
+
+    // Prepare slots data for API
+    const slotsForAPI = currentMarker.slots?.map(slot => ({
+      slotDefinitionId: slot.slotDefinitionId,
+      performerId: slot.stashappPerformerId?.toString() ?? null,
+    }));
+
+    // Prepare tag IDs to preserve marker status
+    const tagIds = currentMarker.tags.map(tag => tag.id);
+
+    try {
+      // Create marker directly without temporary UI
+      await dispatch(createMarker({
+        sceneId: scene.id,
+        startTime,
+        endTime,
+        tagId: currentMarker.primary_tag.id,
+        slots: slotsForAPI,
+        tagIds,
+      })).unwrap();
+
+      console.log("Duplicated marker at playhead successfully");
+    } catch (error) {
+      console.error("Error duplicating marker at playhead:", error);
+      dispatch(setError(`Failed to duplicate marker: ${error}`));
+    }
+  }, [markers, selectedMarkerId, scene, currentVideoTime, dispatch]);
 
   // Update handleMarkerClick to use marker IDs
   const handleMarkerClick = useCallback(
@@ -1086,6 +1137,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     handleDeleteRejectedMarkers,
     splitCurrentMarker,
     createOrDuplicateMarker,
+    duplicateMarkerAtPlayhead,
     createShotBoundaryMarker,
     addShotBoundaryAtPlayhead,
     removeShotBoundaryMarker,

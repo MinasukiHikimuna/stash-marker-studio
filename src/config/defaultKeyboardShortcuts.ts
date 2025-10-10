@@ -90,6 +90,15 @@ export const defaultShortcuts: KeyboardShortcut[] = [
     editable: true,
   },
   {
+    id: "marker.duplicateAtPlayhead",
+    bindings: [{ key: "d", modifiers: { shift: true } }],
+    description: "Duplicate current marker at playhead with same tag and properties",
+    category: "marker.create",
+    action: { type: "function", functionName: "duplicateMarkerAtPlayhead" },
+    enabled: true,
+    editable: true,
+  },
+  {
     id: "marker.addShotBoundary",
     bindings: [{ key: "v" }],
     description: "Add or split shot boundary at playhead",

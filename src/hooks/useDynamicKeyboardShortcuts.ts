@@ -40,7 +40,7 @@ interface UseDynamicKeyboardShortcutsParams {
   isCorrespondingTagConversionModalOpen: boolean;
   isCollectingModalOpen: boolean;
   videoElementRef: React.RefObject<HTMLVideoElement | null>;
-  
+
   // Handler functions
   fetchData: () => void;
   handleCancelEdit: () => void;
@@ -48,6 +48,7 @@ interface UseDynamicKeyboardShortcutsParams {
   handleDeleteRejectedMarkers: () => void;
   splitCurrentMarker: () => void;
   createOrDuplicateMarker: (startTime: number, endTime: number | null, sourceMarker?: SceneMarker) => void;
+  duplicateMarkerAtPlayhead: () => void;
   createShotBoundaryMarker: () => void;
   addShotBoundaryAtPlayhead: () => void;
   removeShotBoundaryMarker: () => void;
@@ -61,7 +62,7 @@ interface UseDynamicKeyboardShortcutsParams {
   confirmDeleteRejectedMarkers: () => void;
   handleConfirmCorrespondingTagConversion: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
-  
+
   // Navigation functions
   navigateBetweenSwimlanes: (direction: 'up' | 'down') => void;
   navigateWithinSwimlane: (direction: 'left' | 'right') => void;
@@ -72,12 +73,12 @@ interface UseDynamicKeyboardShortcutsParams {
   findPreviousUnprocessedMarkerInSwimlane: () => string | null;
   findNextMarkerAtPlayhead: (currentTime: number) => string | null;
   findPreviousMarkerAtPlayhead: (currentTime: number) => string | null;
-  
+
   // Zoom functions
   zoomIn: () => void;
   zoomOut: () => void;
   resetZoom: () => void;
-  
+
   // Timeline functions
   centerPlayhead: () => void;
 }
@@ -122,6 +123,7 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       handleDeleteRejectedMarkers,
       splitCurrentMarker,
       createOrDuplicateMarker,
+      duplicateMarkerAtPlayhead,
       createShotBoundaryMarker,
       addShotBoundaryAtPlayhead,
       removeShotBoundaryMarker,
@@ -225,6 +227,10 @@ export const useDynamicKeyboardShortcuts = (params: UseDynamicKeyboardShortcutsP
       'marker.duplicate': () => {
         if (!currentMarker) return;
         createOrDuplicateMarker(currentMarker.seconds, currentMarker.end_seconds ?? null, currentMarker);
+      },
+
+      'marker.duplicateAtPlayhead': () => {
+        duplicateMarkerAtPlayhead();
       },
 
       'marker.addShotBoundary': () => {

@@ -431,6 +431,7 @@ export const createMarker = createAsyncThunk<
     endTime: number | null;
     tagId: string;
     slots?: Array<{ slotDefinitionId: string; performerId: string | null }>;
+    tagIds?: string[];
   }
 >(
   "marker/createMarker",
@@ -448,6 +449,9 @@ export const createMarker = createAsyncThunk<
       const MARKER_SOURCE_MANUAL = stashappService.markerSourceManual;
       const MARKER_STATUS_CONFIRMED = stashappService.markerStatusConfirmed;
 
+      // Use provided tagIds if available, otherwise use default tags
+      const tagIdsToUse = params.tagIds ?? [MARKER_SOURCE_MANUAL, MARKER_STATUS_CONFIRMED];
+
       // Create marker in local database with slots
       // Note: primaryTagId is included automatically via isPrimary flag, don't add to tagIds
       const response = await fetch('/api/markers', {
@@ -459,7 +463,7 @@ export const createMarker = createAsyncThunk<
           seconds: params.startTime,
           endSeconds: params.endTime,
           primaryTagId: params.tagId,
-          tagIds: [MARKER_SOURCE_MANUAL, MARKER_STATUS_CONFIRMED],
+          tagIds: tagIdsToUse,
           slots: params.slots || [],
         }),
       });
