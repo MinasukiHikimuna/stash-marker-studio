@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState, use } from "react";
+import { useEffect, useRef, useCallback, useState, use, useMemo } from "react";
 import {
   stashappService,
   type Tag,
@@ -31,6 +31,7 @@ import {
   selectSelectedMarkerId,
   selectIsCompletionModalOpen,
   selectIncorrectMarkers,
+  selectHideDerivedMarkers,
   selectVideoDuration,
   selectCurrentVideoTime,
   selectMarkerLoading,
@@ -59,6 +60,7 @@ import {
   setDuplicatingMarker,
   setMarkers,
   setIncorrectMarkers,
+  setHideDerivedMarkers,
   setCurrentVideoTime,
   setVideoDuration,
   initializeMarkerPage,
@@ -106,6 +108,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   const availableTags = useAppSelector(selectAvailableTags);
   const selectedMarkerId = useAppSelector(selectSelectedMarkerId);
   const incorrectMarkers = useAppSelector(selectIncorrectMarkers);
+  const hideDerivedMarkers = useAppSelector(selectHideDerivedMarkers);
   const derivedMarkerConfigs = useAppSelector(selectDerivedMarkers);
   const maxDerivationDepth = useAppSelector(selectMaxDerivationDepth);
   const videoDuration = useAppSelector(selectVideoDuration);
@@ -339,6 +342,18 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       showToast("Failed to import markers from Stashapp", "error");
     }
   }, [scene, showToast, dispatch]);
+
+  // Handle toggle hide derived markers
+  const handleToggleHideDerivedMarkers = useCallback(() => {
+    dispatch(setHideDerivedMarkers(!hideDerivedMarkers));
+  }, [dispatch, hideDerivedMarkers]);
+
+  // Filter markers to hide derived markers if enabled (memoized to prevent infinite re-renders)
+  const filteredMarkers = useMemo(() => {
+    return hideDerivedMarkers
+      ? markers.filter(marker => !marker.derivedFrom || marker.derivedFrom.length === 0)
+      : markers;
+  }, [markers, hideDerivedMarkers]);
 
   // Handle materialize derived markers
   const handleMaterializeDerived = useCallback(async () => {
@@ -1254,6 +1269,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         isLoading={isLoading}
         selectedMarkerId={selectedMarkerId}
         derivedMarkersCount={derivedMarkersCount}
+        hideDerivedMarkers={hideDerivedMarkers}
         checkAllMarkersApproved={checkAllMarkersApproved}
         onDeleteRejected={handleDeleteRejectedMarkers}
         onOpenCollectModal={() => dispatch(openCollectingModal())}
@@ -1261,6 +1277,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         onMaterializeDerived={handleMaterializeDerived}
         onComplete={handleComplete}
         onImportMarkers={handleImportMarkers}
+        onToggleHideDerivedMarkers={handleToggleHideDerivedMarkers}
       />
 
       {error && (
@@ -1295,7 +1312,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
                   data-testid="marker-list"
                 >
                   <MarkerList
-                    markers={markers}
+                    markers={filteredMarkers}
                     selectedMarkerId={selectedMarkerId}
                     editingMarkerId={editingMarkerId}
                     editingTagId={editingTagId}
@@ -1322,7 +1339,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
             >
               <Timeline
                 ref={timelineRef}
-                markers={markers || []}
+                markers={filteredMarkers || []}
                 shotBoundaries={shotBoundaries}
                 selectedMarkerId={selectedMarkerId}
                 videoDuration={videoDuration || 0}

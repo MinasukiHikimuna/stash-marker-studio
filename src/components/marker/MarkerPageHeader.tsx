@@ -17,6 +17,7 @@ interface MarkerPageHeaderProps {
   isLoading: boolean;
   selectedMarkerId: string | null;
   derivedMarkersCount: number;
+  hideDerivedMarkers: boolean;
   checkAllMarkersApproved: () => boolean;
   onDeleteRejected: () => void;
   onOpenCollectModal: () => void;
@@ -24,6 +25,7 @@ interface MarkerPageHeaderProps {
   onMaterializeDerived: () => void;
   onComplete: () => void;
   onImportMarkers: () => void;
+  onToggleHideDerivedMarkers: () => void;
 }
 
 export function MarkerPageHeader({
@@ -33,6 +35,7 @@ export function MarkerPageHeader({
   isLoading,
   selectedMarkerId,
   derivedMarkersCount,
+  hideDerivedMarkers,
   checkAllMarkersApproved,
   onDeleteRejected,
   onOpenCollectModal,
@@ -40,6 +43,7 @@ export function MarkerPageHeader({
   onMaterializeDerived,
   onComplete,
   onImportMarkers,
+  onToggleHideDerivedMarkers,
 }: MarkerPageHeaderProps) {
   const router = useRouter();
   const stashUrl = useAppSelector(selectStashUrl);
@@ -163,6 +167,15 @@ export function MarkerPageHeader({
               Materialize{" "}
               {derivedMarkersCount > 0 && `(${derivedMarkersCount})`}
             </button>
+            <label className="flex items-center space-x-2 px-3 py-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hideDerivedMarkers}
+                onChange={onToggleHideDerivedMarkers}
+                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+              />
+              <span className="text-sm text-white">Hide Derived</span>
+            </label>
             <button
               onClick={onComplete}
               disabled={isLoading}

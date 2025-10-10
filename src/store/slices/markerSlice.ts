@@ -109,6 +109,7 @@ export interface MarkerState {
   // Filters and display
   filters: {
     incorrectMarkers: IncorrectMarker[];
+    hideDerivedMarkers: boolean;
   };
 
   // Async state
@@ -173,6 +174,7 @@ const initialState: MarkerState = {
   // Filters
   filters: {
     incorrectMarkers: [],
+    hideDerivedMarkers: false,
   },
 
   // Async state
@@ -1229,6 +1231,10 @@ const markerSlice = createSlice({
       state.filters.incorrectMarkers = action.payload;
     },
 
+    setHideDerivedMarkers: (state, action: PayloadAction<boolean>) => {
+      state.filters.hideDerivedMarkers = action.payload;
+    },
+
     // Video actions
     // Video metadata actions (VideoPlayer -> Redux -> Timeline)
     setVideoDuration: (state, action: PayloadAction<number | null>) => {
@@ -1633,6 +1639,7 @@ export const {
   setConfirmedAIMarkers,
   setCopiedMarkerTimes,
   setIncorrectMarkers,
+  setHideDerivedMarkers,
   setVideoDuration,
   setCurrentVideoTime,
   setVideoPlaying,
@@ -1775,6 +1782,8 @@ export const selectCopiedMarkerTimes = (state: { marker: MarkerState }) =>
 // Filter selectors
 export const selectIncorrectMarkers = (state: { marker: MarkerState }) =>
   state.marker.filters.incorrectMarkers;
+export const selectHideDerivedMarkers = (state: { marker: MarkerState }) =>
+  state.marker.filters.hideDerivedMarkers;
 
 // Async state selectors
 export const selectMarkerLoading = (state: { marker: MarkerState }) =>
