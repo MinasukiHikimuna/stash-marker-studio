@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Create slot definitions with their gender hints
-      const createdSlots = await Promise.all(
+      await Promise.all(
         slots.map(async (slot: { slotLabel: string; genderHints: string[] }, index: number) => {
           const slotDefinition = await tx.slotDefinition.create({
             data: {
