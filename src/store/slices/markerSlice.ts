@@ -1788,7 +1788,7 @@ export const selectMarkerInitializing = (state: { marker: MarkerState }) =>
 export const selectInitializationError = (state: { marker: MarkerState }) =>
   state.marker.initializationError;
 
-// Derived marker selectors
+// Derived marker selectors with depth information
 export const selectDerivedMarkerIds = (state: { marker: MarkerState }): Set<string> => {
   const selectedMarkerId = state.marker.ui.selectedMarkerId;
   if (!selectedMarkerId) {
@@ -1815,6 +1815,34 @@ export const selectSourceMarkerIds = (state: { marker: MarkerState }): Set<strin
   }
 
   return new Set(selectedMarker.derivedFrom.map(d => d.sourceMarkerId));
+};
+
+// Derived marker depth map - returns Map<markerId, depth>
+// Positive depth = derived markers (descendants), Negative depth = source markers (ancestors)
+export const selectDerivedMarkerDepths = (state: { marker: MarkerState }): Map<string, number> => {
+  const selectedMarkerId = state.marker.ui.selectedMarkerId;
+  if (!selectedMarkerId) {
+    return new Map();
+  }
+
+  const selectedMarker = state.marker.markers.find(m => m.id === selectedMarkerId);
+  const depthMap = new Map<string, number>();
+
+  // Add derived markers (positive depth = going down the chain)
+  if (selectedMarker?.derivations) {
+    for (const derivation of selectedMarker.derivations) {
+      depthMap.set(derivation.derivedMarkerId, derivation.depth + 1);
+    }
+  }
+
+  // Add source markers (negative depth = going up the chain)
+  if (selectedMarker?.derivedFrom) {
+    for (const source of selectedMarker.derivedFrom) {
+      depthMap.set(source.sourceMarkerId, -(source.depth + 1));
+    }
+  }
+
+  return depthMap;
 };
 
 export default markerSlice.reducer;
