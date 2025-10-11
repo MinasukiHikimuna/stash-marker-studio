@@ -7,6 +7,16 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { TimelineMarkerBar } from "./TimelineMarkerBar";
 import { SceneMarker } from "../../services/StashappService";
 
+const mockDepthMap = new Map<string, number>();
+
+jest.mock("../../store/hooks", () => {
+  const actual = jest.requireActual("../../store/hooks");
+  return {
+    ...actual,
+    useAppSelector: jest.fn().mockImplementation(() => mockDepthMap),
+  };
+});
+
 // Mock the StashappService
 const MARKER_STATUS_CONFIRMED = "100001";
 const MARKER_STATUS_REJECTED = "100002";
@@ -66,6 +76,7 @@ describe("TimelineMarkerBar", () => {
 
   beforeEach(() => {
     mockOnClick.mockClear();
+    mockDepthMap.clear();
   });
 
   describe("Rendering", () => {
