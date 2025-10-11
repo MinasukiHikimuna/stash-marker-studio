@@ -25,12 +25,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ensure primary tag is included in tagIds
+    // Primary tag is stored in primaryTagId, additional tags go in additionalTags
     const primaryTagIdNum = primaryTagId ? parseInt(primaryTagId) : null;
-    const tagIdsToCreate = new Set<number>(tagIds?.map((id: string) => parseInt(id)) || []);
-    if (primaryTagIdNum && !tagIdsToCreate.has(primaryTagIdNum)) {
-      tagIdsToCreate.add(primaryTagIdNum);
-    }
+    const additionalTagIds: number[] = (tagIds?.map((id: string) => parseInt(id)) || [])
+      .filter((tagId: number) => tagId !== primaryTagIdNum); // Exclude primary tag
 
     // Create marker in local database with slots
     const marker = await prisma.marker.create({
@@ -39,11 +37,10 @@ export async function POST(request: NextRequest) {
         seconds,
         endSeconds: endSeconds ?? null,
         primaryTagId: primaryTagIdNum,
-        markerTags: tagIdsToCreate.size > 0
+        additionalTags: additionalTagIds.length > 0
           ? {
-              create: Array.from(tagIdsToCreate).map((tagId) => ({
+              create: additionalTagIds.map((tagId) => ({
                 tagId,
-                isPrimary: tagId === primaryTagIdNum,
               })),
             }
           : undefined,
@@ -57,7 +54,7 @@ export async function POST(request: NextRequest) {
           : undefined,
       },
       include: {
-        markerTags: true,
+        additionalTags: true,
         markerSlots: {
           include: {
             slotDefinition: true,
@@ -102,7 +99,7 @@ export async function GET(request: NextRequest) {
         stashappSceneId: parseInt(sceneId),
       },
       include: {
-        markerTags: true,
+        additionalTags: true,
         markerSlots: {
           include: {
             slotDefinition: {
@@ -182,7 +179,8 @@ export async function GET(request: NextRequest) {
         ? tagMap.get(dbMarker.primaryTagId.toString())
         : undefined;
 
-      const tags = dbMarker.markerTags
+      // All tags (additional tags from DB, primary tag is stored separately in primary_tag field)
+      const tags = dbMarker.additionalTags
         .map((mt) => tagMap.get(mt.tagId.toString()))
         .filter((tag): tag is Tag => tag !== undefined)
         .map((tag) => ({ id: tag.id, name: tag.name }));

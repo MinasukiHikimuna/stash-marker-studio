@@ -42,7 +42,7 @@ model Marker {
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  markerTags        MarkerTag[]
+  additionalTags    MarkerAdditionalTag[]
   markerSlots       MarkerSlot[]
   derivations       MarkerDerivation[] @relation("source")
   derivedFrom       MarkerDerivation[] @relation("derived")
@@ -52,11 +52,10 @@ model Marker {
   @@map("markers")
 }
 
-model MarkerTag {
+model MarkerAdditionalTag {
   id         Int      @id @default(autoincrement())
   markerId   Int      @map("marker_id")
   tagId      Int      @map("tag_id")
-  isPrimary  Boolean  @default(false) @map("is_primary")
 
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
@@ -65,7 +64,7 @@ model MarkerTag {
 
   @@unique([markerId, tagId])
   @@index([tagId])
-  @@map("marker_tags")
+  @@map("marker_additional_tags")
 }
 
 enum GenderHint {

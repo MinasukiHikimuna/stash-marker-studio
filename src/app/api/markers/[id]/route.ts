@@ -41,46 +41,15 @@ export async function PATCH(
       data: updateData,
     });
 
-    // If primaryTagId was updated, ensure consistency in marker_tags
-    if (primaryTagId !== undefined) {
-      if (updatedMarker.primaryTagId) {
-        // Set all tags to non-primary
-        await prisma.markerTag.updateMany({
-          where: { markerId: updatedMarker.id },
-          data: { isPrimary: false },
-        });
-
-        // Check if primary tag exists in marker_tags
-        const existingPrimaryTag = await prisma.markerTag.findFirst({
-          where: {
-            markerId: updatedMarker.id,
-            tagId: updatedMarker.primaryTagId,
-          },
-        });
-
-        if (existingPrimaryTag) {
-          // Update existing tag to be primary
-          await prisma.markerTag.update({
-            where: { id: existingPrimaryTag.id },
-            data: { isPrimary: true },
-          });
-        } else {
-          // Create primary tag entry if it doesn't exist
-          await prisma.markerTag.create({
-            data: {
-              markerId: updatedMarker.id,
-              tagId: updatedMarker.primaryTagId,
-              isPrimary: true,
-            },
-          });
-        }
-      } else {
-        // Primary tag was set to null, clear all isPrimary flags
-        await prisma.markerTag.updateMany({
-          where: { markerId: updatedMarker.id },
-          data: { isPrimary: false },
-        });
-      }
+    // If primaryTagId was updated, remove it from additionalTags (shouldn't be there)
+    if (primaryTagId !== undefined && updatedMarker.primaryTagId) {
+      // Remove primary tag from additionalTags if it exists there
+      await prisma.markerAdditionalTag.deleteMany({
+        where: {
+          markerId: updatedMarker.id,
+          tagId: updatedMarker.primaryTagId,
+        },
+      });
     }
 
     return NextResponse.json({
@@ -115,7 +84,7 @@ export async function DELETE(
     }
 
     // Delete marker tags first (foreign key constraint)
-    await prisma.markerTag.deleteMany({
+    await prisma.markerAdditionalTag.deleteMany({
       where: { markerId },
     });
 

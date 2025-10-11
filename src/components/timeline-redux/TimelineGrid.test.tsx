@@ -44,7 +44,7 @@ function createMockMarker(
     seconds,
     end_seconds: endSeconds,
     primary_tag: createTestTag({ id: `tag-${id}`, name: tagName }),
-    tags,
+    tags: tags,
   });
 }
 

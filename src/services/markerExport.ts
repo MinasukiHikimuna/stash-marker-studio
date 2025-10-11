@@ -1,9 +1,9 @@
-import { Marker, MarkerTag } from '@prisma/client';
+import { Marker, MarkerAdditionalTag } from '@prisma/client';
 import { SceneMarker } from './StashappService';
 
 export interface ExportOperation {
   type: 'create' | 'update' | 'delete';
-  localMarker?: Marker & { markerTags: MarkerTag[] };
+  localMarker?: Marker & { additionalTags: MarkerAdditionalTag[] };
   stashappMarker?: SceneMarker;
 }
 
@@ -23,14 +23,14 @@ export interface ExportPreview {
  * - Delete: Stashapp markers not present in local database
  */
 export function classifyExportOperations(
-  localMarkers: (Marker & { markerTags: MarkerTag[] })[],
+  localMarkers: (Marker & { additionalTags: MarkerAdditionalTag[] })[],
   stashappMarkers: SceneMarker[]
 ): ExportPreview {
   const operations: ExportOperation[] = [];
 
   // Build a map of stashappMarkerId -> localMarker for quick lookup
-  const localMarkersByStashappId = new Map<number, Marker & { markerTags: MarkerTag[] }>();
-  const localMarkersWithoutStashappId: (Marker & { markerTags: MarkerTag[] })[] = [];
+  const localMarkersByStashappId = new Map<number, Marker & { additionalTags: MarkerAdditionalTag[] }>();
+  const localMarkersWithoutStashappId: (Marker & { additionalTags: MarkerAdditionalTag[] })[] = [];
 
   for (const localMarker of localMarkers) {
     if (localMarker.stashappMarkerId) {
@@ -86,49 +86,37 @@ export function classifyExportOperations(
 }
 
 /**
- * Extracts tag IDs from a marker's tags, with primary tag first.
- * Ensures primary tag is included even if not present in markerTags.
+ * Extracts tag IDs from a marker, with primary tag first, followed by additional tags.
  */
 export function extractTagIds(
-  markerTags: MarkerTag[],
-  fallbackPrimaryTagId?: number | null
+  additionalTags: MarkerAdditionalTag[],
+  primaryTagId?: number | null
 ): string[] {
-  // Sort to ensure primary tag is first
-  const sorted = [...markerTags].sort((a, b) => {
-    if (a.isPrimary) return -1;
-    if (b.isPrimary) return 1;
-    return 0;
-  });
+  const tagIds: string[] = [];
 
-  const tagIds = sorted.map(mt => mt.tagId.toString());
+  // Primary tag always comes first
+  if (primaryTagId) {
+    tagIds.push(primaryTagId.toString());
+  }
 
-  // If no primary tag in markerTags but fallback exists, add it first
-  if (!markerTags.some(mt => mt.isPrimary) && fallbackPrimaryTagId) {
-    const fallbackId = fallbackPrimaryTagId.toString();
-    // Only add if not already in the list
-    if (!tagIds.includes(fallbackId)) {
-      tagIds.unshift(fallbackId);
-    }
+  // Add additional tags
+  for (const tag of additionalTags) {
+    tagIds.push(tag.tagId.toString());
   }
 
   return tagIds;
 }
 
 /**
- * Finds the primary tag ID from a marker's tags, falling back to marker.primaryTagId if needed.
+ * Gets the primary tag ID from marker.primaryTagId field.
  */
 export function getPrimaryTagId(
-  markerTags: MarkerTag[],
-  fallbackPrimaryTagId?: number | null
+  additionalTags: MarkerAdditionalTag[],
+  primaryTagId?: number | null
 ): string | null {
-  const primaryTag = markerTags.find(mt => mt.isPrimary);
-  if (primaryTag) {
-    return primaryTag.tagId.toString();
-  }
-
-  // Fallback to the marker's primaryTagId field if no primary tag found in markerTags
-  if (fallbackPrimaryTagId) {
-    return fallbackPrimaryTagId.toString();
+  // Primary tag is now stored directly in marker.primaryTagId
+  if (primaryTagId) {
+    return primaryTagId.toString();
   }
 
   return null;

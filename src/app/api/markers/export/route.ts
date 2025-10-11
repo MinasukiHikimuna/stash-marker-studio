@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     const localMarkers = await prisma.marker.findMany({
       where: { stashappSceneId: sceneIdNum },
       include: {
-        markerTags: true,
+        additionalTags: true,
       },
     });
 
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
         }
 
         const primaryTagId = getPrimaryTagId(
-          operation.localMarker.markerTags,
+          operation.localMarker.additionalTags,
           operation.localMarker.primaryTagId
         );
         if (!primaryTagId) {
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         }
 
         const tagIds = extractTagIds(
-          operation.localMarker.markerTags,
+          operation.localMarker.additionalTags,
           operation.localMarker.primaryTagId
         );
 
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
         }
 
         const primaryTagId = getPrimaryTagId(
-          operation.localMarker.markerTags,
+          operation.localMarker.additionalTags,
           operation.localMarker.primaryTagId
         );
         if (!primaryTagId) {
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
         }
 
         const tagIds = extractTagIds(
-          operation.localMarker.markerTags,
+          operation.localMarker.additionalTags,
           operation.localMarker.primaryTagId
         );
 

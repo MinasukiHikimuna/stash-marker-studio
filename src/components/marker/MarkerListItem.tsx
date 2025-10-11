@@ -121,8 +121,9 @@ export function MarkerListItem({
                 performerId: slot.stashappPerformerId?.toString() ?? null,
               }));
 
-              // Prepare tag IDs - extract IDs from tags array, or use defaults
-              const tagIds = tags?.map(tag => tag.id);
+              // Prepare tag IDs - only pass if we have tags to preserve (e.g., when duplicating)
+              // Otherwise let createMarker use defaults (MARKER_SOURCE_MANUAL, MARKER_STATUS_CONFIRMED)
+              const tagIds = tags && tags.length > 0 ? tags.map(tag => tag.id) : undefined;
 
               // Create marker using Redux thunk (selection is handled automatically)
               await dispatch(createMarker({
@@ -131,7 +132,7 @@ export function MarkerListItem({
                 endTime: newEnd ?? null,
                 tagId: newTagId,
                 slots: slotsForAPI,
-                tagIds,
+                ...(tagIds && { tagIds }), // Only include tagIds if defined
               })).unwrap();
 
               // Clear UI flags

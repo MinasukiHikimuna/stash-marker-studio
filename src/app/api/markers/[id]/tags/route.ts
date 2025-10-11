@@ -29,48 +29,27 @@ export async function PUT(
     }
 
     const primaryTagIdNum = primaryTagId ? parseInt(primaryTagId) : null;
-    const tagsToCreate = new Set(tagIds.map((id: string) => parseInt(id)));
+    const additionalTagIds = tagIds
+      .map((id: string) => parseInt(id))
+      .filter((tagId: number) => tagId !== primaryTagIdNum); // Exclude primary tag
 
-    // Ensure primary tag is always included
-    if (primaryTagIdNum && !tagsToCreate.has(primaryTagIdNum)) {
-      tagsToCreate.add(primaryTagIdNum);
+    // Validate: no additional tag should match primary tag
+    if (primaryTagIdNum && additionalTagIds.includes(primaryTagIdNum)) {
+      return NextResponse.json(
+        { error: 'Primary tag cannot be added as an additional tag' },
+        { status: 400 }
+      );
     }
 
-    // Get current marker state
-    const currentMarker = await prisma.marker.findUnique({
-      where: { id: markerId },
-      select: { primaryTagId: true },
-    });
-
-    // Step 1: If we're changing the primary tag, temporarily set it to null to allow deletion
-    if (currentMarker?.primaryTagId && currentMarker.primaryTagId !== primaryTagIdNum) {
-      await prisma.marker.update({
-        where: { id: markerId },
-        data: { primaryTagId: null },
-      });
-    }
-
-    // Step 2: Delete all existing tags (now safe since primary_tag_id is null or unchanged)
-    await prisma.markerTag.deleteMany({
-      where: { markerId },
-    });
-
-    // Step 3: Create all new tags
-    if (tagsToCreate.size > 0) {
-      await prisma.markerTag.createMany({
-        data: Array.from(tagsToCreate).map((tagId) => ({
-          markerId,
-          tagId,
-          isPrimary: primaryTagIdNum === tagId,
-        })),
-      });
-    }
-
-    // Step 4: Set the primary tag ID (trigger will validate it exists in marker_tags)
+    // Update marker and replace all additional tags atomically
     await prisma.marker.update({
       where: { id: markerId },
       data: {
         primaryTagId: primaryTagIdNum,
+        additionalTags: {
+          deleteMany: {}, // Remove all existing additional tags
+          create: additionalTagIds.map((tagId) => ({ tagId })),
+        },
         updatedAt: new Date(),
       },
     });
@@ -112,7 +91,7 @@ export async function POST(
     // Find the marker
     const marker = await prisma.marker.findUnique({
       where: { id: markerId },
-      include: { markerTags: true },
+      include: { additionalTags: true },
     });
 
     if (!marker) {
@@ -121,18 +100,26 @@ export async function POST(
 
     // Check if tag already exists
     const tagIdNum = parseInt(tagId);
-    const existingTag = marker.markerTags.find((mt) => mt.tagId === tagIdNum);
+
+    // Validate: cannot add primary tag as additional tag
+    if (marker.primaryTagId === tagIdNum) {
+      return NextResponse.json(
+        { error: 'Cannot add primary tag as an additional tag' },
+        { status: 400 }
+      );
+    }
+
+    const existingTag = marker.additionalTags.find((mt) => mt.tagId === tagIdNum);
 
     if (existingTag) {
       return NextResponse.json({ success: true, message: 'Tag already exists' });
     }
 
     // Add the tag
-    await prisma.markerTag.create({
+    await prisma.markerAdditionalTag.create({
       data: {
         markerId: marker.id,
         tagId: tagIdNum,
-        isPrimary: false,
       },
     });
 
@@ -176,8 +163,8 @@ export async function DELETE(
       );
     }
 
-    // Remove the tag
-    await prisma.markerTag.deleteMany({
+    // Remove the tag from additional tags
+    await prisma.markerAdditionalTag.deleteMany({
       where: {
         markerId,
         tagId: parseInt(tagId),

@@ -1,12 +1,12 @@
 import { classifyExportOperations, extractTagIds, getPrimaryTagId } from './markerExport';
-import { Marker, MarkerTag } from '@prisma/client';
+import { Marker, MarkerAdditionalTag } from '@prisma/client';
 import { SceneMarker } from './StashappService';
 import { Decimal } from '@prisma/client/runtime/library';
 
 describe('markerExport', () => {
   describe('classifyExportOperations', () => {
     it('should identify markers to create when they have no stashappMarkerId', () => {
-      const localMarkers: (Marker & { markerTags: MarkerTag[] })[] = [
+      const localMarkers: (Marker & { additionalTags: MarkerAdditionalTag[] })[] = [
         {
           id: 1,
           stashappMarkerId: null,
@@ -18,12 +18,11 @@ describe('markerExport', () => {
           lastExportedAt: null,
           createdAt: new Date(),
           updatedAt: new Date(),
-          markerTags: [
+          additionalTags: [
             {
               id: 1,
               markerId: 1,
               tagId: 1,
-              isPrimary: true,
               createdAt: new Date(),
               updatedAt: new Date(),
             },
@@ -44,7 +43,7 @@ describe('markerExport', () => {
     });
 
     it('should identify markers to update when they exist in both places', () => {
-      const localMarkers: (Marker & { markerTags: MarkerTag[] })[] = [
+      const localMarkers: (Marker & { additionalTags: MarkerAdditionalTag[] })[] = [
         {
           id: 1,
           stashappMarkerId: 500,
@@ -56,12 +55,11 @@ describe('markerExport', () => {
           lastExportedAt: null,
           createdAt: new Date(),
           updatedAt: new Date(),
-          markerTags: [
+          additionalTags: [
             {
               id: 1,
               markerId: 1,
               tagId: 1,
-              isPrimary: true,
               createdAt: new Date(),
               updatedAt: new Date(),
             },
@@ -96,7 +94,7 @@ describe('markerExport', () => {
     });
 
     it('should identify markers to delete when they exist in Stashapp but not locally', () => {
-      const localMarkers: (Marker & { markerTags: MarkerTag[] })[] = [];
+      const localMarkers: (Marker & { additionalTags: MarkerAdditionalTag[] })[] = [];
 
       const stashappMarkers: SceneMarker[] = [
         {
@@ -124,7 +122,7 @@ describe('markerExport', () => {
     });
 
     it('should handle complex scenarios with creates, updates, and deletes', () => {
-      const localMarkers: (Marker & { markerTags: MarkerTag[] })[] = [
+      const localMarkers: (Marker & { additionalTags: MarkerAdditionalTag[] })[] = [
         // Marker to create (no stashappMarkerId)
         {
           id: 1,
@@ -137,12 +135,11 @@ describe('markerExport', () => {
           lastExportedAt: null,
           createdAt: new Date(),
           updatedAt: new Date(),
-          markerTags: [
+          additionalTags: [
             {
               id: 1,
               markerId: 1,
               tagId: 1,
-              isPrimary: true,
               createdAt: new Date(),
               updatedAt: new Date(),
             },
@@ -160,12 +157,11 @@ describe('markerExport', () => {
           lastExportedAt: null,
           createdAt: new Date(),
           updatedAt: new Date(),
-          markerTags: [
+          additionalTags: [
             {
               id: 2,
               markerId: 2,
               tagId: 2,
-              isPrimary: true,
               createdAt: new Date(),
               updatedAt: new Date(),
             },
@@ -227,20 +223,11 @@ describe('markerExport', () => {
 
   describe('extractTagIds', () => {
     it('should extract tag IDs with primary tag first', () => {
-      const markerTags: MarkerTag[] = [
+      const additionalTags: MarkerAdditionalTag[] = [
         {
           id: 1,
           markerId: 1,
           tagId: 10,
-          isPrimary: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: 2,
-          markerId: 1,
-          tagId: 20,
-          isPrimary: true,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
@@ -248,13 +235,12 @@ describe('markerExport', () => {
           id: 3,
           markerId: 1,
           tagId: 30,
-          isPrimary: false,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
       ];
 
-      const result = extractTagIds(markerTags);
+      const result = extractTagIds(additionalTags, 20);
 
       expect(result).toEqual(['20', '10', '30']);
       expect(result[0]).toBe('20'); // Primary tag first
@@ -262,92 +248,79 @@ describe('markerExport', () => {
   });
 
   describe('getPrimaryTagId', () => {
-    it('should return the primary tag ID', () => {
-      const markerTags: MarkerTag[] = [
+    it('should return the primary tag ID from primaryTagId parameter', () => {
+      const additionalTags: MarkerAdditionalTag[] = [
         {
           id: 1,
           markerId: 1,
           tagId: 10,
-          isPrimary: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: 2,
-          markerId: 1,
-          tagId: 20,
-          isPrimary: true,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
       ];
 
-      const result = getPrimaryTagId(markerTags);
+      const result = getPrimaryTagId(additionalTags, 20);
 
       expect(result).toBe('20');
     });
 
     it('should return null if no primary tag exists', () => {
-      const markerTags: MarkerTag[] = [
+      const additionalTags: MarkerAdditionalTag[] = [
         {
           id: 1,
           markerId: 1,
           tagId: 10,
-          isPrimary: false,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
       ];
 
-      const result = getPrimaryTagId(markerTags);
+      const result = getPrimaryTagId(additionalTags);
 
       expect(result).toBeNull();
     });
 
-    it('should use fallback primaryTagId if no primary tag in markerTags', () => {
-      const markerTags: MarkerTag[] = [
+    it('should use primaryTagId parameter', () => {
+      const additionalTags: MarkerAdditionalTag[] = [
         {
           id: 1,
           markerId: 1,
           tagId: 10,
-          isPrimary: false,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
       ];
 
-      const result = getPrimaryTagId(markerTags, 5566);
+      const result = getPrimaryTagId(additionalTags, 5566);
 
       expect(result).toBe('5566');
     });
   });
 
-  describe('extractTagIds with fallback', () => {
-    it('should include fallback primaryTagId if not in markerTags', () => {
-      const markerTags: MarkerTag[] = [
+  describe('extractTagIds with primary tag', () => {
+    it('should include primaryTagId first', () => {
+      const additionalTags: MarkerAdditionalTag[] = [
         {
           id: 1,
           markerId: 1,
           tagId: 7879,
-          isPrimary: false,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
       ];
 
-      const result = extractTagIds(markerTags, 5566);
+      const result = extractTagIds(additionalTags, 5566);
 
       expect(result).toEqual(['5566', '7879']);
       expect(result[0]).toBe('5566'); // Primary tag first
     });
 
-    it('should not duplicate tag if fallback is already in markerTags', () => {
-      const markerTags: MarkerTag[] = [
+    it('should work when primary tag is one of the additional tags', () => {
+      const additionalTags: MarkerAdditionalTag[] = [
         {
           id: 1,
           markerId: 1,
           tagId: 5566,
-          isPrimary: false,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
@@ -355,16 +328,15 @@ describe('markerExport', () => {
           id: 2,
           markerId: 1,
           tagId: 7879,
-          isPrimary: false,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
       ];
 
-      const result = extractTagIds(markerTags, 5566);
+      const result = extractTagIds(additionalTags, 5566);
 
-      // Should have fallback added as first, but not duplicate existing 5566
-      expect(result).toEqual(['5566', '7879']);
+      // Primary tag first, then additional tags (including duplicate 5566)
+      expect(result).toEqual(['5566', '5566', '7879']);
     });
   });
 });

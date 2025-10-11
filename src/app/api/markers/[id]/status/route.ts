@@ -46,7 +46,6 @@ export async function PATCH(
     // Find the marker
     const marker = await prisma.marker.findUnique({
       where: { id: markerId },
-      include: { markerTags: true },
     });
 
     if (!marker) {
@@ -57,8 +56,8 @@ export async function PATCH(
       }, { status: 404 });
     }
 
-    // Delete both status tags (they're never primary, so safe to delete)
-    await prisma.markerTag.deleteMany({
+    // Delete both status tags from additional tags
+    await prisma.markerAdditionalTag.deleteMany({
       where: {
         markerId: marker.id,
         tagId: { in: [CONFIRMED_TAG_ID, REJECTED_TAG_ID] },
@@ -67,19 +66,17 @@ export async function PATCH(
 
     // Add the appropriate status tag based on action
     if (action === 'confirm') {
-      await prisma.markerTag.create({
+      await prisma.markerAdditionalTag.create({
         data: {
           markerId: marker.id,
           tagId: CONFIRMED_TAG_ID,
-          isPrimary: false,
         },
       });
     } else if (action === 'reject') {
-      await prisma.markerTag.create({
+      await prisma.markerAdditionalTag.create({
         data: {
           markerId: marker.id,
           tagId: REJECTED_TAG_ID,
-          isPrimary: false,
         },
       });
     }

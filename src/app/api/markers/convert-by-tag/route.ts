@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Get all markers with the source tag and check for duplicates
-    const markersWithSource = await prisma.markerTag.findMany({
+    const markersWithSource = await prisma.markerAdditionalTag.findMany({
       where: { tagId: sourceTagIdInt },
       include: { marker: { select: { primaryTagId: true } } },
     });
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const markerIds = new Set(markersWithSource.map(mt => mt.markerId));
 
     // Find markers that already have the corresponding tag
-    const markersWithBoth = await prisma.markerTag.findMany({
+    const markersWithBoth = await prisma.markerAdditionalTag.findMany({
       where: {
         markerId: { in: Array.from(markerIds) },
         tagId: correspondingTagIdInt,
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     // Delete source tags where corresponding tag already exists
     if (markerIdsWithBoth.size > 0) {
-      await prisma.markerTag.deleteMany({
+      await prisma.markerAdditionalTag.deleteMany({
         where: {
           markerId: { in: Array.from(markerIdsWithBoth) },
           tagId: sourceTagIdInt,
@@ -59,36 +59,13 @@ export async function POST(request: NextRequest) {
     // Update source tag to corresponding tag where no duplicate exists
     const markerIdsToUpdate = Array.from(markerIds).filter(id => !markerIdsWithBoth.has(id));
     if (markerIdsToUpdate.length > 0) {
-      await prisma.markerTag.updateMany({
+      await prisma.markerAdditionalTag.updateMany({
         where: {
           markerId: { in: markerIdsToUpdate },
           tagId: sourceTagIdInt,
         },
         data: { tagId: correspondingTagIdInt },
       });
-    }
-
-    // Fix isPrimary flags for all affected markers
-    const allAffectedMarkers = await prisma.marker.findMany({
-      where: { id: { in: Array.from(markerIds) } },
-      select: { id: true, primaryTagId: true },
-    });
-
-    for (const marker of allAffectedMarkers) {
-      await prisma.markerTag.updateMany({
-        where: { markerId: marker.id },
-        data: { isPrimary: false },
-      });
-
-      if (marker.primaryTagId) {
-        await prisma.markerTag.updateMany({
-          where: {
-            markerId: marker.id,
-            tagId: marker.primaryTagId,
-          },
-          data: { isPrimary: true },
-        });
-      }
     }
 
     return NextResponse.json({

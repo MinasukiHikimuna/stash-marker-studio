@@ -42,7 +42,7 @@ export async function POST(
     const sourceMarker = await prisma.marker.findUnique({
       where: { id: markerId },
       include: {
-        markerTags: true,
+        additionalTags: true,
         markerSlots: true,
       },
     });
@@ -58,9 +58,8 @@ export async function POST(
     const config = await loadConfig();
     const derivedSourceTagId = config.markerConfig.sourceDerived;
 
-    // Extract status tags from source marker (exclude primary tag)
-    const statusTagIds = sourceMarker.markerTags
-      .filter((mt) => !mt.isPrimary)
+    // Extract status tags from source marker (from additionalTags)
+    const statusTagIds = sourceMarker.additionalTags
       .map((mt) => mt.tagId);
 
     // Create actual markers for each derived marker
@@ -86,18 +85,24 @@ export async function POST(
         : [];
 
       // Create the marker in local database
+      // Filter out primary tag from additional tags
+      const additionalTagIds = allTagIds
+        .map((tagId: string) => parseInt(tagId))
+        .filter((tagId: number) => tagId !== parseInt(derivedTagId));
+
       const newMarker = await prisma.marker.create({
         data: {
           stashappSceneId: sourceMarker.stashappSceneId,
           seconds: sourceMarker.seconds,
           endSeconds: sourceMarker.endSeconds,
           primaryTagId: parseInt(derivedTagId),
-          markerTags: {
-            create: allTagIds.map((tagId: string, index: number) => ({
-              tagId: parseInt(tagId),
-              isPrimary: index === 0, // First tag (derivedTagId) is primary
-            })),
-          },
+          additionalTags: additionalTagIds.length > 0
+            ? {
+                create: additionalTagIds.map((tagId: number) => ({
+                  tagId,
+                })),
+              }
+            : undefined,
           markerSlots: slotCreationData.length > 0
             ? {
                 create: slotCreationData,
@@ -105,7 +110,7 @@ export async function POST(
             : undefined,
         },
         include: {
-          markerTags: true,
+          additionalTags: true,
           markerSlots: true,
         },
       });

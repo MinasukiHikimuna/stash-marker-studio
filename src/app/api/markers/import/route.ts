@@ -100,36 +100,32 @@ async function importMarkersFromStashapp(
       },
     });
 
-    // Delete existing marker tags
-    await prisma.markerTag.deleteMany({
+    // Delete existing additional tags
+    await prisma.markerAdditionalTag.deleteMany({
       where: { markerId: marker.id },
     });
 
-    // Create marker tags (also convert tags in the tag list)
-    const tagsToCreate = new Map<number, boolean>();
+    // Create additional tags (convert tags in the tag list, excluding primary)
+    const additionalTagIds = new Set<number>();
 
-    // Add all tags from the marker
+    // Add all tags from the marker, excluding primary tag
     if (stashMarker.tags && stashMarker.tags.length > 0) {
       for (const tag of stashMarker.tags) {
         const tagId = parseInt(tag.id);
         const correspondingTagId = tagMappingMap.get(tagId);
         const finalTagId = correspondingTagId ?? tagId;
-        tagsToCreate.set(finalTagId, finalTagId === primaryTagId);
+        if (finalTagId !== primaryTagId) {
+          additionalTagIds.add(finalTagId);
+        }
       }
     }
 
-    // Ensure primary tag is always included in marker_tags
-    if (primaryTagId && !tagsToCreate.has(primaryTagId)) {
-      tagsToCreate.set(primaryTagId, true);
-    }
-
-    // Create all marker tags
-    if (tagsToCreate.size > 0) {
-      await prisma.markerTag.createMany({
-        data: Array.from(tagsToCreate.entries()).map(([tagId, isPrimary]) => ({
+    // Create additional tags (excluding primary tag)
+    if (additionalTagIds.size > 0) {
+      await prisma.markerAdditionalTag.createMany({
+        data: Array.from(additionalTagIds).map((tagId) => ({
           markerId: marker.id,
           tagId,
-          isPrimary,
         })),
       });
     }
