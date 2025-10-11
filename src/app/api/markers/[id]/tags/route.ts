@@ -28,28 +28,34 @@ export async function PUT(
       );
     }
 
-    // Delete existing tags
-    await prisma.markerTag.deleteMany({
-      where: { markerId },
-    });
-
-    // Update primary tag ID first
     const primaryTagIdNum = primaryTagId ? parseInt(primaryTagId) : null;
-    await prisma.marker.update({
-      where: { id: markerId },
-      data: {
-        primaryTagId: primaryTagIdNum,
-        updatedAt: new Date(),
-      },
-    });
-
-    // Create set of tags to add, ensuring primary tag is always included
     const tagsToCreate = new Set(tagIds.map((id: string) => parseInt(id)));
+
+    // Ensure primary tag is always included
     if (primaryTagIdNum && !tagsToCreate.has(primaryTagIdNum)) {
       tagsToCreate.add(primaryTagIdNum);
     }
 
-    // Add new tags
+    // Get current marker state
+    const currentMarker = await prisma.marker.findUnique({
+      where: { id: markerId },
+      select: { primaryTagId: true },
+    });
+
+    // Step 1: If we're changing the primary tag, temporarily set it to null to allow deletion
+    if (currentMarker?.primaryTagId && currentMarker.primaryTagId !== primaryTagIdNum) {
+      await prisma.marker.update({
+        where: { id: markerId },
+        data: { primaryTagId: null },
+      });
+    }
+
+    // Step 2: Delete all existing tags (now safe since primary_tag_id is null or unchanged)
+    await prisma.markerTag.deleteMany({
+      where: { markerId },
+    });
+
+    // Step 3: Create all new tags
     if (tagsToCreate.size > 0) {
       await prisma.markerTag.createMany({
         data: Array.from(tagsToCreate).map((tagId) => ({
@@ -59,6 +65,15 @@ export async function PUT(
         })),
       });
     }
+
+    // Step 4: Set the primary tag ID (trigger will validate it exists in marker_tags)
+    await prisma.marker.update({
+      where: { id: markerId },
+      data: {
+        primaryTagId: primaryTagIdNum,
+        updatedAt: new Date(),
+      },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

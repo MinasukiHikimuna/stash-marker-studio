@@ -57,47 +57,33 @@ export async function PATCH(
       }, { status: 404 });
     }
 
-    // Get current tag IDs (excluding status tags)
-    const currentTagIds = marker.markerTags
-      .filter((mt) => mt.tagId !== CONFIRMED_TAG_ID && mt.tagId !== REJECTED_TAG_ID)
-      .map((mt) => mt.tagId);
-
-    // Build new tag list based on action
-    const newTagIds = [...currentTagIds];
-
-    if (action === 'confirm') {
-      // Add confirmed tag if not already present
-      if (!newTagIds.includes(CONFIRMED_TAG_ID)) {
-        newTagIds.push(CONFIRMED_TAG_ID);
-      }
-    } else if (action === 'reject') {
-      // Add rejected tag if not already present
-      if (!newTagIds.includes(REJECTED_TAG_ID)) {
-        newTagIds.push(REJECTED_TAG_ID);
-      }
-    }
-    // For 'reset', we just use currentTagIds (status tags already filtered out)
-
-    // Ensure primary tag is always included
-    if (marker.primaryTagId && !newTagIds.includes(marker.primaryTagId)) {
-      newTagIds.push(marker.primaryTagId);
-    }
-
-    // Delete all existing marker tags
+    // Delete both status tags (they're never primary, so safe to delete)
     await prisma.markerTag.deleteMany({
-      where: { markerId: marker.id },
+      where: {
+        markerId: marker.id,
+        tagId: { in: [CONFIRMED_TAG_ID, REJECTED_TAG_ID] },
+      },
     });
 
-    // Create new marker tags
-    if (newTagIds.length > 0) {
-      await prisma.markerTag.createMany({
-        data: newTagIds.map((tagId) => ({
+    // Add the appropriate status tag based on action
+    if (action === 'confirm') {
+      await prisma.markerTag.create({
+        data: {
           markerId: marker.id,
-          tagId,
-          isPrimary: tagId === marker.primaryTagId,
-        })),
+          tagId: CONFIRMED_TAG_ID,
+          isPrimary: false,
+        },
+      });
+    } else if (action === 'reject') {
+      await prisma.markerTag.create({
+        data: {
+          markerId: marker.id,
+          tagId: REJECTED_TAG_ID,
+          isPrimary: false,
+        },
       });
     }
+    // For 'reset', we just removed both status tags above
 
     // Update marker timestamp
     await prisma.marker.update({
