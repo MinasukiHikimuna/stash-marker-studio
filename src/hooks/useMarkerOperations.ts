@@ -93,10 +93,17 @@ export const useMarkerOperations = (
       splitTime: currentTime,
     });
 
+    // Check if marker has an end time (required for splitting)
+    if (!currentMarker.end_seconds) {
+      console.log("Split failed: Marker has no end time (no duration)");
+      dispatch(setError("Cannot split a marker without an end time"));
+      return;
+    }
+
     // Check if the current time is within the marker's range
     if (
       currentTime <= currentMarker.seconds ||
-      (currentMarker.end_seconds && currentTime >= currentMarker.end_seconds)
+      currentTime >= currentMarker.end_seconds
     ) {
       console.log("Split failed: Current time not within marker range");
       dispatch(setError("Current time must be within the marker's range to split it"));
@@ -106,12 +113,23 @@ export const useMarkerOperations = (
     try {
       // Use Redux splitMarker thunk
       const originalTagIds = currentMarker.tags.map((tag) => tag.id);
+
+      // Transform slots from SceneMarker format to API format
+      // IMPORTANT: Use stashappPerformerId (database field), NOT performer?.id (may be undefined)
+      const originalSlots = currentMarker.slots?.map((slot) => ({
+        slotDefinitionId: slot.slotDefinitionId,
+        performerId: slot.stashappPerformerId !== null
+          ? slot.stashappPerformerId.toString()
+          : null,
+      }));
+
       const result = await dispatch(splitMarker({
         sceneId: scene.id,
         sourceMarkerId: currentMarker.id,
         splitTime: currentTime,
         tagId: currentMarker.primary_tag.id,
         originalTagIds: originalTagIds,
+        originalSlots: originalSlots,
         sourceStartTime: currentMarker.seconds,
         sourceEndTime: currentMarker.end_seconds || null,
       })).unwrap();

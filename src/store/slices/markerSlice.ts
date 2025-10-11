@@ -985,12 +985,23 @@ export const splitMarker = createAsyncThunk(
       splitTime: number;
       tagId: string;
       originalTagIds: string[];
+      originalSlots?: Array<{ slotDefinitionId: string; performerId: string | null }>;
       sourceStartTime: number;
       sourceEndTime: number | null;
     },
     { dispatch, rejectWithValue }
   ) => {
     try {
+      // Validate that marker has an end time (required for splitting)
+      if (!params.sourceEndTime) {
+        throw new Error('Cannot split a marker without an end time');
+      }
+
+      // Validate split time is within marker range
+      if (params.splitTime <= params.sourceStartTime || params.splitTime >= params.sourceEndTime) {
+        throw new Error('Split time must be within the marker range');
+      }
+
       // Update the original marker to end at the split time
       const updateResponse = await fetch(`/api/markers/${params.sourceMarkerId}`, {
         method: 'PATCH',
@@ -1005,8 +1016,8 @@ export const splitMarker = createAsyncThunk(
         throw new Error('Failed to update first part of split marker');
       }
 
-      // Create second part (split time to end) only if there's remaining time
-      if (params.sourceEndTime && params.splitTime < params.sourceEndTime) {
+      // Create second part (split time to end)
+      if (params.splitTime < params.sourceEndTime) {
         // Get tag name for title
         const tagsResult = await stashappService.getAllTags();
         const tag = tagsResult.findTags.tags.find((t) => t.id === params.tagId);
@@ -1022,6 +1033,7 @@ export const splitMarker = createAsyncThunk(
             endSeconds: params.sourceEndTime,
             primaryTagId: params.tagId,
             tagIds: params.originalTagIds, // Preserve all original tags
+            slots: params.originalSlots, // Preserve all original slots
           }),
         });
 
