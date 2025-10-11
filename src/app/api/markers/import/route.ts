@@ -81,24 +81,45 @@ async function importMarkersFromStashapp(
       }
     }
 
-    // Upsert marker (update if exists, create if not)
-    const marker = await prisma.marker.upsert({
+    // Try to find existing marker by stashappMarkerId first
+    let existingMarker = await prisma.marker.findUnique({
       where: { stashappMarkerId },
-      create: {
-        stashappMarkerId,
-        stashappSceneId: sceneId,
-        seconds: stashMarker.seconds,
-        endSeconds: stashMarker.end_seconds ?? null,
-        primaryTagId,
-        lastSyncedAt: new Date(),
-      },
-      update: {
-        seconds: stashMarker.seconds,
-        endSeconds: stashMarker.end_seconds ?? null,
-        primaryTagId,
-        lastSyncedAt: new Date(),
-      },
     });
+
+    // If not found by stashappMarkerId, try to find by matching scene, times, and primary tag
+    if (!existingMarker) {
+      existingMarker = await prisma.marker.findFirst({
+        where: {
+          stashappSceneId: sceneId,
+          seconds: stashMarker.seconds,
+          endSeconds: stashMarker.end_seconds ?? null,
+          primaryTagId,
+        },
+      });
+    }
+
+    // Update or create marker
+    const marker = existingMarker
+      ? await prisma.marker.update({
+          where: { id: existingMarker.id },
+          data: {
+            stashappMarkerId,
+            seconds: stashMarker.seconds,
+            endSeconds: stashMarker.end_seconds ?? null,
+            primaryTagId,
+            lastSyncedAt: new Date(),
+          },
+        })
+      : await prisma.marker.create({
+          data: {
+            stashappMarkerId,
+            stashappSceneId: sceneId,
+            seconds: stashMarker.seconds,
+            endSeconds: stashMarker.end_seconds ?? null,
+            primaryTagId,
+            lastSyncedAt: new Date(),
+          },
+        });
 
     // Delete existing additional tags
     await prisma.markerAdditionalTag.deleteMany({
