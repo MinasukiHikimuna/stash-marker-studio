@@ -78,6 +78,11 @@ export async function PATCH(
     }
     // For 'reset', we just use currentTagIds (status tags already filtered out)
 
+    // Ensure primary tag is always included
+    if (marker.primaryTagId && !newTagIds.includes(marker.primaryTagId)) {
+      newTagIds.push(marker.primaryTagId);
+    }
+
     // Delete all existing marker tags
     await prisma.markerTag.deleteMany({
       where: { markerId: marker.id },

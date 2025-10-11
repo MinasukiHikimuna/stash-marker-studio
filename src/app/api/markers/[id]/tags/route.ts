@@ -33,25 +33,32 @@ export async function PUT(
       where: { markerId },
     });
 
-    // Add new tags
-    if (tagIds.length > 0) {
-      await prisma.markerTag.createMany({
-        data: tagIds.map((tagId: string) => ({
-          markerId,
-          tagId: parseInt(tagId),
-          isPrimary: primaryTagId ? parseInt(tagId) === parseInt(primaryTagId) : false,
-        })),
-      });
-    }
-
-    // Update primary tag ID and updated timestamp
+    // Update primary tag ID first
+    const primaryTagIdNum = primaryTagId ? parseInt(primaryTagId) : null;
     await prisma.marker.update({
       where: { id: markerId },
       data: {
-        primaryTagId: primaryTagId ? parseInt(primaryTagId) : null,
+        primaryTagId: primaryTagIdNum,
         updatedAt: new Date(),
       },
     });
+
+    // Create set of tags to add, ensuring primary tag is always included
+    const tagsToCreate = new Set(tagIds.map((id: string) => parseInt(id)));
+    if (primaryTagIdNum && !tagsToCreate.has(primaryTagIdNum)) {
+      tagsToCreate.add(primaryTagIdNum);
+    }
+
+    // Add new tags
+    if (tagsToCreate.size > 0) {
+      await prisma.markerTag.createMany({
+        data: Array.from(tagsToCreate).map((tagId) => ({
+          markerId,
+          tagId,
+          isPrimary: primaryTagIdNum === tagId,
+        })),
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

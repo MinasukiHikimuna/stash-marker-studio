@@ -41,22 +41,46 @@ export async function PATCH(
       data: updateData,
     });
 
-    // If primaryTagId was updated, update the isPrimary flag in marker_tags
-    if (primaryTagId !== undefined && updatedMarker.primaryTagId) {
-      // Set all tags to non-primary
-      await prisma.markerTag.updateMany({
-        where: { markerId: updatedMarker.id },
-        data: { isPrimary: false },
-      });
+    // If primaryTagId was updated, ensure consistency in marker_tags
+    if (primaryTagId !== undefined) {
+      if (updatedMarker.primaryTagId) {
+        // Set all tags to non-primary
+        await prisma.markerTag.updateMany({
+          where: { markerId: updatedMarker.id },
+          data: { isPrimary: false },
+        });
 
-      // Set the new primary tag
-      await prisma.markerTag.updateMany({
-        where: {
-          markerId: updatedMarker.id,
-          tagId: updatedMarker.primaryTagId,
-        },
-        data: { isPrimary: true },
-      });
+        // Check if primary tag exists in marker_tags
+        const existingPrimaryTag = await prisma.markerTag.findFirst({
+          where: {
+            markerId: updatedMarker.id,
+            tagId: updatedMarker.primaryTagId,
+          },
+        });
+
+        if (existingPrimaryTag) {
+          // Update existing tag to be primary
+          await prisma.markerTag.update({
+            where: { id: existingPrimaryTag.id },
+            data: { isPrimary: true },
+          });
+        } else {
+          // Create primary tag entry if it doesn't exist
+          await prisma.markerTag.create({
+            data: {
+              markerId: updatedMarker.id,
+              tagId: updatedMarker.primaryTagId,
+              isPrimary: true,
+            },
+          });
+        }
+      } else {
+        // Primary tag was set to null, clear all isPrimary flags
+        await prisma.markerTag.updateMany({
+          where: { markerId: updatedMarker.id },
+          data: { isPrimary: false },
+        });
+      }
     }
 
     return NextResponse.json({

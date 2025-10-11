@@ -25,18 +25,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Ensure primary tag is included in tagIds
+    const primaryTagIdNum = primaryTagId ? parseInt(primaryTagId) : null;
+    const tagIdsToCreate = new Set<number>(tagIds?.map((id: string) => parseInt(id)) || []);
+    if (primaryTagIdNum && !tagIdsToCreate.has(primaryTagIdNum)) {
+      tagIdsToCreate.add(primaryTagIdNum);
+    }
+
     // Create marker in local database with slots
     const marker = await prisma.marker.create({
       data: {
         stashappSceneId: parseInt(stashappSceneId),
         seconds,
         endSeconds: endSeconds ?? null,
-        primaryTagId: primaryTagId ? parseInt(primaryTagId) : null,
-        markerTags: tagIds
+        primaryTagId: primaryTagIdNum,
+        markerTags: tagIdsToCreate.size > 0
           ? {
-              create: tagIds.map((tagId: string) => ({
-                tagId: parseInt(tagId),
-                isPrimary: primaryTagId === tagId,
+              create: Array.from(tagIdsToCreate).map((tagId) => ({
+                tagId,
+                isPrimary: tagId === primaryTagIdNum,
               })),
             }
           : undefined,
