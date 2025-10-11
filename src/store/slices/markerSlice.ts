@@ -1066,7 +1066,9 @@ export const materializeDerivedMarkers = createAsyncThunk(
       derivedMarkers: Array<{
         derivedTagId: string;
         tags: string[];
-        slots: Array<{ label: string; performerId: string }>;
+        slots: Array<{ slotDefinitionId: string; performerId: string }>;
+        depth?: number;
+        ruleId?: string;
       }>;
     },
     { rejectWithValue }

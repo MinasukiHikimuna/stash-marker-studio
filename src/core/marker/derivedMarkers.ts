@@ -93,12 +93,21 @@ export function computeAllDerivedMarkers(
         allDerived.push(derived);
 
         // Create a temporary marker to continue traversal
+        // IMPORTANT: Include slots from the derived marker so they propagate through the chain
         const tempMarker: SceneMarker = {
           ...currentMarker,
           primary_tag: {
             id: derived.derivedTagId,
             name: '',
           },
+          slots: derived.slots.length > 0 ? derived.slots.map(slot => ({
+            id: '', // Temporary marker doesn't need real IDs
+            slotDefinitionId: slot.slotDefinitionId,
+            stashappPerformerId: slot.performerId ? parseInt(slot.performerId) : null,
+            slotLabel: null,
+            genderHints: [],
+            order: 0,
+          })) : undefined,
         };
 
         traverse(tempMarker, currentDepth + 1, currentSourceMarkerId);
