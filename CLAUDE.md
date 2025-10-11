@@ -121,13 +121,13 @@ The app requires runtime configuration injection for Stashapp connection and tag
 
 ### Testing
 
-- **Pre-commit checks**: Always run both `npm run lint` and `npx tsc --noEmit` before committing
+- **Pre-commit checks**: Always run `npm run lint`, `npm test` and `npx tsc --noEmit` before committing
   - ESLint catches code style issues but doesn't do full type checking
   - TypeScript compiler (`tsc --noEmit`) catches all type errors including structural type mismatches
   - Fix all errors from both tools before committing
-- Use Jest for unit tests: `npm run test`
-- Test files: `*.test.ts` pattern
-- Mocks available in `__mocks__/` directories
+  - Use Jest for unit tests: `npm run test`
+  - Test files: `*.test.ts` pattern
+  - Mocks available in `__mocks__/` directories
 
 ### Keyboard-First Design
 
