@@ -197,8 +197,22 @@ describe("groupMarkersByTags", () => {
   });
 
   it("should group by corresponding tag when mapping exists in database", () => {
-    const blowjobAIMarker = createMarkerWithTag("Blowjob_AI", 0);
-    const blowjobMarker = createMarkerWithTag("Blowjob", 5);
+    const blowjobAIMarker = createMarkerWithTag("Blowjob_AI", 0, {
+      primary_tag: {
+        id: "101",
+        name: "Blowjob_AI",
+        description: null,
+        parents: [],
+      },
+    });
+    const blowjobMarker = createMarkerWithTag("Blowjob", 5, {
+      primary_tag: {
+        id: "102",
+        name: "Blowjob",
+        description: null,
+        parents: [],
+      },
+    });
     const markers = [blowjobAIMarker, blowjobMarker];
 
     // Create corresponding tag mapping (sourceTagId -> correspondingTagId)
