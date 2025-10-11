@@ -8,6 +8,7 @@ import { navigationPersistence } from "@/utils/navigationPersistence";
 const CONFIG_TABS = [
   { id: "server", label: "Basic", path: "/config/basic" },
   { id: "markers", label: "Marker Groups", path: "/config/markers" },
+  { id: "derived-markers", label: "Derived Markers", path: "/config/derived-markers" },
   { id: "slot-definitions", label: "Slot Definitions", path: "/config/slot-definitions" },
   { id: "shot-boundary", label: "Shot Boundary", path: "/config/shot-boundary" },
   { id: "video-playback", label: "Video Playback", path: "/config/video-playback" },

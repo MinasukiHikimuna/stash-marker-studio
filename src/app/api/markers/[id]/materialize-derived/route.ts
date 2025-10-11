@@ -77,43 +77,12 @@ export async function POST(
       }
       const allTagIds = [...tags, ...additionalTags];
 
-      // Look up slot definitions for the derived tag to map slot labels to IDs
-      let slotDefinitionsForTag: Array<{ id: string; slotLabel: string | null }> = [];
-      if (slots && slots.length > 0) {
-        // Fetch slot definition set for the derived tag
-        const slotDefinitionSet = await prisma.slotDefinitionSet.findUnique({
-          where: { stashappTagId: parseInt(derivedTagId) },
-          include: {
-            slotDefinitions: {
-              select: {
-                id: true,
-                slotLabel: true,
-              },
-            },
-          },
-        });
-
-        if (slotDefinitionSet) {
-          slotDefinitionsForTag = slotDefinitionSet.slotDefinitions;
-        }
-      }
-
-      // Map slot labels to slot definition IDs
       type SlotCreationItem = { slotDefinitionId: string; stashappPerformerId: number | null };
       const slotCreationData: SlotCreationItem[] = slots && slots.length > 0
-        ? slots
-            .map((slot: { label: string; performerId: string }): SlotCreationItem | null => {
-              const slotDef = slotDefinitionsForTag.find((sd) => sd.slotLabel === slot.label);
-              if (!slotDef) {
-                console.warn(`Slot definition not found for label "${slot.label}" on tag ${derivedTagId}`);
-                return null;
-              }
-              return {
-                slotDefinitionId: slotDef.id,
-                stashappPerformerId: slot.performerId ? parseInt(slot.performerId) : null,
-              };
-            })
-            .filter((slot: SlotCreationItem | null): slot is SlotCreationItem => slot !== null)
+        ? slots.map((slot: { slotDefinitionId: string; performerId: string }): SlotCreationItem => ({
+            slotDefinitionId: slot.slotDefinitionId,
+            stashappPerformerId: slot.performerId ? parseInt(slot.performerId) : null,
+          }))
         : [];
 
       // Create the marker in local database

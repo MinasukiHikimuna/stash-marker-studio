@@ -4,7 +4,7 @@ import { SceneMarker } from '@/services/StashappService';
 export interface DerivedMarker {
   derivedTagId: string;
   tags: string[];
-  slots: Array<{ label: string; performerId: string }>;
+  slots: Array<{ slotDefinitionId: string; performerId: string }>;
   depth: number;
   ruleId: string;
   sourceMarkerId?: number;
@@ -43,14 +43,13 @@ export function computeDerivedMarkers(
         sourceMarkerId,
       };
 
-      // Map slots from source to derived based on slotMapping
       if (config.slotMapping && marker.slots) {
         for (const slot of marker.slots) {
-          const slotLabel = slot.slotLabel;
-          if (slotLabel && config.slotMapping[slotLabel]) {
-            const derivedSlotLabel = config.slotMapping[slotLabel];
+          const sourceSlotDefId = slot.slotDefinitionId;
+          if (sourceSlotDefId && config.slotMapping[sourceSlotDefId]) {
+            const derivedSlotDefId = config.slotMapping[sourceSlotDefId];
             derivedMarker.slots.push({
-              label: derivedSlotLabel,
+              slotDefinitionId: derivedSlotDefId,
               performerId: slot.stashappPerformerId?.toString() || '',
             });
           }
