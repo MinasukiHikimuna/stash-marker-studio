@@ -168,6 +168,11 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   // Add state for marker merging
   const [copiedMarkerForMerge, setCopiedMarkerForMerge] = useState<SceneMarker | null>(null);
 
+  // Add state for export preview
+  const [exportPreview, setExportPreview] = useState<{ creates: number; updates: number; deletes: number } | null>(null);
+  const [isLoadingExportPreview, setIsLoadingExportPreview] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
   // Center timeline on playhead function (defined early for use in useTimelineZoom)
   const centerPlayhead = useCallback(() => {
     if (timelineRef.current) {
@@ -512,6 +517,33 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       }
     }
 
+    // Fetch export preview
+    if (scene) {
+      setIsLoadingExportPreview(true);
+      try {
+        const response = await fetch('/api/markers/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sceneId: scene.id, preview: true }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setExportPreview({
+            creates: data.preview.creates,
+            updates: data.preview.updates,
+            deletes: data.preview.deletes,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching export preview:', error);
+        // Continue without export preview
+        setExportPreview(null);
+      } finally {
+        setIsLoadingExportPreview(false);
+      }
+    }
+
     // Open completion modal with all the data
     dispatch(openCompletionModal({
       warnings,
@@ -535,21 +567,59 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     const modalData = completionModalData;
     if (!modalData) return;
 
-    // Close modal when completion starts
+    // Close completion modal
     dispatch(closeModal());
 
-    // Call the hook's executeCompletion with the selected actions
-    await executeCompletion(selectedActions);
-  }, [executeCompletion, completionModalData, dispatch]);
+    if (!scene) return;
+
+    setIsExporting(true);
+
+    try {
+      // Step 1: Export markers to Stashapp
+      const exportResponse = await fetch('/api/markers/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: scene.id, preview: false }),
+      });
+
+      if (!exportResponse.ok) {
+        throw new Error('Failed to export markers');
+      }
+
+      const exportData = await exportResponse.json();
+      console.log('Export results:', exportData.results);
+
+      if (exportData.errors && exportData.errors.length > 0) {
+        console.error('Export errors:', exportData.errors);
+        showToast(`Export completed with ${exportData.errors.length} errors`, 'error');
+      } else {
+        showToast('Markers exported successfully to Stashapp', 'success');
+      }
+
+      // Step 2: Execute completion actions (generate markers, update scene tags, etc.)
+      await executeCompletion(selectedActions);
+
+      // Clear export preview
+      setExportPreview(null);
+    } catch (error) {
+      console.error('Error during export:', error);
+      showToast('Failed to export markers', 'error');
+      // Still try to execute completion actions even if export fails
+      await executeCompletion(selectedActions);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [executeCompletion, completionModalData, dispatch, scene, showToast]);
 
   // Wrapper for keyboard shortcuts - opens completion modal
   const executeCompletionFromKeyboard = useCallback(() => {
     // Check if we have action markers to complete
     if (!markers || markers.length === 0) return;
-    
+
     // Use the existing handleComplete function to open the modal with proper data
     handleComplete();
   }, [markers, handleComplete]);
+
 
   // Universal marker creation function
   const createOrDuplicateMarker = useCallback(
@@ -1391,6 +1461,9 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         hasAiReviewedTag={completionModalData?.hasAiReviewedTag || false}
         primaryTagsToAdd={completionModalData?.primaryTagsToAdd || []}
         tagsToRemove={completionModalData?.tagsToRemove || []}
+        exportPreview={exportPreview}
+        isLoadingExportPreview={isLoadingExportPreview}
+        isExporting={isExporting}
         onCancel={() => dispatch(closeModal())}
         onConfirm={executeCompletionWrapper}
       />

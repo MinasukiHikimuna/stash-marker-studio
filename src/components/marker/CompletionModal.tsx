@@ -10,6 +10,13 @@ interface CompletionModalProps {
   hasAiReviewedTag: boolean;
   primaryTagsToAdd: Tag[];
   tagsToRemove: Tag[];
+  exportPreview?: {
+    creates: number;
+    updates: number;
+    deletes: number;
+  } | null;
+  isLoadingExportPreview?: boolean;
+  isExporting?: boolean;
   onCancel: () => void;
   onConfirm: (selectedActions: CompletionDefaults) => void;
 }
@@ -20,6 +27,9 @@ export function CompletionModal({
   hasAiReviewedTag,
   primaryTagsToAdd,
   tagsToRemove,
+  exportPreview,
+  isLoadingExportPreview = false,
+  isExporting = false,
   onCancel,
   onConfirm,
 }: CompletionModalProps) {
@@ -245,6 +255,49 @@ export function CompletionModal({
               </div>
             </div>
           )}
+
+          {/* Export Preview Section */}
+          {isLoadingExportPreview && (
+            <div className="mt-4 p-3 bg-blue-900/30 border border-blue-600/50 rounded">
+              <div className="flex items-center text-blue-200 text-sm">
+                <span className="mr-2">⏳</span>
+                <span>Loading marker sync preview...</span>
+              </div>
+            </div>
+          )}
+
+          {exportPreview && !isLoadingExportPreview && (
+            <div className="mt-4 p-3 bg-blue-900/30 border border-blue-600/50 rounded">
+              <h4 className="font-semibold text-blue-200 mb-2">
+                🔄 Marker Sync to Stashapp:
+              </h4>
+              <div className="space-y-1 text-sm">
+                {exportPreview.creates > 0 && (
+                  <div className="flex justify-between text-green-200">
+                    <span>Create new markers:</span>
+                    <span className="font-bold">{exportPreview.creates}</span>
+                  </div>
+                )}
+                {exportPreview.updates > 0 && (
+                  <div className="flex justify-between text-blue-200">
+                    <span>Update existing markers:</span>
+                    <span className="font-bold">{exportPreview.updates}</span>
+                  </div>
+                )}
+                {exportPreview.deletes > 0 && (
+                  <div className="flex justify-between text-red-200">
+                    <span>Delete orphaned markers:</span>
+                    <span className="font-bold">{exportPreview.deletes}</span>
+                  </div>
+                )}
+                {exportPreview.creates === 0 && exportPreview.updates === 0 && exportPreview.deletes === 0 && (
+                  <div className="text-gray-300">
+                    All markers already synced with Stashapp
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-between items-center">
@@ -262,19 +315,23 @@ export function CompletionModal({
           <div className="flex space-x-4">
             <button
               onClick={onCancel}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-sm"
+              disabled={isExporting}
+              className="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-sm"
             >
               Cancel
             </button>
             <button
               onClick={handleConfirm}
-              className={`px-4 py-2 rounded-sm font-medium ${
+              disabled={isExporting}
+              className={`px-4 py-2 rounded-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
                 completionWarnings.length > 0
                   ? "bg-yellow-600 hover:bg-yellow-700 text-white"
                   : "bg-green-600 hover:bg-green-700 text-white"
               }`}
             >
-              {completionWarnings.length > 0
+              {isExporting
+                ? "Exporting..."
+                : completionWarnings.length > 0
                 ? "Proceed Anyway"
                 : "Complete"}
             </button>

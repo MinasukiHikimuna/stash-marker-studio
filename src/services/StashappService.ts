@@ -964,6 +964,79 @@ export class StashappService {
     return updateResult.data.sceneMarkerUpdate;
   }
 
+  /**
+   * Updates a marker with all fields (times, tag, and title) in a single operation.
+   * Used by the export functionality to sync markers to Stashapp.
+   */
+  async updateMarker(
+    markerId: string,
+    seconds: number,
+    endSeconds: number | null,
+    primaryTagId: string,
+    tagIds: string[]
+  ): Promise<SceneMarker> {
+    // Get the primary tag name to use as title
+    const query = `
+      query FindTag($id: ID!) {
+        findTag(id: $id) {
+          name
+        }
+      }
+    `;
+
+    const tagResult = await this.fetchGraphQL<{
+      data: { findTag: { name: string } };
+    }>(query, { id: primaryTagId });
+    const tagName = tagResult.data.findTag.name;
+
+    const mutation = `
+      mutation SceneMarkerUpdate($input: SceneMarkerUpdateInput!) {
+        sceneMarkerUpdate(input: $input) {
+          id
+          title
+          seconds
+          end_seconds
+          stream
+          preview
+          screenshot
+          primary_tag {
+            id
+            name
+            description
+            parents {
+              id
+              name
+              parents {
+                id
+                name
+              }
+            }
+          }
+          tags {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      input: {
+        id: markerId,
+        seconds: Math.round(seconds * 1000) / 1000,
+        end_seconds: endSeconds ? Math.round(endSeconds * 1000) / 1000 : null,
+        primary_tag_id: primaryTagId,
+        title: tagName,
+        tag_ids: tagIds,
+      },
+    };
+
+    const result = await this.fetchGraphQL<{
+      data: { sceneMarkerUpdate: SceneMarker };
+    }>(mutation, variables);
+    return result.data.sceneMarkerUpdate;
+  }
+
   async generateMarkers(sceneId: string): Promise<string> {
     const mutation = `
       mutation MetadataGenerate($input: GenerateMetadataInput!) {
