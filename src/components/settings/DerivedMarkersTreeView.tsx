@@ -52,7 +52,7 @@ export default function DerivedMarkersTreeView({
     }));
   };
 
-  // Build tree structure from flat derivation rules
+  // Build tree structure from flat derivation rules - inverted to show general->specific
   const buildTree = (): ChainNode[] => {
     const roots: ChainNode[] = [];
     const nodeMap = new Map<string, ChainNode>();
@@ -76,7 +76,7 @@ export default function DerivedMarkersTreeView({
       }
     });
 
-    // Build relationships
+    // Build relationships - INVERTED: derived (general) tag contains source (specific) tag as child
     derivedMarkers.forEach(rule => {
       if (!rule.sourceTagId || !rule.derivedTagId) return;
 
@@ -84,21 +84,23 @@ export default function DerivedMarkersTreeView({
       const derivedNode = nodeMap.get(rule.derivedTagId);
 
       if (sourceNode && derivedNode) {
-        sourceNode.children.set(rule.derivedTagId, { node: derivedNode, rule });
-        sourceNode.rules.push(rule);
+        // The derived (general) tag shows the source (specific) tag as its child
+        derivedNode.children.set(rule.sourceTagId, { node: sourceNode, rule });
+        derivedNode.rules.push(rule);
       }
     });
 
-    // Find root nodes (nodes that are not children of any other node)
-    const childTagIds = new Set<string>();
+    // Find root nodes (most general tags - those that are derived but not sources)
+    const sourceTagIds = new Set<string>();
     derivedMarkers.forEach(rule => {
-      if (rule.derivedTagId) {
-        childTagIds.add(rule.derivedTagId);
+      if (rule.sourceTagId) {
+        sourceTagIds.add(rule.sourceTagId);
       }
     });
 
     nodeMap.forEach((node, tagId) => {
-      if (!childTagIds.has(tagId) && node.rules.length > 0) {
+      // A root is a tag that has children but is not a source (leaf) tag
+      if (node.children.size > 0 && !sourceTagIds.has(tagId)) {
         roots.push(node);
       }
     });
@@ -141,7 +143,13 @@ export default function DerivedMarkersTreeView({
     );
   };
 
-  const renderNode = (node: ChainNode, depth: number = 0): React.ReactNode => {
+  const renderNode = (node: ChainNode, depth: number = 0, visited: Set<string> = new Set()): React.ReactNode => {
+    // Prevent duplication by tracking visited nodes
+    if (visited.has(node.tagId)) {
+      return null;
+    }
+    visited.add(node.tagId);
+
     const indent = depth * 2;
     const treeSymbol = depth === 0 ? "┌─" : "└─";
 
@@ -166,10 +174,10 @@ export default function DerivedMarkersTreeView({
           <div style={{ marginLeft: `${indent + 1}rem` }}>
             {Array.from(node.children.values()).map(({ node: childNode, rule }) => {
               const ruleIndex = getRuleIndex(rule);
-              const childSlots = getTagSlots(rule.derivedTagId);
+              const sourceSlots = getTagSlots(rule.sourceTagId); // The specific tag's slots
 
               return (
-                <div key={childNode.tagId} className="mb-4 border-l-2 border-gray-700 pl-4">
+                <div key={`${node.tagId}-${childNode.tagId}`} className="mb-4 border-l-2 border-gray-700 pl-4">
                   <div className="flex items-start gap-2 mb-2">
                     <span className="text-gray-600">├─</span>
                     <div className="flex-1">
@@ -178,8 +186,8 @@ export default function DerivedMarkersTreeView({
                           {childNode.tagName}
                         </span>
                         <span className="text-gray-500 text-xs">
-                          [{childSlots.length} {childSlots.length === 1 ? "slot" : "slots"}
-                          {childSlots.length > 0 && ": " + childSlots.map(s => s.label).join(", ")}]
+                          [{sourceSlots.length} {sourceSlots.length === 1 ? "slot" : "slots"}
+                          {sourceSlots.length > 0 && ": " + sourceSlots.map(s => s.label).join(", ")}]
                         </span>
                         <button
                           onClick={() => onEditSlots(rule, ruleIndex)}
@@ -197,10 +205,10 @@ export default function DerivedMarkersTreeView({
                     </div>
                   </div>
 
-                  {renderSlotMappings(rule, node.slots)}
+                  {renderSlotMappings(rule, sourceSlots)}
 
                   {childNode.children.size > 0 && (
-                    <div className="ml-4 mt-3">{renderNode(childNode, depth + 1)}</div>
+                    <div className="ml-4 mt-3">{renderNode(childNode, depth + 1, visited)}</div>
                   )}
                 </div>
               );
