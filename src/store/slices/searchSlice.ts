@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { Scene, Tag, SceneMarker, stashappService } from '@/services/StashappService';
+import { Scene, Tag, SceneMarker } from '@/services/StashappService';
 import { loadSearchParams, matchSavedTagsWithLoadedTags } from '../utils/localStorage';
 
 // Types
@@ -74,8 +74,12 @@ const initialState: SearchState = {
 export const loadAllTags = createAsyncThunk(
   'search/loadAllTags',
   async () => {
-    const response = await stashappService.getAllTags();
-    return response.findTags.tags;
+    const response = await fetch('/api/tags');
+    if (!response.ok) {
+      throw new Error('Failed to load tags');
+    }
+    const data = await response.json();
+    return data.tags;
   }
 );
 
@@ -83,18 +87,22 @@ export const loadAllTags = createAsyncThunk(
 export const initializeSearch = createAsyncThunk(
   'search/initializeSearch',
   async () => {
-    // First load all tags
-    const tagsResponse = await stashappService.getAllTags();
-    const allTags = tagsResponse.findTags.tags;
-    
+    // First load all tags from local database
+    const tagsResponse = await fetch('/api/tags');
+    if (!tagsResponse.ok) {
+      throw new Error('Failed to load tags');
+    }
+    const tagsData = await tagsResponse.json();
+    const allTags = tagsData.tags;
+
     // Try to load saved search parameters
     const savedParams = loadSearchParams();
     let restoredParams = null;
-    
+
     if (savedParams) {
       // Match saved tag IDs with loaded tag data
       const matchedTags = matchSavedTagsWithLoadedTags(savedParams.tags, allTags);
-      
+
       restoredParams = {
         query: savedParams.query,
         selectedTags: matchedTags,
@@ -102,7 +110,7 @@ export const initializeSearch = createAsyncThunk(
         sortDirection: savedParams.sortDirection,
       };
     }
-    
+
     return {
       allTags,
       restoredParams,
@@ -124,15 +132,27 @@ export const searchScenes = createAsyncThunk(
     const excludedTagIds = params.selectedTags
       .filter(tag => tag.type === 'excluded')
       .map(tag => tag.id);
-    
-    const result = await stashappService.searchScenes(
-      params.query,
-      includedTagIds,
-      params.sortField,
-      params.sortDirection,
-      excludedTagIds
-    );
-    return result.findScenes.scenes;
+
+    // Build query parameters
+    const queryParams = new URLSearchParams({
+      query: params.query,
+      sortField: params.sortField,
+      sortDirection: params.sortDirection,
+    });
+
+    if (includedTagIds.length > 0) {
+      queryParams.set('includedTagIds', includedTagIds.join(','));
+    }
+    if (excludedTagIds.length > 0) {
+      queryParams.set('excludedTagIds', excludedTagIds.join(','));
+    }
+
+    const response = await fetch(`/api/scenes/search?${queryParams.toString()}`);
+    if (!response.ok) {
+      throw new Error('Failed to search scenes');
+    }
+    const data = await response.json();
+    return data.scenes;
   }
 );
 
