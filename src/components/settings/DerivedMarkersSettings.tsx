@@ -181,9 +181,52 @@ export default function DerivedMarkersSettings() {
     setEditSourceSlotId("");
     setEditDerivedSlotId("");
 
-    // Load slot definitions for both tags
-    if (rule.sourceTagId) loadSlotDefinitionsForTag(rule.sourceTagId);
-    if (rule.derivedTagId) loadSlotDefinitionsForTag(rule.derivedTagId);
+    // Load slot definitions for both tags, then auto-match slots
+    Promise.all([
+      rule.sourceTagId ? loadSlotDefinitionsForTag(rule.sourceTagId) : Promise.resolve(),
+      rule.derivedTagId ? loadSlotDefinitionsForTag(rule.derivedTagId) : Promise.resolve(),
+    ]).then(() => {
+      autoMatchSlots(rule, index);
+    });
+  };
+
+  const autoMatchSlots = (rule: DerivedMarkerConfig, index: number) => {
+    const sourceSlotSet = rule.sourceTagId ? slotDefinitionSets[rule.sourceTagId] : null;
+    const derivedSlotSet = rule.derivedTagId ? slotDefinitionSets[rule.derivedTagId] : null;
+
+    if (!sourceSlotSet?.slotDefinitions || !derivedSlotSet?.slotDefinitions) {
+      return;
+    }
+
+    const existingMapping = rule.slotMapping || {};
+    const newMapping: Record<string, string> = { ...existingMapping };
+
+    // Auto-match slots with identical labels
+    sourceSlotSet.slotDefinitions.forEach(sourceSlot => {
+      // Skip if already mapped
+      if (existingMapping[sourceSlot.id]) {
+        return;
+      }
+
+      const sourceLabel = sourceSlot.slotLabel?.trim().toLowerCase();
+      if (!sourceLabel) return;
+
+      // Find matching derived slot by label
+      const matchingDerivedSlot = derivedSlotSet.slotDefinitions?.find(
+        derivedSlot => derivedSlot.slotLabel?.trim().toLowerCase() === sourceLabel
+      );
+
+      if (matchingDerivedSlot) {
+        newMapping[sourceSlot.id] = matchingDerivedSlot.id;
+      }
+    });
+
+    // Update mappings if any auto-matches were found
+    if (Object.keys(newMapping).length > Object.keys(existingMapping).length) {
+      const updated = [...derivedMarkers];
+      updated[index].slotMapping = newMapping;
+      setDerivedMarkers(updated);
+    }
   };
 
   const cancelEditingSlots = () => {
