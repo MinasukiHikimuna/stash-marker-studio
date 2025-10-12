@@ -26,6 +26,7 @@ interface MarkerPageHeaderProps {
   onComplete: () => void;
   onImportMarkers: () => void;
   onToggleHideDerivedMarkers: () => void;
+  onAutoAssignPerformers: () => void;
 }
 
 export function MarkerPageHeader({
@@ -44,6 +45,7 @@ export function MarkerPageHeader({
   onComplete,
   onImportMarkers,
   onToggleHideDerivedMarkers,
+  onAutoAssignPerformers,
 }: MarkerPageHeaderProps) {
   const router = useRouter();
   const stashUrl = useAppSelector(selectStashUrl);
@@ -116,6 +118,14 @@ export function MarkerPageHeader({
               title="Import markers from Stashapp to local database"
             >
               Import Markers
+            </button>
+            <button
+              onClick={onAutoAssignPerformers}
+              disabled={isLoading || !scene}
+              className="bg-purple-500 hover:bg-purple-700 text-white px-3 py-1.5 rounded-sm text-sm transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+              title="Auto-assign performers to markers with single valid match"
+            >
+              Auto-Assign Performers
             </button>
             <button
               onClick={handleDeleteRejectedClick}

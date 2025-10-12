@@ -88,6 +88,8 @@ import {
   getMarkerStatus,
 } from "../../../core/marker/markerLogic";
 import { MarkerStatus } from "../../../core/marker/types";
+import { BulkAutoAssignPreviewModal } from "../../../components/marker/BulkAutoAssignPreviewModal";
+import { findAutoAssignableMarkers, type MarkerAutoAssignment } from "../../../core/slot/bulkAutoAssignment";
 import type { ShotBoundary } from "../../../core/shotBoundary/types";
 import {
   planAddShotBoundaryAtPlayhead,
@@ -172,6 +174,17 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   const [exportPreview, setExportPreview] = useState<{ creates: number; updates: number; deletes: number } | null>(null);
   const [isLoadingExportPreview, setIsLoadingExportPreview] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Add state for auto-assign preview
+  const [isAutoAssignModalOpen, setIsAutoAssignModalOpen] = useState(false);
+  const [isLoadingAutoAssign, setIsLoadingAutoAssign] = useState(false);
+  const [assignableMarkers, setAssignableMarkers] = useState<MarkerAutoAssignment[]>([]);
+  const [skippedMarkers, setSkippedMarkers] = useState<Array<{
+    markerId: string;
+    markerTag: string;
+    markerTime: string;
+    reason: string;
+  }>>([]);
 
   // Center timeline on playhead function (defined early for use in useTimelineZoom)
   const centerPlayhead = useCallback(() => {
@@ -366,6 +379,83 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       showToast("Failed to import markers from Stashapp", "error");
     }
   }, [scene, showToast, dispatch]);
+
+  // Handle auto-assign performers button click
+  const handleAutoAssignPerformers = useCallback(async () => {
+    if (!scene || !markers) {
+      showToast("No scene or markers available", "error");
+      return;
+    }
+
+    setIsAutoAssignModalOpen(true);
+    setIsLoadingAutoAssign(true);
+    setAssignableMarkers([]);
+    setSkippedMarkers([]);
+
+    try {
+      const scenePerformers = scene.performers || [];
+      const result = await findAutoAssignableMarkers(markers, scenePerformers);
+      setAssignableMarkers(result.assignableMarkers);
+      setSkippedMarkers(result.skippedMarkers);
+    } catch (error) {
+      console.error("Error analyzing markers for auto-assignment:", error);
+      showToast("Failed to analyze markers", "error");
+      setIsAutoAssignModalOpen(false);
+    } finally {
+      setIsLoadingAutoAssign(false);
+    }
+  }, [scene, markers, showToast]);
+
+  // Handle confirm auto-assign
+  const handleConfirmAutoAssign = useCallback(async () => {
+    if (!scene) {
+      showToast("No scene available", "error");
+      return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const markerAssignment of assignableMarkers) {
+      try {
+        const response = await fetch(`/api/markers/${markerAssignment.markerId}/slots`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slots: markerAssignment.assignments.map(a => ({
+              slotDefinitionId: a.slotDefinitionId,
+              stashappPerformerId: parseInt(a.performerId),
+            })),
+          }),
+        });
+
+        if (response.ok) {
+          successCount++;
+        } else {
+          failCount++;
+          console.error(`Failed to assign performers for marker ${markerAssignment.markerId}`);
+        }
+      } catch (error) {
+        failCount++;
+        console.error(`Error assigning performers for marker ${markerAssignment.markerId}:`, error);
+      }
+    }
+
+    // Refresh markers to show updated slots
+    await dispatch(loadMarkers(scene.id));
+
+    // Close modal
+    setIsAutoAssignModalOpen(false);
+    setAssignableMarkers([]);
+    setSkippedMarkers([]);
+
+    // Show result toast
+    if (failCount === 0) {
+      showToast(`Successfully auto-assigned ${successCount} marker(s)`, "success");
+    } else {
+      showToast(`Assigned ${successCount} marker(s), ${failCount} failed`, "error");
+    }
+  }, [scene, assignableMarkers, dispatch, showToast]);
 
   // Handle toggle hide derived markers
   const handleToggleHideDerivedMarkers = useCallback(() => {
@@ -1314,6 +1404,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         onComplete={handleComplete}
         onImportMarkers={handleImportMarkers}
         onToggleHideDerivedMarkers={handleToggleHideDerivedMarkers}
+        onAutoAssignPerformers={handleAutoAssignPerformers}
       />
 
       {error && (
@@ -1499,6 +1590,20 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
           }}
         />
       )}
+
+      {/* Bulk Auto-Assign Preview Modal */}
+      <BulkAutoAssignPreviewModal
+        isOpen={isAutoAssignModalOpen}
+        assignableMarkers={assignableMarkers}
+        skippedMarkers={skippedMarkers}
+        isLoading={isLoadingAutoAssign}
+        onConfirm={handleConfirmAutoAssign}
+        onCancel={() => {
+          setIsAutoAssignModalOpen(false);
+          setAssignableMarkers([]);
+          setSkippedMarkers([]);
+        }}
+      />
     </div>
   );
 }
