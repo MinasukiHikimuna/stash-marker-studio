@@ -24,35 +24,86 @@ export async function GET(request: NextRequest) {
     const sortField = searchParams.get("sortField") || "title";
     const sortDirection = (searchParams.get("sortDirection") || "ASC") as "ASC" | "DESC";
 
+    // Marker filters
+    const markerFilter = searchParams.get("markerFilter"); // "none", "has_unconfirmed", "all"
+
+    // Load config to get status tag IDs
+    const config = await loadConfig();
+    const statusConfirmedId = config ? parseInt(config.markerConfig.statusConfirmed) : null;
+    const statusRejectedId = config ? parseInt(config.markerConfig.statusRejected) : null;
+
     // Build WHERE clause
+    const whereConditions: any[] = [
+      // Text search on title
+      query ? {
+        title: {
+          contains: query,
+          mode: 'insensitive' as Prisma.QueryMode,
+        }
+      } : {},
+
+      // Included tags (must have ALL)
+      ...includedTagIds.map(tagId => ({
+        tags: {
+          some: {
+            tagId,
+          }
+        }
+      })),
+
+      // Excluded tags (must have NONE)
+      ...excludedTagIds.map(tagId => ({
+        tags: {
+          none: {
+            tagId,
+          }
+        }
+      })),
+    ];
+
+    // Add marker-based filters using raw SQL subqueries
+    if (markerFilter === "none") {
+      // Scenes with no markers at all
+      whereConditions.push({
+        id: {
+          notIn: await prisma.$queryRaw<Array<{ stashapp_scene_id: number }>>`
+            SELECT DISTINCT stashapp_scene_id FROM markers
+          `.then(rows => rows.map(r => r.stashapp_scene_id))
+        }
+      });
+    } else if (markerFilter === "has_unconfirmed" && statusConfirmedId && statusRejectedId) {
+      // Scenes that have at least one marker that is NOT confirmed or rejected
+      const scenesWithUnconfirmedMarkers = await prisma.$queryRaw<Array<{ stashapp_scene_id: number }>>`
+        SELECT DISTINCT m.stashapp_scene_id
+        FROM markers m
+        WHERE m.id NOT IN (
+          -- Exclude markers that have confirmed tag
+          SELECT marker_id FROM marker_additional_tags WHERE tag_id = ${statusConfirmedId}
+          UNION
+          SELECT id FROM markers WHERE primary_tag_id = ${statusConfirmedId}
+        )
+        AND m.id NOT IN (
+          -- Exclude markers that have rejected tag
+          SELECT marker_id FROM marker_additional_tags WHERE tag_id = ${statusRejectedId}
+          UNION
+          SELECT id FROM markers WHERE primary_tag_id = ${statusRejectedId}
+        )
+      `;
+
+      if (scenesWithUnconfirmedMarkers.length > 0) {
+        whereConditions.push({
+          id: {
+            in: scenesWithUnconfirmedMarkers.map(r => r.stashapp_scene_id)
+          }
+        });
+      } else {
+        // No scenes match, return empty set
+        whereConditions.push({ id: -1 });
+      }
+    }
+
     const where: Prisma.StashSceneWhereInput = {
-      AND: [
-        // Text search on title
-        query ? {
-          title: {
-            contains: query,
-            mode: 'insensitive' as Prisma.QueryMode,
-          }
-        } : {},
-
-        // Included tags (must have ALL)
-        ...includedTagIds.map(tagId => ({
-          tags: {
-            some: {
-              tagId,
-            }
-          }
-        })),
-
-        // Excluded tags (must have NONE)
-        ...excludedTagIds.map(tagId => ({
-          tags: {
-            none: {
-              tagId,
-            }
-          }
-        })),
-      ],
+      AND: whereConditions,
     };
 
     // Build ORDER BY clause - map Stashapp field names to database field names

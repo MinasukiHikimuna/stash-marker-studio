@@ -11,6 +11,7 @@ import {
   setQuery,
   setSortField,
   toggleSortDirection,
+  setMarkerFilter,
   addSelectedTag,
   removeSelectedTag,
   setTagSearchQuery,
@@ -21,6 +22,7 @@ import {
   selectInitializationError,
   selectHasSearched,
   SortField,
+  MarkerFilter,
 } from "@/store/slices/searchSlice";
 import { stashappService, Tag } from "@/services/StashappService";
 import { calculateMarkerSummary } from "../../core/marker/markerLogic";
@@ -68,6 +70,7 @@ export default function SearchPage() {
     selectedTags,
     sortField,
     sortDirection,
+    markerFilter,
     tagSearchQuery,
     tagSuggestions,
     scenes,
@@ -101,7 +104,7 @@ export default function SearchPage() {
   // Debounced search effect - only after initialization
   useEffect(() => {
     if (!initialized) return;
-    
+
     const timeoutId = setTimeout(() => {
       dispatch(
         searchScenes({
@@ -109,12 +112,13 @@ export default function SearchPage() {
           selectedTags,
           sortField,
           sortDirection,
+          markerFilter,
         })
       );
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [query, selectedTags, sortField, sortDirection, initialized, dispatch]);
+  }, [query, selectedTags, sortField, sortDirection, markerFilter, initialized, dispatch]);
 
   const handleQueryChange = useCallback(
     (value: string) => {
@@ -133,6 +137,13 @@ export default function SearchPage() {
   const handleSortDirectionToggle = useCallback(() => {
     dispatch(toggleSortDirection());
   }, [dispatch]);
+
+  const handleMarkerFilterChange = useCallback(
+    (value: MarkerFilter) => {
+      dispatch(setMarkerFilter(value));
+    },
+    [dispatch]
+  );
 
   const handleTagSelect = useCallback(
     (tag: Tag) => {
@@ -179,9 +190,10 @@ export default function SearchPage() {
         selectedTags,
         sortField,
         sortDirection,
+        markerFilter,
       })
     );
-  }, [dispatch, query, selectedTags, sortField, sortDirection]);
+  }, [dispatch, query, selectedTags, sortField, sortDirection, markerFilter]);
 
   const handleSceneClick = useCallback(
     (sceneId: string) => {
@@ -345,6 +357,18 @@ export default function SearchPage() {
             placeholder="Search scenes..."
             className="flex-1 p-2 border rounded bg-gray-800 text-white border-gray-600 placeholder-gray-400"
           />
+          <select
+            value={markerFilter}
+            onChange={(e) =>
+              handleMarkerFilterChange(e.target.value as MarkerFilter)
+            }
+            className="p-2 border rounded bg-gray-800 text-white border-gray-600"
+            title="Filter by marker status"
+          >
+            <option value="all">All Scenes</option>
+            <option value="none">No Markers</option>
+            <option value="has_unconfirmed">Has Unconfirmed</option>
+          </select>
           <div className="flex gap-2">
             <select
               value={sortField}

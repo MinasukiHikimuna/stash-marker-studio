@@ -21,32 +21,35 @@ export type SortField =
   | 'play_count' | 'play_duration' | 'resume_time' | 'path' | 'perceptual_similarity' 
   | 'random' | 'rating' | 'tag_count' | 'title' | 'updated_at';
 
+export type MarkerFilter = 'all' | 'none' | 'has_unconfirmed';
+
 export interface SearchState {
   // Search parameters
   query: string;
   selectedTags: SelectedTag[];
   sortField: SortField;
   sortDirection: 'ASC' | 'DESC';
-  
+  markerFilter: MarkerFilter;
+
   // Tag management
   allTags: Tag[];
   tagSearchQuery: string;
   tagSuggestions: Tag[];
-  
+
   // Results
   scenes: SceneWithMarkers[];
-  
+
   // UI state
   loading: boolean;
   error: string | null;
   tagsLoading: boolean;
   tagsError: string | null;
-  
+
   // Initialization state
   initialized: boolean;
   initializing: boolean;
   initializationError: string | null;
-  
+
   // Search state tracking
   hasSearched: boolean;
 }
@@ -56,6 +59,7 @@ const initialState: SearchState = {
   selectedTags: [],
   sortField: 'title',
   sortDirection: 'ASC',
+  markerFilter: 'all',
   allTags: [],
   tagSearchQuery: '',
   tagSuggestions: [],
@@ -125,6 +129,7 @@ export const searchScenes = createAsyncThunk(
     selectedTags: SelectedTag[];
     sortField: SortField;
     sortDirection: 'ASC' | 'DESC';
+    markerFilter: MarkerFilter;
   }) => {
     const includedTagIds = params.selectedTags
       .filter(tag => tag.type === 'included')
@@ -145,6 +150,9 @@ export const searchScenes = createAsyncThunk(
     }
     if (excludedTagIds.length > 0) {
       queryParams.set('excludedTagIds', excludedTagIds.join(','));
+    }
+    if (params.markerFilter !== 'all') {
+      queryParams.set('markerFilter', params.markerFilter);
     }
 
     const response = await fetch(`/api/scenes/search?${queryParams.toString()}`);
@@ -176,7 +184,11 @@ const searchSlice = createSlice({
     toggleSortDirection: (state) => {
       state.sortDirection = state.sortDirection === 'ASC' ? 'DESC' : 'ASC';
     },
-    
+
+    setMarkerFilter: (state, action: PayloadAction<MarkerFilter>) => {
+      state.markerFilter = action.payload;
+    },
+
     addSelectedTag: (state, action: PayloadAction<Tag & { type?: TagType }>) => {
       const { type = 'included', ...tag } = action.payload;
       if (!state.selectedTags.some(t => t.id === tag.id)) {
@@ -310,6 +322,7 @@ export const {
   setSortField,
   setSortDirection,
   toggleSortDirection,
+  setMarkerFilter,
   addSelectedTag,
   toggleTagType,
   removeSelectedTag,
@@ -327,6 +340,7 @@ export const selectQuery = (state: { search: SearchState }) => state.search.quer
 export const selectSelectedTags = (state: { search: SearchState }) => state.search.selectedTags;
 export const selectSortField = (state: { search: SearchState }) => state.search.sortField;
 export const selectSortDirection = (state: { search: SearchState }) => state.search.sortDirection;
+export const selectMarkerFilter = (state: { search: SearchState }) => state.search.markerFilter;
 export const selectAllTags = (state: { search: SearchState }) => state.search.allTags;
 export const selectTagSearchQuery = (state: { search: SearchState }) => state.search.tagSearchQuery;
 export const selectTagSuggestions = (state: { search: SearchState }) => state.search.tagSuggestions;
