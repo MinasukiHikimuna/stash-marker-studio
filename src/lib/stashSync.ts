@@ -239,93 +239,106 @@ async function syncScenes(): Promise<EntitySyncResult> {
   });
   const existingTagIds = new Set(existingTags.map((t) => t.id));
 
-  // Upsert scenes and their relationships in transaction with longer timeout
-  await prisma.$transaction(
-    async (tx) => {
-      for (const scene of syncResult.items) {
-        const sceneId = normalizeId(scene.id);
+  // Process scenes in batches to avoid transaction timeouts
+  const BATCH_SIZE = 1000;
+  const batches = [];
+  for (let i = 0; i < syncResult.items.length; i += BATCH_SIZE) {
+    batches.push(syncResult.items.slice(i, i + BATCH_SIZE));
+  }
 
-        // Calculate aggregate filesize and duration from files
-        let totalFilesize: bigint | null = null;
-        let totalDuration: number | null = null;
+  console.log(`[Scenes] Processing ${batches.length} batches of up to ${BATCH_SIZE} scenes each`);
 
-        if (scene.files && scene.files.length > 0) {
-          totalFilesize = scene.files.reduce(
-            (sum, file) => sum + BigInt(file.size),
-            BigInt(0)
-          );
-          totalDuration = scene.files.reduce(
-            (sum, file) => sum + file.duration,
-            0
-          );
-        }
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+    const batch = batches[batchIndex];
+    console.log(`[Scenes] Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} scenes)`);
 
-        // Upsert the scene
-        await tx.stashScene.upsert({
-          where: { id: sceneId },
-          update: {
-            title: scene.title || null,
-            date: scene.date ? new Date(scene.date) : null,
-            details: scene.details || null,
-            filesize: totalFilesize,
-            duration: totalDuration,
-            stashUpdatedAt: new Date(scene.updated_at),
-            syncedAt,
-          },
-          create: {
-            id: sceneId,
-            title: scene.title || null,
-            date: scene.date ? new Date(scene.date) : null,
-            details: scene.details || null,
-            filesize: totalFilesize,
-            duration: totalDuration,
-            stashUpdatedAt: new Date(scene.updated_at),
-            syncedAt,
-          },
-        });
-        upserted++;
+    await prisma.$transaction(
+      async (tx) => {
+        for (const scene of batch) {
+          const sceneId = normalizeId(scene.id);
 
-        // Update performer relationships: delete existing and insert new ones
-        await tx.stashScenePerformer.deleteMany({
-          where: { sceneId },
-        });
+          // Calculate aggregate filesize and duration from files
+          let totalFilesize: bigint | null = null;
+          let totalDuration: number | null = null;
 
-        if (scene.performers && scene.performers.length > 0) {
-          // Filter to only performers that exist in our database
-          const validPerformers = scene.performers
-            .map((p) => normalizeId(p.id))
-            .filter((id) => existingPerformerIds.has(id))
-            .map((performerId) => ({ sceneId, performerId, syncedAt }));
+          if (scene.files && scene.files.length > 0) {
+            totalFilesize = scene.files.reduce(
+              (sum, file) => sum + BigInt(file.size),
+              BigInt(0)
+            );
+            totalDuration = scene.files.reduce(
+              (sum, file) => sum + file.duration,
+              0
+            );
+          }
 
-          if (validPerformers.length > 0) {
-            await tx.stashScenePerformer.createMany({
-              data: validPerformers,
-            });
+          // Upsert the scene
+          await tx.stashScene.upsert({
+            where: { id: sceneId },
+            update: {
+              title: scene.title || null,
+              date: scene.date ? new Date(scene.date) : null,
+              details: scene.details || null,
+              filesize: totalFilesize,
+              duration: totalDuration,
+              stashUpdatedAt: new Date(scene.updated_at),
+              syncedAt,
+            },
+            create: {
+              id: sceneId,
+              title: scene.title || null,
+              date: scene.date ? new Date(scene.date) : null,
+              details: scene.details || null,
+              filesize: totalFilesize,
+              duration: totalDuration,
+              stashUpdatedAt: new Date(scene.updated_at),
+              syncedAt,
+            },
+          });
+          upserted++;
+
+          // Update performer relationships: delete existing and insert new ones
+          await tx.stashScenePerformer.deleteMany({
+            where: { sceneId },
+          });
+
+          if (scene.performers && scene.performers.length > 0) {
+            // Filter to only performers that exist in our database
+            const validPerformers = scene.performers
+              .map((p) => normalizeId(p.id))
+              .filter((id) => existingPerformerIds.has(id))
+              .map((performerId) => ({ sceneId, performerId, syncedAt }));
+
+            if (validPerformers.length > 0) {
+              await tx.stashScenePerformer.createMany({
+                data: validPerformers,
+              });
+            }
+          }
+
+          // Update tag relationships: delete existing and insert new ones
+          await tx.stashSceneTag.deleteMany({
+            where: { sceneId },
+          });
+
+          if (scene.tags && scene.tags.length > 0) {
+            // Filter to only tags that exist in our database
+            const validTags = scene.tags
+              .map((t) => normalizeId(t.id))
+              .filter((id) => existingTagIds.has(id))
+              .map((tagId) => ({ sceneId, tagId, syncedAt }));
+
+            if (validTags.length > 0) {
+              await tx.stashSceneTag.createMany({
+                data: validTags,
+              });
+            }
           }
         }
-
-        // Update tag relationships: delete existing and insert new ones
-        await tx.stashSceneTag.deleteMany({
-          where: { sceneId },
-        });
-
-        if (scene.tags && scene.tags.length > 0) {
-          // Filter to only tags that exist in our database
-          const validTags = scene.tags
-            .map((t) => normalizeId(t.id))
-            .filter((id) => existingTagIds.has(id))
-            .map((tagId) => ({ sceneId, tagId, syncedAt }));
-
-          if (validTags.length > 0) {
-            await tx.stashSceneTag.createMany({
-              data: validTags,
-            });
-          }
-        }
-      }
-    },
-    { timeout: 60000 }
-  ); // 60 second timeout for large batches
+      },
+      { timeout: 30000 }
+    ); // 30 second timeout per batch
+  }
 
   console.log(`[Scenes] Upserted ${upserted} scenes`);
   return { fetched: syncResult.fetched, upserted };
