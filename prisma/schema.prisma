@@ -162,3 +162,95 @@ model MarkerDerivation {
   @@index([depth])
   @@map("marker_derivations")
 }
+
+// === Stash Sync Tables ===
+// WARNING: These tables are READ-ONLY caches of Stashapp data.
+// They are populated via sync operations and should NEVER be modified manually.
+// Stashapp is the single source of truth; local copies are refreshable at any time.
+
+model StashPerformer {
+  id              Int      @id
+  name            String
+  gender          String?
+  imagePath       String?  @map("image_path")
+  stashUpdatedAt  DateTime @map("stash_updated_at")
+  syncedAt        DateTime @map("synced_at")
+
+  scenes          StashScenePerformer[]
+
+  @@index([name])
+  @@index([stashUpdatedAt])
+  @@map("stash_performers")
+}
+
+model StashTag {
+  id              Int      @id
+  name            String   @unique
+  stashUpdatedAt  DateTime @map("stash_updated_at")
+  syncedAt        DateTime @map("synced_at")
+
+  parents         StashTagParent[] @relation("child")
+  children        StashTagParent[] @relation("parent")
+  scenes          StashSceneTag[]
+
+  @@index([name])
+  @@index([stashUpdatedAt])
+  @@map("stash_tags")
+}
+
+model StashTagParent {
+  childId   Int         @map("child_id")
+  parentId  Int         @map("parent_id")
+  syncedAt  DateTime    @map("synced_at")
+
+  child     StashTag    @relation("child", fields: [childId], references: [id], onDelete: Cascade)
+  parent    StashTag    @relation("parent", fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@id([childId, parentId])
+  @@index([parentId])
+  @@map("stash_tag_parents")
+}
+
+model StashScene {
+  id              Int       @id
+  title           String?
+  date            DateTime? @db.Date
+  details         String?   @db.Text
+  filesize        BigInt?
+  duration        Decimal?  @db.Decimal(10, 2)
+  stashUpdatedAt  DateTime  @map("stash_updated_at")
+  syncedAt        DateTime  @map("synced_at")
+
+  performers      StashScenePerformer[]
+  tags            StashSceneTag[]
+
+  @@index([date])
+  @@index([stashUpdatedAt])
+  @@map("stash_scenes")
+}
+
+model StashScenePerformer {
+  sceneId      Int      @map("scene_id")
+  performerId  Int      @map("performer_id")
+  syncedAt     DateTime @map("synced_at")
+
+  scene        StashScene     @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  performer    StashPerformer @relation(fields: [performerId], references: [id], onDelete: Cascade)
+
+  @@id([sceneId, performerId])
+  @@index([performerId])
+  @@map("stash_scene_performers")
+}
+
+model StashSceneTag {
+  sceneId   Int      @map("scene_id")
+  tagId     Int      @map("tag_id")
+  syncedAt  DateTime @map("synced_at")
+
+  scene     StashScene @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  tag       StashTag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([sceneId, tagId])
+  @@index([tagId])
+  @@map("stash_scene_tags")
+}

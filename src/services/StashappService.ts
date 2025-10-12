@@ -126,6 +126,41 @@ export type Tag = {
   }[];
 };
 
+export type StashPerformerForSync = {
+  id: string;
+  name: string;
+  gender?: string | null;
+  image_path?: string | null;
+  updated_at: string;
+};
+
+export type StashTagForSync = {
+  id: string;
+  name: string;
+  updated_at: string;
+  parents?: Array<{ id: string }>;
+};
+
+export type StashSceneForSync = {
+  id: string;
+  title?: string | null;
+  date?: string | null;
+  details?: string | null;
+  files?: Array<{
+    size: number;
+    duration: number;
+  }>;
+  updated_at: string;
+  performers?: Array<{ id: string }>;
+  tags?: Array<{ id: string }>;
+};
+
+export type SyncResult<T> = {
+  fetched: number;
+  items: T[];
+  maxUpdatedAt: Date | null;
+};
+
 type SearchScenesVariables = {
   filter: {
     q: string;
@@ -1498,6 +1533,258 @@ export class StashappService {
         count: allPerformers.length,
         performers: allPerformers,
       },
+    };
+  }
+
+  /**
+   * Sync performers from Stash, fetching only those updated after the high-water mark.
+   * @param highWaterMark - Fetch only performers updated after this date
+   * @returns SyncResult containing fetched performers and the maximum updated_at timestamp
+   */
+  async syncPerformers(
+    highWaterMark: Date
+  ): Promise<SyncResult<StashPerformerForSync>> {
+    const query = `
+      query FindPerformers($filter: FindFilterType) {
+        findPerformers(filter: $filter) {
+          count
+          performers {
+            id
+            name
+            gender
+            image_path
+            updated_at
+          }
+        }
+      }
+    `;
+
+    const allPerformers: StashPerformerForSync[] = [];
+    const perPage = 1000;
+    let page = 1;
+    let maxUpdatedAt: Date | null = null;
+
+    while (true) {
+      const result = await this.fetchGraphQL<{
+        data: {
+          findPerformers: {
+            count: number;
+            performers: StashPerformerForSync[];
+          };
+        };
+      }>(query, {
+        filter: {
+          page,
+          per_page: perPage,
+          sort: "updated_at",
+          direction: "ASC",
+        },
+      });
+
+      const performers = result.data.findPerformers.performers;
+
+      // Filter out performers older than high-water mark
+      const newPerformers = performers.filter((p) => {
+        const updatedAt = new Date(p.updated_at);
+        return updatedAt >= highWaterMark;
+      });
+
+      if (newPerformers.length === 0) {
+        // All remaining results are older than high-water mark
+        break;
+      }
+
+      allPerformers.push(...newPerformers);
+
+      // Track maximum updated_at
+      for (const performer of newPerformers) {
+        const updatedAt = new Date(performer.updated_at);
+        if (!maxUpdatedAt || updatedAt > maxUpdatedAt) {
+          maxUpdatedAt = updatedAt;
+        }
+      }
+
+      // If we got fewer results than requested, we're done
+      if (performers.length < perPage) {
+        break;
+      }
+
+      page++;
+    }
+
+    return {
+      fetched: allPerformers.length,
+      items: allPerformers,
+      maxUpdatedAt,
+    };
+  }
+
+  /**
+   * Sync tags from Stash, fetching only those updated after the high-water mark.
+   * @param highWaterMark - Fetch only tags updated after this date
+   * @returns SyncResult containing fetched tags and the maximum updated_at timestamp
+   */
+  async syncTags(highWaterMark: Date): Promise<SyncResult<StashTagForSync>> {
+    const query = `
+      query FindTags($filter: FindFilterType) {
+        findTags(filter: $filter) {
+          count
+          tags {
+            id
+            name
+            updated_at
+            parents {
+              id
+            }
+          }
+        }
+      }
+    `;
+
+    const allTags: StashTagForSync[] = [];
+    const perPage = 1000;
+    let page = 1;
+    let maxUpdatedAt: Date | null = null;
+
+    while (true) {
+      const result = await this.fetchGraphQL<{
+        data: {
+          findTags: {
+            count: number;
+            tags: StashTagForSync[];
+          };
+        };
+      }>(query, {
+        filter: {
+          page,
+          per_page: perPage,
+          sort: "updated_at",
+          direction: "ASC",
+        },
+      });
+
+      const tags = result.data.findTags.tags;
+
+      // Filter out tags older than high-water mark
+      const newTags = tags.filter((t) => {
+        const updatedAt = new Date(t.updated_at);
+        return updatedAt >= highWaterMark;
+      });
+
+      if (newTags.length === 0) {
+        break;
+      }
+
+      allTags.push(...newTags);
+
+      // Track maximum updated_at
+      for (const tag of newTags) {
+        const updatedAt = new Date(tag.updated_at);
+        if (!maxUpdatedAt || updatedAt > maxUpdatedAt) {
+          maxUpdatedAt = updatedAt;
+        }
+      }
+
+      if (tags.length < perPage) {
+        break;
+      }
+
+      page++;
+    }
+
+    return {
+      fetched: allTags.length,
+      items: allTags,
+      maxUpdatedAt,
+    };
+  }
+
+  /**
+   * Sync scenes from Stash, fetching only those updated after the high-water mark.
+   * @param highWaterMark - Fetch only scenes updated after this date
+   * @returns SyncResult containing fetched scenes and the maximum updated_at timestamp
+   */
+  async syncScenes(highWaterMark: Date): Promise<SyncResult<StashSceneForSync>> {
+    const query = `
+      query FindScenes($filter: FindFilterType) {
+        findScenes(filter: $filter) {
+          count
+          scenes {
+            id
+            title
+            date
+            details
+            files {
+              size
+              duration
+            }
+            updated_at
+            performers {
+              id
+            }
+            tags {
+              id
+            }
+          }
+        }
+      }
+    `;
+
+    const allScenes: StashSceneForSync[] = [];
+    const perPage = 1000;
+    let page = 1;
+    let maxUpdatedAt: Date | null = null;
+
+    while (true) {
+      const result = await this.fetchGraphQL<{
+        data: {
+          findScenes: {
+            count: number;
+            scenes: StashSceneForSync[];
+          };
+        };
+      }>(query, {
+        filter: {
+          page,
+          per_page: perPage,
+          sort: "updated_at",
+          direction: "ASC",
+        },
+      });
+
+      const scenes = result.data.findScenes.scenes;
+
+      // Filter out scenes older than high-water mark
+      const newScenes = scenes.filter((s) => {
+        const updatedAt = new Date(s.updated_at);
+        return updatedAt >= highWaterMark;
+      });
+
+      if (newScenes.length === 0) {
+        break;
+      }
+
+      allScenes.push(...newScenes);
+
+      // Track maximum updated_at
+      for (const scene of newScenes) {
+        const updatedAt = new Date(scene.updated_at);
+        if (!maxUpdatedAt || updatedAt > maxUpdatedAt) {
+          maxUpdatedAt = updatedAt;
+        }
+      }
+
+      if (scenes.length < perPage) {
+        break;
+      }
+
+      page++;
+    }
+
+    return {
+      fetched: allScenes.length,
+      items: allScenes,
+      maxUpdatedAt,
     };
   }
 }
