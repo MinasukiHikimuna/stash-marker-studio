@@ -21,7 +21,7 @@ export type SortField =
   | 'play_count' | 'play_duration' | 'resume_time' | 'path' | 'perceptual_similarity' 
   | 'random' | 'rating' | 'tag_count' | 'title' | 'updated_at';
 
-export type MarkerFilter = 'all' | 'none' | 'has_unconfirmed';
+export type MarkerFilter = 'all' | 'none' | 'has_unconfirmed' | 'has_unfilled_slots';
 
 export interface SearchState {
   // Search parameters

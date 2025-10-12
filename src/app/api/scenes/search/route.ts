@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const sortDirection = (searchParams.get("sortDirection") || "ASC") as "ASC" | "DESC";
 
     // Marker filters
-    const markerFilter = searchParams.get("markerFilter"); // "none", "has_unconfirmed", "all"
+    const markerFilter = searchParams.get("markerFilter"); // "none", "has_unconfirmed", "has_unfilled_slots", "all"
 
     // Load config to get status tag IDs
     const config = await loadConfig();
@@ -94,6 +94,47 @@ export async function GET(request: NextRequest) {
         whereConditions.push({
           id: {
             in: scenesWithUnconfirmedMarkers.map(r => r.stashapp_scene_id)
+          }
+        });
+      } else {
+        // No scenes match, return empty set
+        whereConditions.push({ id: -1 });
+      }
+    } else if (markerFilter === "has_unfilled_slots" && statusConfirmedId) {
+      // Scenes with CONFIRMED markers that have unfilled performer slots
+      // This finds markers where:
+      // 1. Marker is confirmed (has confirmed status tag)
+      // 2. Primary tag has slot definitions
+      // 3. Not all slots have performers assigned
+      const scenesWithUnfilledSlots = await prisma.$queryRaw<Array<{ stashapp_scene_id: number }>>`
+        SELECT m.stashapp_scene_id
+        FROM (
+          SELECT
+            m.id,
+            m.stashapp_scene_id,
+            m.primary_tag_id,
+            COUNT(DISTINCT sd.id) as expected_slots,
+            COUNT(DISTINCT CASE WHEN ms.stashapp_performer_id IS NOT NULL THEN ms.id END) as filled_slots
+          FROM markers m
+          INNER JOIN slot_definition_sets sds ON sds.stashapp_tag_id = m.primary_tag_id
+          INNER JOIN slot_definitions sd ON sd.slot_definition_set_id = sds.id
+          LEFT JOIN marker_slots ms ON ms.marker_id = m.id AND ms.slot_definition_id = sd.id
+          WHERE m.id IN (
+            -- Only include confirmed markers
+            SELECT marker_id FROM marker_additional_tags WHERE tag_id = ${statusConfirmedId}
+            UNION
+            SELECT id FROM markers WHERE primary_tag_id = ${statusConfirmedId}
+          )
+          GROUP BY m.id, m.stashapp_scene_id, m.primary_tag_id
+          HAVING COUNT(DISTINCT sd.id) > COUNT(DISTINCT CASE WHEN ms.stashapp_performer_id IS NOT NULL THEN ms.id END)
+        ) m
+        GROUP BY m.stashapp_scene_id
+      `;
+
+      if (scenesWithUnfilledSlots.length > 0) {
+        whereConditions.push({
+          id: {
+            in: scenesWithUnfilledSlots.map(r => r.stashapp_scene_id)
           }
         });
       } else {

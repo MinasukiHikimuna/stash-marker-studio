@@ -368,6 +368,7 @@ export default function SearchPage() {
             <option value="all">All Scenes</option>
             <option value="none">No Markers</option>
             <option value="has_unconfirmed">Has Unconfirmed</option>
+            <option value="has_unfilled_slots">Has Unfilled Slots</option>
           </select>
           <div className="flex gap-2">
             <select
