@@ -41,7 +41,10 @@ export function SlotDefinitionEditor({
       setSlots(
         sortedDefs.map((def) => ({
           slotLabel: def.slotLabel || "",
-          genderHints: def.genderHints || [],
+          // Transform genderHints from database format (array of objects) to editor format (array of strings)
+          genderHints: Array.isArray(def.genderHints)
+            ? def.genderHints.map((h: GenderHint | { genderHint: GenderHint }) => typeof h === 'string' ? h : h.genderHint)
+            : [],
         }))
       );
       setAllowSamePerformerInMultipleSlots(initialSlotDefinitionSet.allowSamePerformerInMultipleSlots);
