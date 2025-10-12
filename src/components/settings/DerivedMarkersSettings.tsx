@@ -292,10 +292,17 @@ export default function DerivedMarkersSettings() {
 
   const getSlotLabel = (tagId: string, slotDefId: string) => {
     const slotSet = slotDefinitionSets[tagId];
-    if (!slotSet) return slotDefId;
+    if (!slotSet) return 'Unknown Slot';
 
     const slotDef = slotSet.slotDefinitions?.find(sd => sd.id === slotDefId);
-    return slotDef?.slotLabel || `Slot ${slotDefId.slice(0, 8)}...`;
+    if (!slotDef) return 'Unknown Slot';
+
+    if (slotDef.slotLabel) {
+      return slotDef.slotLabel;
+    }
+
+    // For unnamed slots, show "Slot 1", "Slot 2", etc. based on order
+    return `Slot ${slotDef.order + 1}`;
   };
 
   const handleSlotDefinitionSaved = async (tagId: string, slotDefinitionSet: SlotDefinitionSet) => {
@@ -652,7 +659,7 @@ export default function DerivedMarkersSettings() {
                         <option value="">Select source slot...</option>
                         {sourceSlotSet?.slotDefinitions?.map(slot => (
                           <option key={slot.id} value={slot.id}>
-                            {slot.slotLabel || `Slot ${slot.id.slice(0, 8)}...`}
+                            {slot.slotLabel || `Slot ${slot.order + 1}`}
                           </option>
                         ))}
                       </select>
@@ -666,7 +673,7 @@ export default function DerivedMarkersSettings() {
                         <option value="">Select derived slot...</option>
                         {derivedSlotSet?.slotDefinitions?.map(slot => (
                           <option key={slot.id} value={slot.id}>
-                            {slot.slotLabel || `Slot ${slot.id.slice(0, 8)}...`}
+                            {slot.slotLabel || `Slot ${slot.order + 1}`}
                           </option>
                         ))}
                       </select>

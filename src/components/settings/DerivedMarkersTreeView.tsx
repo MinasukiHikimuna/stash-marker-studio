@@ -36,10 +36,17 @@ export default function DerivedMarkersTreeView({
 
   const getSlotLabel = (tagId: string, slotDefId: string) => {
     const slotSet = slotDefinitionSets[tagId];
-    if (!slotSet) return `Slot ${slotDefId.slice(0, 8)}...`;
+    if (!slotSet) return 'Unknown Slot';
 
     const slotDef = slotSet.slotDefinitions?.find(sd => sd.id === slotDefId);
-    return slotDef?.slotLabel || `Slot ${slotDefId.slice(0, 8)}...`;
+    if (!slotDef) return 'Unknown Slot';
+
+    if (slotDef.slotLabel) {
+      return slotDef.slotLabel;
+    }
+
+    // For unnamed slots, show "Slot 1", "Slot 2", etc. based on order
+    return `Slot ${slotDef.order + 1}`;
   };
 
   const getTagSlots = (tagId: string): Array<{ id: string; label: string }> => {
@@ -48,7 +55,7 @@ export default function DerivedMarkersTreeView({
 
     return slotSet.slotDefinitions.map(sd => ({
       id: sd.id,
-      label: sd.slotLabel || `Slot ${sd.id.slice(0, 8)}...`,
+      label: sd.slotLabel || `Slot ${sd.order + 1}`,
     }));
   };
 
@@ -116,34 +123,47 @@ export default function DerivedMarkersTreeView({
       return <div className="text-xs text-gray-500 ml-8">No slots available</div>;
     }
 
+    // Build a flat list of all mappings for display
+    const mappingRows: Array<{ sourceSlot: { id: string; label: string }; derivedSlotId?: string }> = [];
+
+    sourceSlots.forEach(slot => {
+      const mappings = (rule.slotMapping || []).filter(m => m.sourceSlotId === slot.id);
+
+      if (mappings.length > 0) {
+        // Add a row for each mapping
+        mappings.forEach(mapping => {
+          mappingRows.push({
+            sourceSlot: slot,
+            derivedSlotId: mapping.derivedSlotId,
+          });
+        });
+      } else {
+        // Add unmapped row
+        mappingRows.push({
+          sourceSlot: slot,
+          derivedSlotId: undefined,
+        });
+      }
+    });
+
     return (
       <div className="ml-8 space-y-1">
         <div className="text-xs text-gray-400 mb-1">Slot Mapping:</div>
-        {sourceSlots.map(slot => {
-          const mappings = (rule.slotMapping || []).filter(m => m.sourceSlotId === slot.id);
-          const isMapped = mappings.length > 0;
-
-          return (
-            <div key={slot.id} className="flex items-start gap-2 text-xs">
-              <span className="text-gray-300 w-32 truncate" title={slot.label}>
-                {slot.label}
+        {mappingRows.map((row, idx) => (
+          <div key={idx} className="flex items-center gap-2 text-xs">
+            <span className="text-gray-300 w-32 truncate" title={row.sourceSlot.label}>
+              {row.sourceSlot.label}
+            </span>
+            <span className="text-gray-500">→</span>
+            {row.derivedSlotId ? (
+              <span className="text-green-400 flex items-center gap-1">
+                {getSlotLabel(rule.derivedTagId, row.derivedSlotId)} ✓
               </span>
-              <span className="text-gray-500">→</span>
-              {isMapped ? (
-                <div className="flex-1 space-y-0.5">
-                  {mappings.map((mapping, idx) => (
-                    <div key={idx} className="text-green-400 flex items-center gap-1">
-                      {idx > 0 && <span className="text-gray-600 mr-1">+</span>}
-                      {getSlotLabel(rule.derivedTagId, mapping.derivedSlotId)} ✓
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <span className="text-gray-600 flex items-center gap-1">(unmapped) ○</span>
-              )}
-            </div>
-          );
-        })}
+            ) : (
+              <span className="text-gray-600 flex items-center gap-1">(unmapped) ○</span>
+            )}
+          </div>
+        ))}
       </div>
     );
   };
