@@ -62,11 +62,23 @@ export async function POST(
     const statusTagIds = sourceMarker.additionalTags
       .map((mt) => mt.tagId);
 
+    // Get existing derivations for this source marker to avoid duplicates
+    const existingDerivations = await prisma.markerDerivation.findMany({
+      where: { sourceMarkerId: markerId },
+      select: { ruleId: true },
+    });
+    const existingRuleIds = new Set(existingDerivations.map((d) => d.ruleId));
+
     // Create actual markers for each derived marker
     const createdMarkers = [];
 
     for (const derivedMarker of derivedMarkers) {
       const { derivedTagId, tags, slots, depth, ruleId } = derivedMarker;
+
+      // Skip if this derivation already exists
+      if (existingRuleIds.has(ruleId)) {
+        continue;
+      }
 
       // Combine derived tags with status tags from source marker
       // Also add the derived source tag if configured
