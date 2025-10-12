@@ -120,19 +120,24 @@ export default function DerivedMarkersTreeView({
       <div className="ml-8 space-y-1">
         <div className="text-xs text-gray-400 mb-1">Slot Mapping:</div>
         {sourceSlots.map(slot => {
-          const mappedTo = rule.slotMapping?.[slot.id];
-          const isMapped = !!mappedTo;
+          const mappings = (rule.slotMapping || []).filter(m => m.sourceSlotId === slot.id);
+          const isMapped = mappings.length > 0;
 
           return (
-            <div key={slot.id} className="flex items-center gap-2 text-xs">
+            <div key={slot.id} className="flex items-start gap-2 text-xs">
               <span className="text-gray-300 w-32 truncate" title={slot.label}>
                 {slot.label}
               </span>
               <span className="text-gray-500">→</span>
               {isMapped ? (
-                <span className="text-green-400 flex items-center gap-1">
-                  {getSlotLabel(rule.derivedTagId, mappedTo)} ✓
-                </span>
+                <div className="flex-1 space-y-0.5">
+                  {mappings.map((mapping, idx) => (
+                    <div key={idx} className="text-green-400 flex items-center gap-1">
+                      {idx > 0 && <span className="text-gray-600 mr-1">+</span>}
+                      {getSlotLabel(rule.derivedTagId, mapping.derivedSlotId)} ✓
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <span className="text-gray-600 flex items-center gap-1">(unmapped) ○</span>
               )}

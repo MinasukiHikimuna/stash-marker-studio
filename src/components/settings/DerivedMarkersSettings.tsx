@@ -25,7 +25,7 @@ export default function DerivedMarkersSettings() {
     sourceTagId: "",
     derivedTagId: "",
     relationshipType: "implies",
-    slotMapping: {},
+    slotMapping: [],
   });
 
   // Cache slot definitions per tag
@@ -155,7 +155,7 @@ export default function DerivedMarkersSettings() {
       sourceTagId: "",
       derivedTagId: "",
       relationshipType: "implies",
-      slotMapping: {},
+      slotMapping: [],
     });
     setShowAddRuleDialog(true);
     setEditSourceSlotId("");
@@ -205,13 +205,14 @@ export default function DerivedMarkersSettings() {
       return;
     }
 
-    const existingMapping = rule.slotMapping || {};
-    const newMapping: Record<string, string> = { ...existingMapping };
+    const existingMapping = rule.slotMapping || [];
+    const newMapping = [...existingMapping];
 
     // Auto-match slots with identical labels
     sourceSlotSet.slotDefinitions.forEach(sourceSlot => {
       // Skip if already mapped
-      if (existingMapping[sourceSlot.id]) {
+      const alreadyMapped = existingMapping.some(m => m.sourceSlotId === sourceSlot.id);
+      if (alreadyMapped) {
         return;
       }
 
@@ -224,12 +225,15 @@ export default function DerivedMarkersSettings() {
       );
 
       if (matchingDerivedSlot) {
-        newMapping[sourceSlot.id] = matchingDerivedSlot.id;
+        newMapping.push({
+          sourceSlotId: sourceSlot.id,
+          derivedSlotId: matchingDerivedSlot.id,
+        });
       }
     });
 
     // Update mappings if any auto-matches were found
-    if (Object.keys(newMapping).length > Object.keys(existingMapping).length) {
+    if (newMapping.length > existingMapping.length) {
       const updated = [...derivedMarkers];
       updated[index].slotMapping = newMapping;
       setDerivedMarkers(updated);
@@ -254,22 +258,29 @@ export default function DerivedMarkersSettings() {
     }
 
     const updated = [...derivedMarkers];
-    const currentMapping = updated[index].slotMapping || {};
+    const currentMapping = updated[index].slotMapping || [];
 
-    updated[index].slotMapping = {
-      ...currentMapping,
-      [editSourceSlotId]: editDerivedSlotId,
-    };
+    // Check if this exact mapping already exists
+    const exists = currentMapping.some(
+      m => m.sourceSlotId === editSourceSlotId && m.derivedSlotId === editDerivedSlotId
+    );
 
-    setDerivedMarkers(updated);
+    if (!exists) {
+      updated[index].slotMapping = [
+        ...currentMapping,
+        { sourceSlotId: editSourceSlotId, derivedSlotId: editDerivedSlotId },
+      ];
+      setDerivedMarkers(updated);
+    }
+
     setEditSourceSlotId("");
     setEditDerivedSlotId("");
   };
 
-  const removeSlotMapping = (index: number, sourceSlotId: string) => {
+  const removeSlotMapping = (index: number, mappingIndex: number) => {
     const updated = [...derivedMarkers];
-    const currentMapping = { ...updated[index].slotMapping };
-    delete currentMapping[sourceSlotId];
+    const currentMapping = [...(updated[index].slotMapping || [])];
+    currentMapping.splice(mappingIndex, 1);
     updated[index].slotMapping = currentMapping;
     setDerivedMarkers(updated);
   };
@@ -531,7 +542,7 @@ export default function DerivedMarkersSettings() {
                               .sort((a, b) => a.order - b.order)
                               .map((slot, idx) => {
                                 const genderHintLabels = Array.isArray(slot.genderHints)
-                                  ? slot.genderHints.map(h => typeof h === 'string' ? h : h.genderHint).join('/')
+                                  ? slot.genderHints.map((h: any) => typeof h === 'string' ? h : h.genderHint).join('/')
                                   : '';
                                 return (
                                   <div key={slot.id} className="text-sm text-gray-300 p-2 bg-gray-800 rounded">
@@ -584,7 +595,7 @@ export default function DerivedMarkersSettings() {
                               .sort((a, b) => a.order - b.order)
                               .map((slot, idx) => {
                                 const genderHintLabels = Array.isArray(slot.genderHints)
-                                  ? slot.genderHints.map(h => typeof h === 'string' ? h : h.genderHint).join('/')
+                                  ? slot.genderHints.map((h: any) => typeof h === 'string' ? h : h.genderHint).join('/')
                                   : '';
                                 return (
                                   <div key={slot.id} className="text-sm text-gray-300 p-2 bg-gray-800 rounded">
@@ -608,16 +619,16 @@ export default function DerivedMarkersSettings() {
                   </div>
 
                   {/* Existing mappings */}
-                  {Object.keys(rule.slotMapping || {}).length > 0 && (
+                  {(rule.slotMapping || []).length > 0 && (
                     <div className="space-y-2">
                       <p className="text-sm text-gray-300 font-medium">Existing Mappings:</p>
-                      {Object.entries(rule.slotMapping || {}).map(([sourceId, derivedId]) => (
-                        <div key={sourceId} className="flex items-center gap-2 bg-gray-700 p-3 rounded">
+                      {(rule.slotMapping || []).map((mapping, idx) => (
+                        <div key={idx} className="flex items-center gap-2 bg-gray-700 p-3 rounded">
                           <span className="text-sm flex-1">
-                            {getSlotLabel(rule.sourceTagId, sourceId)} → {getSlotLabel(rule.derivedTagId, derivedId)}
+                            {getSlotLabel(rule.sourceTagId, mapping.sourceSlotId)} → {getSlotLabel(rule.derivedTagId, mapping.derivedSlotId)}
                           </span>
                           <button
-                            onClick={() => removeSlotMapping(editingRuleIndex, sourceId)}
+                            onClick={() => removeSlotMapping(editingRuleIndex, idx)}
                             className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded-sm text-sm"
                             title="Remove mapping"
                           >

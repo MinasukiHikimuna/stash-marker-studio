@@ -46,12 +46,15 @@ export function computeDerivedMarkers(
       if (config.slotMapping && marker.slots) {
         for (const slot of marker.slots) {
           const sourceSlotDefId = slot.slotDefinitionId;
-          if (sourceSlotDefId && config.slotMapping[sourceSlotDefId]) {
-            const derivedSlotDefId = config.slotMapping[sourceSlotDefId];
-            derivedMarker.slots.push({
-              slotDefinitionId: derivedSlotDefId,
-              performerId: slot.stashappPerformerId?.toString() || '',
-            });
+          if (sourceSlotDefId) {
+            // Find all mappings for this source slot (allows one source slot to map to multiple derived slots)
+            const mappings = config.slotMapping.filter(m => m.sourceSlotId === sourceSlotDefId);
+            for (const mapping of mappings) {
+              derivedMarker.slots.push({
+                slotDefinitionId: mapping.derivedSlotId,
+                performerId: slot.stashappPerformerId?.toString() || '',
+              });
+            }
           }
         }
       }

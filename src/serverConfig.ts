@@ -82,5 +82,6 @@ export interface DerivedMarkerConfig {
   derivedTagId: string;
   relationshipType: 'implies' | 'conflicts';
   // Maps source slot definition UUID to derived slot definition UUID
-  slotMapping?: Record<string, string>;
+  // Array format allows same source slot to map to multiple derived slots
+  slotMapping?: Array<{ sourceSlotId: string; derivedSlotId: string }>;
 }
