@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      let slotDefinitionSet;
+      let slotDefinitionSet: Awaited<ReturnType<typeof tx.slotDefinitionSet.update>> | Awaited<ReturnType<typeof tx.slotDefinitionSet.create>>;
 
       if (existingSet) {
         // Update existing set
@@ -84,12 +84,63 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // Delete existing slot definitions and their gender hints (cascades)
-        await tx.slotDefinition.deleteMany({
-          where: {
-            slotDefinitionSetId: existingSet.id,
-          },
-        });
+        // Update existing slot definitions in place to preserve marker_slots references
+        const existingSlots = existingSet.slotDefinitions;
+
+        // Update or create slots based on order
+        await Promise.all(
+          slots.map(async (slot: { slotLabel: string; genderHints: string[] }, index: number) => {
+            const existingSlot = existingSlots.find(s => s.order === index);
+
+            let slotDefinition;
+            if (existingSlot) {
+              // Update existing slot definition
+              slotDefinition = await tx.slotDefinition.update({
+                where: { id: existingSlot.id },
+                data: {
+                  slotLabel: slot.slotLabel?.trim() || null,
+                  order: index,
+                },
+              });
+
+              // Delete and recreate gender hints (simpler than diffing)
+              await tx.slotDefinitionGenderHint.deleteMany({
+                where: { slotDefinitionId: existingSlot.id },
+              });
+            } else {
+              // Create new slot definition
+              slotDefinition = await tx.slotDefinition.create({
+                data: {
+                  slotDefinitionSetId: slotDefinitionSet.id,
+                  slotLabel: slot.slotLabel?.trim() || null,
+                  order: index,
+                },
+              });
+            }
+
+            // Create gender hints
+            if (slot.genderHints && slot.genderHints.length > 0) {
+              await tx.slotDefinitionGenderHint.createMany({
+                data: slot.genderHints.map((hint) => ({
+                  slotDefinitionId: slotDefinition.id,
+                  genderHint: hint as GenderHint,
+                })),
+              });
+            }
+
+            return slotDefinition;
+          })
+        );
+
+        // Delete slots that no longer exist (if slots array is smaller)
+        const slotsToDelete = existingSlots.filter(s => s.order >= slots.length);
+        if (slotsToDelete.length > 0) {
+          await tx.slotDefinition.deleteMany({
+            where: {
+              id: { in: slotsToDelete.map(s => s.id) },
+            },
+          });
+        }
       } else {
         // Create new set
         slotDefinitionSet = await tx.slotDefinitionSet.create({
@@ -98,32 +149,32 @@ export async function POST(request: NextRequest) {
             allowSamePerformerInMultipleSlots: allowSamePerformerInMultipleSlots ?? false,
           },
         });
-      }
 
-      // Create slot definitions with their gender hints
-      await Promise.all(
-        slots.map(async (slot: { slotLabel: string; genderHints: string[] }, index: number) => {
-          const slotDefinition = await tx.slotDefinition.create({
-            data: {
-              slotDefinitionSetId: slotDefinitionSet.id,
-              slotLabel: slot.slotLabel?.trim() || null,
-              order: index,
-            },
-          });
-
-          // Create gender hints if any
-          if (slot.genderHints && slot.genderHints.length > 0) {
-            await tx.slotDefinitionGenderHint.createMany({
-              data: slot.genderHints.map((hint) => ({
-                slotDefinitionId: slotDefinition.id,
-                genderHint: hint as GenderHint,
-              })),
+        // Create slot definitions with their gender hints
+        await Promise.all(
+          slots.map(async (slot: { slotLabel: string; genderHints: string[] }, index: number) => {
+            const slotDefinition = await tx.slotDefinition.create({
+              data: {
+                slotDefinitionSetId: slotDefinitionSet.id,
+                slotLabel: slot.slotLabel?.trim() || null,
+                order: index,
+              },
             });
-          }
 
-          return slotDefinition;
-        })
-      );
+            // Create gender hints if any
+            if (slot.genderHints && slot.genderHints.length > 0) {
+              await tx.slotDefinitionGenderHint.createMany({
+                data: slot.genderHints.map((hint) => ({
+                  slotDefinitionId: slotDefinition.id,
+                  genderHint: hint as GenderHint,
+                })),
+              });
+            }
+
+            return slotDefinition;
+          })
+        );
+      }
 
       // Fetch the complete set with all relations
       return await tx.slotDefinitionSet.findUnique({
