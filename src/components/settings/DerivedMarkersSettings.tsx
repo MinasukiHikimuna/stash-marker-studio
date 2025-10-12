@@ -6,6 +6,7 @@ import { selectAvailableTags, loadAvailableTags } from "@/store/slices/markerSli
 import { setFullConfig } from "@/store/slices/configSlice";
 import { ConfigTagAutocomplete } from "@/components/settings/ConfigTagAutocomplete";
 import DerivedMarkersTreeView from "@/components/settings/DerivedMarkersTreeView";
+import { SlotDefinitionEditor } from "@/components/settings/SlotDefinitionEditor";
 import type { AppConfig, DerivedMarkerConfig } from "@/serverConfig";
 import type { SlotDefinitionSet } from "@/core/slot/types";
 
@@ -34,6 +35,10 @@ export default function DerivedMarkersSettings() {
   // Editing state for slot mappings
   const [editSourceSlotId, setEditSourceSlotId] = useState<string>("");
   const [editDerivedSlotId, setEditDerivedSlotId] = useState<string>("");
+
+  // State for inline slot definition editing
+  const [showSourceSlotEditor, setShowSourceSlotEditor] = useState(false);
+  const [showDerivedSlotEditor, setShowDerivedSlotEditor] = useState(false);
 
   // Load configuration on mount
   useEffect(() => {
@@ -180,6 +185,8 @@ export default function DerivedMarkersSettings() {
     setEditingRuleIndex(index);
     setEditSourceSlotId("");
     setEditDerivedSlotId("");
+    setShowSourceSlotEditor(false);
+    setShowDerivedSlotEditor(false);
 
     // Load slot definitions for both tags, then auto-match slots
     Promise.all([
@@ -278,6 +285,20 @@ export default function DerivedMarkersSettings() {
 
     const slotDef = slotSet.slotDefinitions?.find(sd => sd.id === slotDefId);
     return slotDef?.slotLabel || `Slot ${slotDefId.slice(0, 8)}...`;
+  };
+
+  const handleSlotDefinitionSaved = async (tagId: string, slotDefinitionSet: SlotDefinitionSet) => {
+    // Update the cached slot definition set
+    setSlotDefinitionSets(prev => ({
+      ...prev,
+      [tagId]: slotDefinitionSet
+    }));
+
+    // If we're editing a rule, re-run auto-matching with new slot definitions
+    if (editingRuleIndex !== null) {
+      const rule = derivedMarkers[editingRuleIndex];
+      setTimeout(() => autoMatchSlots(rule, editingRuleIndex), 100);
+    }
   };
 
   return (
@@ -461,7 +482,7 @@ export default function DerivedMarkersSettings() {
       {/* Edit Slots Dialog */}
       {editingRuleIndex !== null && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-4">Edit Slot Mappings</h3>
 
             {(() => {
@@ -475,6 +496,115 @@ export default function DerivedMarkersSettings() {
                     <p className="text-sm text-gray-300">
                       <strong>Rule:</strong> {getTagName(rule.sourceTagId)} {rule.relationshipType} {getTagName(rule.derivedTagId)}
                     </p>
+                  </div>
+
+                  {/* Slot Definitions Side-by-Side */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Source Tag Slot Definitions */}
+                    <div className="bg-gray-700 p-4 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold text-blue-400">
+                          Source: {getTagName(rule.sourceTagId)}
+                        </h4>
+                        <button
+                          onClick={() => setShowSourceSlotEditor(!showSourceSlotEditor)}
+                          className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-medium"
+                        >
+                          {showSourceSlotEditor ? "Hide Editor" : "Edit Slots"}
+                        </button>
+                      </div>
+
+                      {showSourceSlotEditor ? (
+                        <SlotDefinitionEditor
+                          tagId={rule.sourceTagId}
+                          tagName={getTagName(rule.sourceTagId)}
+                          initialSlotDefinitionSet={sourceSlotSet}
+                          onSave={(slotDefSet) => handleSlotDefinitionSaved(rule.sourceTagId, slotDefSet)}
+                          showSaveButton={true}
+                          compact={true}
+                          className="bg-gray-800 p-3 rounded"
+                        />
+                      ) : (
+                        <div className="space-y-1">
+                          {sourceSlotSet?.slotDefinitions && sourceSlotSet.slotDefinitions.length > 0 ? (
+                            [...sourceSlotSet.slotDefinitions]
+                              .sort((a, b) => a.order - b.order)
+                              .map((slot, idx) => {
+                                const genderHintLabels = Array.isArray(slot.genderHints)
+                                  ? slot.genderHints.map(h => typeof h === 'string' ? h : h.genderHint).join('/')
+                                  : '';
+                                return (
+                                  <div key={slot.id} className="text-sm text-gray-300 p-2 bg-gray-800 rounded">
+                                    {idx + 1}. {slot.slotLabel || "Unnamed slot"}
+                                    {genderHintLabels && (
+                                      <span className="text-gray-500 ml-2 text-xs">
+                                        ({genderHintLabels})
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })
+                          ) : (
+                            <p className="text-xs text-yellow-400">
+                              No slot definitions. Click &quot;Edit Slots&quot; to add them.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Derived Tag Slot Definitions */}
+                    <div className="bg-gray-700 p-4 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold text-green-400">
+                          Derived: {getTagName(rule.derivedTagId)}
+                        </h4>
+                        <button
+                          onClick={() => setShowDerivedSlotEditor(!showDerivedSlotEditor)}
+                          className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-medium"
+                        >
+                          {showDerivedSlotEditor ? "Hide Editor" : "Edit Slots"}
+                        </button>
+                      </div>
+
+                      {showDerivedSlotEditor ? (
+                        <SlotDefinitionEditor
+                          tagId={rule.derivedTagId}
+                          tagName={getTagName(rule.derivedTagId)}
+                          initialSlotDefinitionSet={derivedSlotSet}
+                          onSave={(slotDefSet) => handleSlotDefinitionSaved(rule.derivedTagId, slotDefSet)}
+                          showSaveButton={true}
+                          compact={true}
+                          className="bg-gray-800 p-3 rounded"
+                        />
+                      ) : (
+                        <div className="space-y-1">
+                          {derivedSlotSet?.slotDefinitions && derivedSlotSet.slotDefinitions.length > 0 ? (
+                            [...derivedSlotSet.slotDefinitions]
+                              .sort((a, b) => a.order - b.order)
+                              .map((slot, idx) => {
+                                const genderHintLabels = Array.isArray(slot.genderHints)
+                                  ? slot.genderHints.map(h => typeof h === 'string' ? h : h.genderHint).join('/')
+                                  : '';
+                                return (
+                                  <div key={slot.id} className="text-sm text-gray-300 p-2 bg-gray-800 rounded">
+                                    {idx + 1}. {slot.slotLabel || "Unnamed slot"}
+                                    {genderHintLabels && (
+                                      <span className="text-gray-500 ml-2 text-xs">
+                                        ({genderHintLabels})
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })
+                          ) : (
+                            <p className="text-xs text-yellow-400">
+                              No slot definitions. Click &quot;Edit Slots&quot; to add them.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Existing mappings */}
@@ -541,7 +671,7 @@ export default function DerivedMarkersSettings() {
                       <p className="text-xs text-yellow-400">
                         {loadingSlots[rule.sourceTagId] || loadingSlots[rule.derivedTagId]
                           ? "Loading slot definitions..."
-                          : "No slot definitions found for one or both tags. Configure them in Slot Definitions first."}
+                          : "No slot definitions found for one or both tags. Use the editors above to add them."}
                       </p>
                     )}
                   </div>
