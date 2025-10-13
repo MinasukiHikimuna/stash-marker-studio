@@ -141,3 +141,20 @@ Includes Dockerfile for containerized deployment. Uses Node.js 22+ requirement.
 
 - **Stashapp**: Requires version 0.28+ for marker start/end time support
 - **PySceneDetect**: Optional integration for shot boundary detection via `src/scripts/pyscenedetect-process.js`
+
+# Accessing database to support development
+
+Use the provided TypeScript query script for read-only database access:
+
+```bash
+npx tsx scripts/db-query.ts "SELECT * FROM markers LIMIT 5"
+npx tsx scripts/db-query.ts --json "SELECT COUNT(*) FROM markers"
+```
+
+The script (`scripts/db-query.ts`) provides safe, validated read-only access to the PostgreSQL database:
+- Only allows SELECT queries
+- Blocks all destructive operations (INSERT, UPDATE, DELETE, DROP, etc.)
+- Uses Prisma client for consistency with the application
+- Supports both table and JSON output formats
+
+For write operations or schema changes, use Prisma migrations (`npx prisma migrate dev`) or direct psql access with credentials from compose.yaml.
