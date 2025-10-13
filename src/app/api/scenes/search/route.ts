@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const statusRejectedId = config ? parseInt(config.markerConfig.statusRejected) : null;
 
     // Build WHERE clause
-    const whereConditions: any[] = [
+    const whereConditions: Prisma.StashSceneWhereInput[] = [
       // Text search on title
       query ? {
         title: {
@@ -220,7 +220,14 @@ export async function GET(request: NextRequest) {
       });
 
       return acc;
-    }, {} as Record<number, any[]>);
+    }, {} as Record<number, Array<{
+      id: string;
+      title: string;
+      seconds: number;
+      end_seconds?: number;
+      primary_tag: { id: string; name: string };
+      tags: Array<{ id: string; name: string }>;
+    }>>);
 
     // Transform database format to Stashapp format
     const transformedScenes = scenes.map(scene => ({
