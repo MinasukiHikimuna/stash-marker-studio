@@ -557,8 +557,9 @@ export default function DerivedMarkersSettings() {
                             [...sourceSlotSet.slotDefinitions]
                               .sort((a, b) => a.order - b.order)
                               .map((slot, idx) => {
+                                // genderHints can be either string[] (domain type) or object[] (Prisma type)
                                 const genderHintLabels = Array.isArray(slot.genderHints)
-                                  ? slot.genderHints.map((h: any) => typeof h === 'string' ? h : h.genderHint).join('/')
+                                  ? slot.genderHints.map((h: string | { genderHint: string }) => typeof h === 'string' ? h : h.genderHint).join('/')
                                   : '';
                                 return (
                                   <div key={slot.id} className="text-sm text-gray-300 p-2 bg-gray-800 rounded">
@@ -610,8 +611,9 @@ export default function DerivedMarkersSettings() {
                             [...derivedSlotSet.slotDefinitions]
                               .sort((a, b) => a.order - b.order)
                               .map((slot, idx) => {
+                                // genderHints can be either string[] (domain type) or object[] (Prisma type)
                                 const genderHintLabels = Array.isArray(slot.genderHints)
-                                  ? slot.genderHints.map((h: any) => typeof h === 'string' ? h : h.genderHint).join('/')
+                                  ? slot.genderHints.map((h: string | { genderHint: string }) => typeof h === 'string' ? h : h.genderHint).join('/')
                                   : '';
                                 return (
                                   <div key={slot.id} className="text-sm text-gray-300 p-2 bg-gray-800 rounded">
