@@ -242,6 +242,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     if (savedPreference !== hideDerivedMarkers) {
       dispatch(setHideDerivedMarkers(savedPreference));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]); // Only run once on mount, ignore hideDerivedMarkers to avoid loop
 
   // Persist hideDerivedMarkers preference to localStorage when it changes
