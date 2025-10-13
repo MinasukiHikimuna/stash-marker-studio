@@ -189,7 +189,7 @@ const initialState: MarkerState = {
 // Initialize the marker page with scene, markers, and tags
 export const initializeMarkerPage = createAsyncThunk(
   "marker/initializeMarkerPage",
-  async (sceneId: string, { rejectWithValue, dispatch }) => {
+  async (sceneId: string, { rejectWithValue }) => {
     try {
       // Load scene data
       const scene = await stashappService.getScene(sceneId);
