@@ -853,6 +853,206 @@ describe('generateAssignmentCombinations', () => {
     });
   });
 
+  describe('Alphabetical fallback for unlabeled slots', () => {
+    it('should use alphabetical matching when all slots unlabeled with matching performer count', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', null, []),
+        createSlotDefinition('slot2', null, []),
+      ];
+      const performers = [
+        createPerformer('p1', 'Bob', 'MALE'),
+        createPerformer('p2', 'Alice', 'FEMALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // Should have exactly 1 combination using alphabetical order (Alice, Bob)
+      expect(result).toHaveLength(1);
+      expect(result[0].description).toBe('Alice, Bob');
+
+      // Verify performers are sorted alphabetically
+      const performerIds = result[0].assignments.map((a) => a.performerId);
+      const performerNames = performerIds.map((id) => performers.find((p) => p.id === id)?.name);
+      expect(performerNames).toEqual(['Alice', 'Bob']);
+    });
+
+    it('should use alphabetical matching with three unlabeled slots and three performers', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', null, []),
+        createSlotDefinition('slot2', null, []),
+        createSlotDefinition('slot3', null, []),
+      ];
+      const performers = [
+        createPerformer('p1', 'Charlie', 'MALE'),
+        createPerformer('p2', 'Alice', 'FEMALE'),
+        createPerformer('p3', 'Bob', 'MALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // Should have exactly 1 combination using alphabetical order
+      expect(result).toHaveLength(1);
+      expect(result[0].description).toBe('Alice, Bob, Charlie');
+
+      // Verify performers are sorted alphabetically
+      const performerIds = result[0].assignments.map((a) => a.performerId);
+      const performerNames = performerIds.map((id) => performers.find((p) => p.id === id)?.name);
+      expect(performerNames).toEqual(['Alice', 'Bob', 'Charlie']);
+    });
+
+    it('should not use alphabetical fallback when performer count does not match slot count', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', null, []),
+        createSlotDefinition('slot2', null, []),
+      ];
+      const performers = [
+        createPerformer('p1', 'Alice', 'FEMALE'),
+        createPerformer('p2', 'Bob', 'MALE'),
+        createPerformer('p3', 'Charlie', 'MALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // Should use normal combination generation (deduplicated because unlabeled)
+      // With 2 slots and 3 performers, we get C(3,2) = 3 combinations
+      expect(result).toHaveLength(3);
+    });
+
+    it('should not use alphabetical fallback when slots have gender hints', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', null, ['FEMALE']),
+        createSlotDefinition('slot2', null, ['MALE']),
+      ];
+      const performers = [
+        createPerformer('p1', 'Bob', 'MALE'),
+        createPerformer('p2', 'Alice', 'FEMALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // Should use gender hint matching, not alphabetical
+      // Should have only 1 combination based on gender: Alice->slot1(FEMALE), Bob->slot2(MALE)
+      expect(result).toHaveLength(1);
+
+      const slot1Assignment = result[0].assignments.find((a) => a.slotDefinitionId === 'slot1');
+      const slot2Assignment = result[0].assignments.find((a) => a.slotDefinitionId === 'slot2');
+
+      expect(slot1Assignment?.performerId).toBe('p2'); // Alice (FEMALE)
+      expect(slot2Assignment?.performerId).toBe('p1'); // Bob (MALE)
+    });
+
+    it('should not use alphabetical fallback when allowSamePerformerInMultipleSlots is true', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', null, []),
+        createSlotDefinition('slot2', null, []),
+      ];
+      const performers = [
+        createPerformer('p1', 'Bob', 'MALE'),
+        createPerformer('p2', 'Alice', 'FEMALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments,
+        true // allowSamePerformerInMultipleSlots
+      );
+
+      // Should use normal combination generation
+      // With allowSamePerformer=true, we get 4 combinations: A-A, A-B, B-A, B-B
+      // After deduplication for unlabeled slots, should be 3: {A,A}, {A,B}, {B,B}
+      expect(result.length).toBeGreaterThan(1);
+    });
+  });
+
+  describe('Mixed labeled and unlabeled slots', () => {
+    it('should return empty array when slots have mix of labels and no labels', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Labeled', []),
+        createSlotDefinition('slot2', null, []),
+      ];
+      const performers = [
+        createPerformer('p1', 'Alice', 'FEMALE'),
+        createPerformer('p2', 'Bob', 'MALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // Should return empty because of mixed labels
+      expect(result).toEqual([]);
+    });
+
+    it('should return empty array with three slots having mixed labels', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Giver', []),
+        createSlotDefinition('slot2', null, []),
+        createSlotDefinition('slot3', 'Receiver', []),
+      ];
+      const performers = [
+        createPerformer('p1', 'Alice', 'FEMALE'),
+        createPerformer('p2', 'Bob', 'MALE'),
+        createPerformer('p3', 'Charlie', 'MALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // Should return empty because of mixed labels
+      expect(result).toEqual([]);
+    });
+
+    it('should work normally when all slots have labels (no mixed case)', () => {
+      const slotDefinitions = [
+        createSlotDefinition('slot1', 'Giver', []),
+        createSlotDefinition('slot2', 'Receiver', []),
+      ];
+      const performers = [
+        createPerformer('p1', 'Alice', 'FEMALE'),
+        createPerformer('p2', 'Bob', 'MALE'),
+      ];
+      const currentAssignments = new Map<string, string | null>();
+
+      const result = generateAssignmentCombinations(
+        slotDefinitions,
+        performers,
+        currentAssignments
+      );
+
+      // Should generate combinations normally since all slots are labeled
+      expect(result.length).toBeGreaterThan(0);
+    });
+  });
+
   describe('Duplicate slot labels', () => {
     it('should deduplicate combinations when multiple slots share the same label', () => {
       // Double Handjob scenario: 1 Giver, 2 Receivers (order of receivers doesn't matter)

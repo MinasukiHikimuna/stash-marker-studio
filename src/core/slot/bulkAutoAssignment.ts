@@ -121,6 +121,22 @@ export async function findAutoAssignableMarkers(
       const allowSamePerformerInMultipleSlots =
         sets[0].allowSamePerformerInMultipleSlots;
 
+      // Check if there's a mix of labeled and unlabeled slots
+      const hasLabeled = slotDefinitions.some((slot) => slot.slotLabel);
+      const hasUnlabeled = slotDefinitions.some((slot) => !slot.slotLabel);
+      const hasMixedLabels = hasLabeled && hasUnlabeled;
+
+      // If there's a mix of labeled and unlabeled, skip auto-assign
+      if (hasMixedLabels) {
+        skippedMarkers.push({
+          markerId,
+          markerTag,
+          markerTime,
+          reason: "Mix of labeled and unlabeled slots",
+        });
+        continue;
+      }
+
       // Build slot -> matching performers map
       const slotToPerformers = new Map<string, Performer[]>();
       for (const slot of slotDefinitions) {
@@ -138,7 +154,8 @@ export async function findAutoAssignableMarkers(
       const validCombinations = generateValidCombinations(
         slotDefinitions,
         slotToPerformers,
-        allowSamePerformerInMultipleSlots
+        allowSamePerformerInMultipleSlots,
+        scenePerformers
       );
 
       if (validCombinations.length === 0) {
@@ -201,8 +218,31 @@ export async function findAutoAssignableMarkers(
 function generateValidCombinations(
   slotDefinitions: SlotDefinition[],
   slotToPerformers: Map<string, Performer[]>,
-  allowSamePerformerInMultipleSlots: boolean
+  allowSamePerformerInMultipleSlots: boolean,
+  scenePerformers: Performer[]
 ): Array<{ slotDefinitionId: string; performerId: string }[]> {
+  // Check if all slots are unlabeled
+  const allSlotsUnlabeled = slotDefinitions.every((slot) => !slot.slotLabel);
+
+  // Special case: All slots unlabeled, no gender hints, and exact match with performers
+  // Use alphabetical fallback
+  const allSlotsHaveNoGenderHints = slotDefinitions.every((slot) => slot.genderHints.length === 0);
+  if (allSlotsUnlabeled && allSlotsHaveNoGenderHints && slotDefinitions.length === scenePerformers.length && !allowSamePerformerInMultipleSlots) {
+    // Sort performers alphabetically by name
+    const sortedPerformers = [...scenePerformers].sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+
+    // Sort slots by ID to ensure consistent ordering
+    const sortedSlots = [...slotDefinitions].sort((a, b) => a.id.localeCompare(b.id));
+
+    // Create single combination with alphabetical assignment
+    return [sortedSlots.map((slot, index) => ({
+      slotDefinitionId: slot.id,
+      performerId: sortedPerformers[index].id,
+    }))];
+  }
+
   const combinations: Array<
     { slotDefinitionId: string; performerId: string }[]
   > = [];

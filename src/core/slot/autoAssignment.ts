@@ -34,6 +34,19 @@ export function generateAssignmentCombinations(
     return [];
   }
 
+  // Check if all slots are unlabeled
+  const allSlotsUnlabeled = slots.every((slot) => !slot.slotLabel);
+
+  // Check if there's a mix of labeled and unlabeled slots
+  const hasLabeled = slots.some((slot) => slot.slotLabel);
+  const hasUnlabeled = slots.some((slot) => !slot.slotLabel);
+  const hasMixedLabels = hasLabeled && hasUnlabeled;
+
+  // If there's a mix of labeled and unlabeled, don't auto-assign
+  if (hasMixedLabels) {
+    return [];
+  }
+
   // Build a map of slot -> matching performers
   const slotToPerformers = new Map<string, Performer[]>();
   slots.forEach((slot) => {
@@ -48,6 +61,32 @@ export function generateAssignmentCombinations(
       slotToPerformers.set(slot.id, scenePerformers);
     }
   });
+
+  // Special case: All slots unlabeled, no gender hints, and exact match with performers
+  // Use alphabetical fallback
+  const allSlotsHaveNoGenderHints = slots.every((slot) => slot.genderHints.length === 0);
+  if (allSlotsUnlabeled && allSlotsHaveNoGenderHints && slots.length === scenePerformers.length && !allowSamePerformerInMultipleSlots) {
+    // Sort performers alphabetically by name
+    const sortedPerformers = [...scenePerformers].sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+
+    // Sort slots by ID to ensure consistent ordering
+    const sortedSlots = [...slots].sort((a, b) => a.id.localeCompare(b.id));
+
+    // Create single combination with alphabetical assignment
+    const assignments: AssignmentOption[] = sortedSlots.map((slot, index) => ({
+      slotDefinitionId: slot.id,
+      performerId: sortedPerformers[index].id,
+    }));
+
+    const description = sortedPerformers.map((p) => p.name).join(", ");
+
+    return [{
+      assignments,
+      description,
+    }];
+  }
 
   // Generate all valid combinations
   const combinations: AssignmentCombination[] = [];
@@ -111,9 +150,6 @@ export function generateAssignmentCombinations(
   }
 
   generateCombinations(0, [], new Set());
-
-  // Check if all slots have no labels
-  const allSlotsUnlabeled = slots.every((slot) => !slot.slotLabel);
 
   // Deduplicate based on slot labels:
   // - If all slots are unlabeled, deduplicate by performer set
