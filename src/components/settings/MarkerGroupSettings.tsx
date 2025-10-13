@@ -428,29 +428,15 @@ export default function MarkerGroupSettings() {
       // Update the sort order in Redux state
       dispatch(setMarkerGroupTagSorting({ markerGroupId, sortOrder: sortOrderIds }));
 
-      // Save the updated configuration to app-config.json
-      const configResponse = await fetch('/api/config');
-      let existingConfig = {};
-      if (configResponse.ok) {
-        existingConfig = await configResponse.json();
-      }
-
-      const updatedConfig = {
-        ...existingConfig,
-        markerGroupTagSorting: {
-          ...(existingConfig as AppConfig).markerGroupTagSorting,
-          [markerGroupId]: sortOrderIds
-        }
-      };
-
-      const saveResponse = await fetch('/api/config', {
+      // Save the updated sorting to database
+      const saveResponse = await fetch('/api/marker-group-tag-sorting', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedConfig)
+        body: JSON.stringify({ markerGroupId, tagIds: sortOrderIds })
       });
 
       if (!saveResponse.ok) {
-        throw new Error('Failed to save configuration');
+        throw new Error('Failed to save tag sorting');
       }
 
       console.log("✅ [DROP] Drop completed successfully");

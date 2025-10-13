@@ -163,6 +163,19 @@ model MarkerDerivation {
   @@map("marker_derivations")
 }
 
+model MarkerGroupTagSorting {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  markerGroupId Int      @map("marker_group_id")
+  tagId         Int      @unique @map("tag_id")
+  sortOrder     Int      @map("sort_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([markerGroupId])
+  @@index([markerGroupId, sortOrder])
+  @@map("marker_group_tag_sorting")
+}
+
 // === Stash Sync Tables ===
 // WARNING: These tables are READ-ONLY caches of Stashapp data.
 // They are populated via sync operations and should NEVER be modified manually.

@@ -4,6 +4,13 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     const tags = await prisma.stashTag.findMany({
+      include: {
+        parents: {
+          include: {
+            parent: true,
+          },
+        },
+      },
       orderBy: {
         name: 'asc',
       },
@@ -13,6 +20,10 @@ export async function GET() {
     const transformedTags = tags.map(tag => ({
       id: tag.id.toString(),
       name: tag.name,
+      parents: tag.parents.map(parentRel => ({
+        id: parentRel.parent.id.toString(),
+        name: parentRel.parent.name,
+      })),
     }));
 
     return NextResponse.json({

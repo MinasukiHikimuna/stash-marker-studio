@@ -6,7 +6,7 @@ import type { AppConfig } from "@/serverConfig";
 import { stashappService } from "@/services/StashappService";
 import { keyboardShortcutService } from "@/services/KeyboardShortcutService";
 import { useAppDispatch } from "@/store/hooks";
-import { setFullConfig, loadCorrespondingTagMappings } from "@/store/slices/configSlice";
+import { setFullConfig, loadCorrespondingTagMappings, loadMarkerGroupTagSorting } from "@/store/slices/configSlice";
 
 interface ConfigContextValue {
   config: AppConfig | null;
@@ -89,6 +89,9 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
 
       // Load corresponding tag mappings from database
       dispatch(loadCorrespondingTagMappings());
+
+      // Load marker group tag sorting from database
+      dispatch(loadMarkerGroupTagSorting());
     } catch (err) {
       console.error("Failed to load configuration", err);
       setIsConfigured(false);

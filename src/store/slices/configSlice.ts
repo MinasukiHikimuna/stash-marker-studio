@@ -145,6 +145,26 @@ export const loadCorrespondingTagMappings = createAsyncThunk(
   }
 );
 
+// Async thunk to load marker group tag sorting from database
+export const loadMarkerGroupTagSorting = createAsyncThunk(
+  'config/loadMarkerGroupTagSorting',
+  async () => {
+    const response = await fetch('/api/marker-group-tag-sorting');
+    if (!response.ok) {
+      throw new Error('Failed to load marker group tag sorting');
+    }
+    const data = await response.json() as { groups: Array<{ markerGroupId: number; tagIds: string[] }> };
+
+    // Transform to existing format: { [markerGroupId]: tagIds[] }
+    const sorting: Record<string, string[]> = {};
+    for (const group of data.groups) {
+      sorting[group.markerGroupId.toString()] = group.tagIds;
+    }
+
+    return sorting;
+  }
+);
+
 const configSlice = createSlice({
   name: 'config',
   initialState,
@@ -194,6 +214,9 @@ const configSlice = createSlice({
       })
       .addCase(loadCorrespondingTagMappings.fulfilled, (state, action) => {
         state.correspondingTagMappings = action.payload;
+      })
+      .addCase(loadMarkerGroupTagSorting.fulfilled, (state, action) => {
+        state.markerGroupTagSorting = action.payload;
       });
   },
 });
