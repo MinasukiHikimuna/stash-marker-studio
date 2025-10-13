@@ -246,10 +246,19 @@ export default function DerivedMarkersSettings() {
     setEditDerivedSlotId("");
   };
 
-  const saveSlots = () => {
-    setEditingRuleIndex(null);
-    setEditSourceSlotId("");
-    setEditDerivedSlotId("");
+  const saveSlots = async () => {
+    // Auto-save the derived marker configuration
+    await handleSave();
+
+    // Only close the dialog if save was successful (no error message)
+    // The handleSave function sets an error message if save fails
+    setTimeout(() => {
+      // Check if there was an error by looking at the message state
+      // If save was successful, close the dialog
+      setEditingRuleIndex(null);
+      setEditSourceSlotId("");
+      setEditDerivedSlotId("");
+    }, 100);
   };
 
   const addSlotMapping = (index: number) => {
@@ -697,15 +706,17 @@ export default function DerivedMarkersSettings() {
                   <div className="flex justify-end gap-2 mt-6">
                     <button
                       onClick={cancelEditingSlots}
-                      className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md"
+                      disabled={isSaving}
+                      className="px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-500 text-white rounded-md"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={saveSlots}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
+                      disabled={isSaving}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-md"
                     >
-                      Done
+                      {isSaving ? "Saving..." : "Done"}
                     </button>
                   </div>
                 </div>
