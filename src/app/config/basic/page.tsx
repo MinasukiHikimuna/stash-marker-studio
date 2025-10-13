@@ -6,7 +6,6 @@ import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import {
   selectServerConfig,
   selectMarkerConfig,
-  selectMarkerGroupingConfig,
   setFullConfig,
 } from "@/store/slices/configSlice";
 import {
@@ -22,7 +21,6 @@ export default function ServerConfigPage() {
   const dispatch = useAppDispatch();
   const serverConfig = useAppSelector(selectServerConfig);
   const markerConfig = useAppSelector(selectMarkerConfig);
-  const markerGroupingConfig = useAppSelector(selectMarkerGroupingConfig);
   const availableTags = useAppSelector(selectAvailableTags);
 
   const [formData, setFormData] = useState({
@@ -34,7 +32,6 @@ export default function ServerConfigPage() {
       sourceDerived: "" as string | undefined,
       aiReviewed: "",
     },
-    markerGroupingConfig: { markerGroupParent: "" },
   });
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -67,17 +64,15 @@ export default function ServerConfigPage() {
         ...markerConfig,
         sourceDerived: markerConfig.sourceDerived ?? "",
       },
-      markerGroupingConfig,
     });
 
     // Update configuration validation
     const validation = validateConfiguration({
       serverConfig,
       markerConfig,
-      markerGroupingConfig,
     } as AppConfig);
     setConfigValidation(validation);
-  }, [serverConfig, markerConfig, markerGroupingConfig]);
+  }, [serverConfig, markerConfig]);
 
   // Load tags and test connection when server config is available
   useEffect(() => {
@@ -133,7 +128,6 @@ export default function ServerConfigPage() {
                 apiKey: serverConfig.apiKey,
               },
               markerConfig,
-              markerGroupingConfig,
             };
             const { stashappService } = await import(
               "@/services/StashappService"
@@ -160,7 +154,6 @@ export default function ServerConfigPage() {
   }, [
     serverConfig,
     markerConfig,
-    markerGroupingConfig,
     tagsLoaded,
     isServerConfigured,
     dispatch,
@@ -350,7 +343,6 @@ export default function ServerConfigPage() {
                 apiKey: formData.serverConfig.apiKey,
               },
               markerConfig: formData.markerConfig,
-              markerGroupingConfig: formData.markerGroupingConfig,
             };
             const { stashappService } = await import("@/services/StashappService");
             stashappService.applyConfig(appConfig);

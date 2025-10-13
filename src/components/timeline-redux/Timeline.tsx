@@ -33,7 +33,6 @@ import TimelineLabels from "./TimelineLabels";
 import TimelineGrid from "./TimelineGrid";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import {
-  selectMarkerGroupParentId,
   selectMarkerGroups,
   selectMarkerGroupTagSorting,
   selectCorrespondingTagMappings,
@@ -90,7 +89,6 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
     ref
   ) => {
     const dispatch = useAppDispatch();
-    const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
     const markerGroups = useAppSelector(selectMarkerGroups);
     const tagSorting = useAppSelector(selectMarkerGroupTagSorting);
     const correspondingTagMappings = useAppSelector(selectCorrespondingTagMappings);
@@ -142,13 +140,13 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
     const tagGroups = useMemo(() => {
       return groupMarkersByTags(
         markers,
-        markerGroupParentId,
+        null,
         markerGroups,
         tagSorting,
         correspondingTagMappings,
         allTags
       );
-    }, [markers, markerGroupParentId, markerGroups, tagSorting, correspondingTagMappings, allTags]);
+    }, [markers, markerGroups, tagSorting, correspondingTagMappings, allTags]);
 
     // Create markers with track data for keyboard navigation
     const markersWithTracks = useMemo(() => {
@@ -168,8 +166,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
 
       tagGroups.forEach((group) => {
         const markerGroup = getMarkerGroupName(
-          group.markers[0],
-          markerGroupParentId
+          group.markers[0]
         );
         const trackCount = trackCountsByGroup[group.name] || 1;
 
@@ -198,7 +195,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
       // Cap at reasonable maximum
       const finalWidth = Math.min(470, maxWidth + 10);
       return finalWidth;
-    }, [tagGroups, markerGroupParentId, trackCountsByGroup]);
+    }, [tagGroups, trackCountsByGroup]);
 
     // Update parent component with swimlane data for keyboard navigation
     useEffect(() => {
@@ -227,10 +224,11 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
         }
 
         // Filter out any existing marker group parents and add the new one
+        const existingMarkerGroups = markerGroups.map(g => g.id);
         const newParentIds = [
           // Keep all non-marker-group parents
           ...(currentTag.parents || [])
-            .filter(parent => !parent.parents?.some(grandparent => grandparent.id === markerGroupParentId))
+            .filter(parent => !existingMarkerGroups.includes(parent.id))
             .map(parent => parent.id),
           // Add the new marker group
           newMarkerGroupId
@@ -252,7 +250,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
       } catch (error) {
         console.error('Failed to reassign marker group:', error);
       }
-    }, [allTags, markerGroupParentId, dispatch, sceneId]);
+    }, [allTags, markerGroups, dispatch, sceneId]);
 
     // Handle setting corresponding tag
     const handleSetCorrespondingTag = useCallback(async (tagId: string, correspondingTagId: string | null) => {
@@ -721,7 +719,6 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
               trackCountsByGroup={trackCountsByGroup}
               labelWidth={uniformTagLabelWidth}
               selectedMarkerId={selectedMarkerId}
-              markerGroupParentId={markerGroupParentId}
               onReassignClick={handleReassignmentIconClick}
             />
 

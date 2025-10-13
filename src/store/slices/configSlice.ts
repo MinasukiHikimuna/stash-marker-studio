@@ -23,6 +23,7 @@ export interface ConfigState extends AppConfig {
     error: string | null;
   };
   correspondingTagMappings: Record<number, number>; // sourceTagId -> correspondingTagId
+  markerGroupTagSorting: Record<string, string[]>; // markerGroupId -> array of tag IDs in sort order (loaded from database)
 }
 
 const initialState: ConfigState = {
@@ -35,9 +36,6 @@ const initialState: ConfigState = {
     statusRejected: '',
     sourceManual: '',
     aiReviewed: '',
-  },
-  markerGroupingConfig: {
-    markerGroupParent: '',
   },
   markerGroupTagSorting: {},
   videoPlaybackConfig: {
@@ -62,23 +60,19 @@ export const loadMarkerGroups = createAsyncThunk(
   'config/loadMarkerGroups',
   async (_, { getState }) => {
     const state = getState() as { config: ConfigState; marker: { availableTags: Array<{ id: string; name: string; description?: string | null; parents?: Array<{ id: string }> }> } };
-    const markerGroupParent = state.config.markerGroupingConfig.markerGroupParent;
     const availableTags = state.marker.availableTags;
-    
-    if (!markerGroupParent || !availableTags.length) {
+
+    if (!availableTags.length) {
       return [];
     }
 
-    // Filter and transform marker group tags from existing tags
+    // Filter and transform marker group tags by naming convention
     const groupTags = availableTags
-      .filter(tag => 
-        tag.parents?.some(parent => parent.id === markerGroupParent) &&
-        tag.name.startsWith("Marker Group: ")
-      )
+      .filter(tag => tag.name.startsWith("Marker Group: "))
       .map(tag => {
         const match = tag.name.match(/Marker Group: (\d+)\./);
         const orderNumber = match ? parseInt(match[1], 10) : 999;
-        
+
         return {
           id: tag.id,
           name: tag.name,
@@ -87,9 +81,9 @@ export const loadMarkerGroups = createAsyncThunk(
         };
       })
       .sort((a, b) => {
-        return a.name.localeCompare(b.name, undefined, { 
-          numeric: true, 
-          sensitivity: 'base' 
+        return a.name.localeCompare(b.name, undefined, {
+          numeric: true,
+          sensitivity: 'base'
         });
       });
 
@@ -172,12 +166,8 @@ const configSlice = createSlice({
     setFullConfig: (state, action: PayloadAction<AppConfig>) => {
       const markerGroups = state.markerGroups; // Preserve marker groups state
       const correspondingTagMappings = state.correspondingTagMappings; // Preserve mappings state
-      return { ...action.payload, isLoaded: true, markerGroups, correspondingTagMappings };
-    },
-    setMarkerGroupingConfig: (state, action: PayloadAction<{ markerGroupParent: string }>) => {
-      state.markerGroupingConfig = action.payload;
-      // Clear marker groups when parent changes
-      state.markerGroups.tags = [];
+      const markerGroupTagSorting = state.markerGroupTagSorting; // Preserve tag sorting state
+      return { ...action.payload, isLoaded: true, markerGroups, correspondingTagMappings, markerGroupTagSorting };
     },
     clearMarkerGroups: (state) => {
       state.markerGroups.tags = [];
@@ -221,12 +211,11 @@ const configSlice = createSlice({
   },
 });
 
-export const { setFullConfig, setMarkerGroupingConfig, clearMarkerGroups, setMarkerGroupTagSorting } = configSlice.actions;
+export const { setFullConfig, clearMarkerGroups, setMarkerGroupTagSorting } = configSlice.actions;
 
 // Selectors for each group
 export const selectServerConfig = (state: { config: ConfigState }) => state.config.serverConfig;
 export const selectMarkerConfig = (state: { config: ConfigState }) => state.config.markerConfig;
-export const selectMarkerGroupingConfig = (state: { config: ConfigState }) => state.config.markerGroupingConfig;
 export const selectVideoPlaybackConfig = (state: { config: ConfigState }) => state.config.videoPlaybackConfig;
 
 // Marker groups selectors
@@ -237,7 +226,6 @@ export const selectMarkerGroupsError = (state: { config: ConfigState }) => state
 // Individual selectors for common access patterns
 export const selectStashUrl = (state: { config: ConfigState }) => state.config.serverConfig.url;
 export const selectStashApiKey = (state: { config: ConfigState }) => state.config.serverConfig.apiKey;
-export const selectMarkerGroupParentId = (state: { config: ConfigState }) => state.config.markerGroupingConfig.markerGroupParent;
 export const selectMarkerStatusConfirmed = (state: { config: ConfigState }) => state.config.markerConfig.statusConfirmed;
 export const selectMarkerStatusRejected = (state: { config: ConfigState }) => state.config.markerConfig.statusRejected;
 export const selectMarkerSourceManual = (state: { config: ConfigState }) => state.config.markerConfig.sourceManual;

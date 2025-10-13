@@ -5,7 +5,7 @@ import { SceneMarker, type Tag } from "../../services/StashappService";
 import { MarkerListItem } from "./MarkerListItem";
 import { IncorrectMarker } from "../../utils/incorrectMarkerStorage";
 import { useAppSelector } from "../../store/hooks";
-import { selectMarkerGroupParentId, selectMarkerGroups, selectMarkerGroupTagSorting, selectCorrespondingTagMappings } from "../../store/slices/configSlice";
+import { selectMarkerGroups, selectMarkerGroupTagSorting, selectCorrespondingTagMappings } from "../../store/slices/configSlice";
 import { groupMarkersByTags, getMarkerGroupName } from "../../core/marker/markerGrouping";
 import { selectAllTags } from "../../store/slices/searchSlice";
 
@@ -38,7 +38,6 @@ export function MarkerList({
   onCancelEdit,
   setEditingTagId,
 }: MarkerListProps) {
-  const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
   const markerGroups = useAppSelector(selectMarkerGroups);
   const tagSorting = useAppSelector(selectMarkerGroupTagSorting);
   const correspondingTagMappings = useAppSelector(selectCorrespondingTagMappings);
@@ -47,8 +46,8 @@ export function MarkerList({
   // Memoize tagGroups to prevent unnecessary re-sorting
   const tagGroups = useMemo(() => {
     if (!markers || markers.length === 0) return [];
-    return groupMarkersByTags(markers, markerGroupParentId, markerGroups, tagSorting, correspondingTagMappings, allTags);
-  }, [markers, markerGroupParentId, markerGroups, tagSorting, correspondingTagMappings, allTags]);
+    return groupMarkersByTags(markers, null, markerGroups, tagSorting, correspondingTagMappings, allTags);
+  }, [markers, markerGroups, tagSorting, correspondingTagMappings, allTags]);
 
   if (!markers || markers.length === 0) {
     return (
@@ -61,7 +60,7 @@ export function MarkerList({
   return (
     <>
       {tagGroups.map((group) => {
-        const markerGroup = getMarkerGroupName(group.markers[0], markerGroupParentId);
+        const markerGroup = getMarkerGroupName(group.markers[0]);
 
         return (
           <div key={group.name}>

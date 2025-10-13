@@ -29,8 +29,6 @@ export interface TimelineLabelsProps {
   labelWidth: number;
   /** Currently selected marker ID */
   selectedMarkerId: string | null;
-  /** Marker group parent tag ID for grouping display */
-  markerGroupParentId: string | null;
   /** Optional callback when reassignment icon is clicked */
   onReassignClick?: (tagName: string, tagGroupMarkers: TagGroup) => void;
 }
@@ -58,7 +56,6 @@ const TimelineLabelsComponent: React.FC<TimelineLabelsProps> = ({
   trackCountsByGroup,
   labelWidth,
   selectedMarkerId,
-  markerGroupParentId,
   onReassignClick,
 }) => {
   // Ref to track swimlane elements for scrolling
@@ -108,10 +105,9 @@ const TimelineLabelsComponent: React.FC<TimelineLabelsProps> = ({
         const trackCount = trackCountsByGroup[group.name] || 1;
 
         // Get marker group info if available
-        const markerGroup =
-          markerGroupParentId && group.markers[0]
-            ? getMarkerGroupName(group.markers[0], markerGroupParentId)
-            : null;
+        const markerGroup = group.markers[0]
+          ? getMarkerGroupName(group.markers[0])
+          : null;
 
         // Determine if this is the first swimlane for this marker group
         const markerGroupKey = markerGroup?.fullName || "";
@@ -233,9 +229,6 @@ export const TimelineLabels = React.memo(
 
     // Re-render if label width changed
     if (prevProps.labelWidth !== nextProps.labelWidth) return false;
-
-    // Re-render if marker grouping config changed
-    if (prevProps.markerGroupParentId !== nextProps.markerGroupParentId) return false;
 
     // Re-render if reassign callback changed
     if (prevProps.onReassignClick !== nextProps.onReassignClick) return false;

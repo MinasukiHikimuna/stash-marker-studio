@@ -2,38 +2,28 @@
 
 import React, { useEffect, useState } from "react";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import { 
-  selectMarkerGroupingConfig,
+import {
   selectMarkerGroups,
   selectMarkerGroupsLoading,
   selectMarkerGroupsError,
   selectMarkerGroupTagSorting,
   loadMarkerGroups,
   loadChildTags,
-  setMarkerGroupingConfig,
   setMarkerGroupTagSorting,
-  setFullConfig,
   type MarkerGroupTag
 } from "@/store/slices/configSlice";
 import { selectAvailableTags, loadAvailableTags } from "@/store/slices/markerSlice";
-import { ConfigTagAutocomplete } from "@/components/settings/ConfigTagAutocomplete";
-import type { AppConfig } from "@/serverConfig";
 import { stashappService } from "@/services/StashappService";
 
 export default function MarkerGroupSettings() {
   const dispatch = useAppDispatch();
-  const markerGroupingConfig = useAppSelector(selectMarkerGroupingConfig);
   const availableTags = useAppSelector(selectAvailableTags);
   const reduxMarkerGroups = useAppSelector(selectMarkerGroups);
   const isLoadingGroups = useAppSelector(selectMarkerGroupsLoading);
   const groupsError = useAppSelector(selectMarkerGroupsError);
   const tagSorting = useAppSelector(selectMarkerGroupTagSorting);
   const [isLoadingTags, setIsLoadingTags] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [formData, setFormData] = useState({
-    markerGroupParent: ""
-  });
   const [newGroupName, setNewGroupName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [deletingGroupId, setDeletingGroupId] = useState<string | null>(null);
@@ -45,13 +35,6 @@ export default function MarkerGroupSettings() {
   const [draggedChildTag, setDraggedChildTag] = useState<string | null>(null);
   const [dragOverChildTag, setDragOverChildTag] = useState<string | null>(null);
 
-  // Sync form data with Redux state
-  useEffect(() => {
-    setFormData({
-      markerGroupParent: markerGroupingConfig.markerGroupParent || ""
-    });
-  }, [markerGroupingConfig]);
-  
   // Load available tags on mount if not already loaded
   useEffect(() => {
     console.log("useEffect triggered - availableTags.length:", availableTags.length);
@@ -66,67 +49,10 @@ export default function MarkerGroupSettings() {
   }, [dispatch, availableTags.length]);
 
   useEffect(() => {
-    console.log("loadMarkerGroups useEffect - parent:", markerGroupingConfig.markerGroupParent, "tags:", availableTags.length);
-    if (markerGroupingConfig.markerGroupParent && availableTags.length > 0) {
-      console.log("Dispatching loadMarkerGroups...");
+    if (availableTags.length > 0) {
       dispatch(loadMarkerGroups());
     }
-  }, [markerGroupingConfig.markerGroupParent, availableTags.length, dispatch]);
-
-  const handleParentChange = (parentId: string) => {
-    setFormData({ markerGroupParent: parentId });
-    // Also update Redux immediately for UI responsiveness
-    dispatch(setMarkerGroupingConfig({ markerGroupParent: parentId }));
-  };
-
-  const handleClearParent = () => {
-    setFormData({ markerGroupParent: "" });
-    // Also update Redux immediately for UI responsiveness
-    dispatch(setMarkerGroupingConfig({ markerGroupParent: "" }));
-  };
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    setMessage("");
-
-    try {
-      // Get current full config to preserve other settings
-      const configResponse = await fetch('/api/config');
-      let existingConfig = {};
-      if (configResponse.ok) {
-        existingConfig = await configResponse.json();
-      }
-
-      // Create updated config with new marker grouping settings
-      const appConfig: AppConfig = {
-        ...(existingConfig as AppConfig),
-        markerGroupingConfig: {
-          markerGroupParent: formData.markerGroupParent
-        }
-      };
-
-      const response = await fetch("/api/config", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(appConfig),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to save configuration");
-      }
-
-      // Update Redux store
-      dispatch(setFullConfig(appConfig));
-
-      setMessage("Configuration saved successfully!");
-    } catch (error) {
-      setMessage("Error saving configuration: " + (error as Error).message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  }, [availableTags.length, dispatch]);
 
   const getNextMarkerGroupNumber = () => {
     if (reduxMarkerGroups.length === 0) return 1;
@@ -151,25 +77,20 @@ export default function MarkerGroupSettings() {
       return;
     }
 
-    if (!formData.markerGroupParent) {
-      setMessage("Please select a parent tag first.");
-      return;
-    }
-
     setIsCreating(true);
     setMessage("");
 
     try {
       const nextNumber = getNextMarkerGroupNumber();
       const tagName = `Marker Group: ${nextNumber}. ${newGroupName.trim()}`;
-      
-      // Create the tag with the parent
-      await stashappService.createTag(tagName, undefined, [formData.markerGroupParent]);
-      
+
+      // Create the tag without parents (no parent tag required anymore)
+      await stashappService.createTag(tagName);
+
       // Reload available tags and marker groups
       await dispatch(loadAvailableTags());
       await dispatch(loadMarkerGroups());
-      
+
       setNewGroupName("");
       setMessage(`Created marker group: ${tagName}`);
     } catch (error) {
@@ -452,17 +373,6 @@ export default function MarkerGroupSettings() {
 
   return (
     <div className="space-y-8">
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="px-6 py-2 bg-green-600 hover:bg-green-500 disabled:bg-gray-600 rounded-md transition-colors font-medium"
-        >
-          {isSaving ? "Saving..." : "Save Configuration"}
-        </button>
-      </div>
-
       {message && (
         <div
           className={`p-4 rounded-lg ${
@@ -477,47 +387,19 @@ export default function MarkerGroupSettings() {
 
       <div className="bg-gray-800 p-6 rounded-lg">
         <h2 className="text-xl font-semibold mb-4">Marker Group Settings</h2>
-        
-        <div className="space-y-6">
-          {/* Parent Tag Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Marker Group Parent Tag
-            </label>
-            <div className="flex gap-2">
-              <ConfigTagAutocomplete
-                value={formData.markerGroupParent || ""}
-                onChange={handleParentChange}
-                availableTags={availableTags}
-                placeholder="Type to search for a parent tag..."
-                className="flex-1"
-                onTagCreated={async (_newTag) => {
-                  // Reload available tags after creating a new tag
-                  await dispatch(loadAvailableTags());
-                }}
-              />
-              {formData.markerGroupParent && (
-                <button
-                  onClick={handleClearParent}
-                  className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-sm text-sm font-medium transition-colors"
-                  title="Clear selected parent tag"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-            {isLoadingTags && (
-              <p className="text-sm text-gray-400 mt-1">Loading available tags...</p>
-            )}
-          </div>
 
+        <div className="space-y-6">
           {/* Marker Groups Display */}
-          {formData.markerGroupParent && (
+          {isLoadingTags ? (
+            <div className="p-3 bg-gray-700 rounded-md">
+              <p className="text-gray-400">Loading available tags...</p>
+            </div>
+          ) : (
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Child Marker Groups ({reduxMarkerGroups.length})
+                Marker Groups ({reduxMarkerGroups.length})
               </label>
-              <p>Note: Editing or ordering of child marker groups doesn&quot;t require Save Configuration as these are saved directly to Stashapp.</p>
+              <p className="text-sm text-gray-400 mb-2">Note: Marker groups are identified by the &ldquo;Marker Group:&rdquo; naming convention. Changes are saved directly to Stashapp.</p>
               {isLoadingGroups ? (
                 <div className="p-3 bg-gray-700 rounded-md">
                   <p className="text-gray-400">Loading marker groups...</p>
@@ -695,7 +577,7 @@ export default function MarkerGroupSettings() {
                 </div>
               ) : (
                 <div className="p-3 bg-gray-700 rounded-md border border-gray-600">
-                  <p className="text-gray-400">No marker groups found for this parent tag.</p>
+                  <p className="text-gray-400">No marker groups found.</p>
                   <p className="text-sm text-gray-500 mt-1">
                     Use the form below to create your first marker group.
                   </p>

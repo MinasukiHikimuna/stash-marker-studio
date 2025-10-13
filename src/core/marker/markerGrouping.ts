@@ -82,22 +82,17 @@ export function createSortOrderDescription(tagIds: string[], existingDescription
 
 /**
  * Extract marker group name from tag parents
+ * Uses direct parent-child relationship with "Marker Group:" naming convention
  */
-export function getMarkerGroupName(marker: SceneMarker, markerGroupParentId: string): MarkerGroupInfo {
+export function getMarkerGroupName(marker: SceneMarker): MarkerGroupInfo {
   const parents = marker.primary_tag.parents;
   if (!parents || parents.length === 0) {
     return null;
   }
 
-  // Look for a parent that starts with "Marker Group: " and has the correct grandparent
+  // Look for a direct parent that starts with "Marker Group: "
   for (const parent of parents) {
-    if (
-      parent.name.startsWith("Marker Group: ") &&
-      parent.parents?.some(
-        (grandparent) =>
-          grandparent.id === markerGroupParentId
-      )
-    ) {
+    if (parent.name.startsWith("Marker Group: ")) {
       // Return an object containing both the full name and display name
       return {
         fullName: parent.name,
@@ -169,24 +164,17 @@ function createDisplayName(tagName: string, performerNames: string[]): string {
 /**
  * Group markers by tags with proper marker group ordering and corresponding tag support
  * This is the shared algorithm used by both Timeline display and keyboard navigation
+ *
+ * @param markerGroupParentId - DEPRECATED: No longer used. Pass null.
  */
 export function groupMarkersByTags(
   markers: SceneMarker[],
-  markerGroupParentId: string,
+  markerGroupParentId: string | null,
   markerGroups?: Array<{ id: string; name: string; description?: string | null }>,
   tagSorting?: { [markerGroupId: string]: string[] },
   correspondingTagMappings?: Record<number, number>,
   allTags?: Array<{ id: string; name: string }>
 ): TagGroup[] {
-  console.log("🎯 [GROUPING] Starting groupMarkersByTags with:", {
-    markersCount: markers.length,
-    markerGroupParentId,
-    markerGroupsCount: markerGroups?.length || 0,
-    hasTagSorting: !!tagSorting,
-    tagSortingKeys: Object.keys(tagSorting || {}),
-    hasMappings: !!correspondingTagMappings,
-    mappingsCount: Object.keys(correspondingTagMappings || {}).length
-  });
 
   // Group all markers by tag name + performer combination (with corresponding tag support from database)
   const tagGroupMap = new Map<string, {
@@ -265,8 +253,8 @@ export function groupMarkersByTags(
     })
     .sort((a, b) => {
       // Get marker group names for sorting
-      const aMarkerGroup = getMarkerGroupName(a.markers[0], markerGroupParentId);
-      const bMarkerGroup = getMarkerGroupName(b.markers[0], markerGroupParentId);
+      const aMarkerGroup = getMarkerGroupName(a.markers[0]);
+      const bMarkerGroup = getMarkerGroupName(b.markers[0]);
 
       // If both have marker groups, sort by the full name using natural sorting
       if (aMarkerGroup && bMarkerGroup) {
@@ -437,14 +425,57 @@ export function createMarkersWithTracks(tagGroups: TagGroup[]): MarkerWithTrack[
  */
 export function getTrackCountsByGroup(tagGroups: TagGroup[]): Record<string, number> {
   const trackCounts: Record<string, number> = {};
-  
+
   tagGroups.forEach((group) => {
     const markersWithTracks = assignTracksWithinGroup(group.markers);
-    const maxTrack = markersWithTracks.length > 0 
+    const maxTrack = markersWithTracks.length > 0
       ? Math.max(...markersWithTracks.map(m => m.assignedTrack))
       : -1;
     trackCounts[group.name] = maxTrack + 1; // +1 because tracks are 0-indexed
   });
-  
+
   return trackCounts;
+}
+
+/**
+ * Group tag groups by their marker group
+ * Returns sections with marker group header info and their tag groups
+ */
+export interface MarkerGroupSection {
+  markerGroupName: string | null;
+  markerGroupDisplayName: string | null;
+  tagGroups: TagGroup[];
+}
+
+export function groupTagGroupsByMarkerGroup(
+  tagGroups: TagGroup[]
+): MarkerGroupSection[] {
+  const sections: MarkerGroupSection[] = [];
+  let currentSection: MarkerGroupSection | null = null;
+
+  tagGroups.forEach((tagGroup) => {
+    const markerGroup = getMarkerGroupName(
+      tagGroup.markers[0]
+    );
+
+    const markerGroupName = markerGroup?.fullName || null;
+    const markerGroupDisplayName = markerGroup?.displayName || null;
+
+    // Start new section if marker group changed
+    if (
+      !currentSection ||
+      currentSection.markerGroupName !== markerGroupName
+    ) {
+      currentSection = {
+        markerGroupName,
+        markerGroupDisplayName,
+        tagGroups: [],
+      };
+      sections.push(currentSection);
+    }
+
+    currentSection.tagGroups.push(tagGroup);
+  });
+
+  return sections;
 }

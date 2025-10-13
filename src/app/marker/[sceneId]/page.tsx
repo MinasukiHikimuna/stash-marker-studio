@@ -76,7 +76,7 @@ import {
   setError,
   materializeDerivedMarkers,
 } from "../../../store/slices/markerSlice";
-import { selectMarkerAiReviewed, selectDerivedMarkers, selectMaxDerivationDepth } from "../../../store/slices/configSlice";
+import { selectMarkerAiReviewed, selectDerivedMarkers, selectMaxDerivationDepth, loadMarkerGroups } from "../../../store/slices/configSlice";
 import Toast from "../../components/Toast";
 import { useRouter } from "next/navigation";
 import { incorrectMarkerStorage } from "@/utils/incorrectMarkerStorage";
@@ -248,6 +248,13 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   useEffect(() => {
     markerPreferences.setHideDerivedMarkers(hideDerivedMarkers);
   }, [hideDerivedMarkers]);
+
+  // Load marker groups when tags become available
+  useEffect(() => {
+    if (availableTags && availableTags.length > 0) {
+      dispatch(loadMarkerGroups());
+    }
+  }, [availableTags, dispatch]);
 
   useEffect(() => {
     const handlePopState = () => {

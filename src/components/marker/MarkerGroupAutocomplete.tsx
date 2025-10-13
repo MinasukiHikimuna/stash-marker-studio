@@ -3,8 +3,6 @@
 import { useMemo } from "react";
 import { type Tag } from "../../services/StashappService";
 import { TagAutocomplete } from "./TagAutocomplete";
-import { useAppSelector } from "../../store/hooks";
-import { selectMarkerGroupParentId } from "../../store/slices/configSlice";
 
 interface MarkerGroupAutocompleteProps {
   value: string;
@@ -21,18 +19,12 @@ export function MarkerGroupAutocomplete({
   availableTags,
   ...props
 }: MarkerGroupAutocompleteProps) {
-  const markerGroupParentId = useAppSelector(selectMarkerGroupParentId);
-
-  // Filter tags to only show Marker Group tags (tags that have markerGroupParentId as a parent)
+  // Filter tags to only show Marker Group tags (tags with "Marker Group:" naming convention)
   const markerGroupTags = useMemo(() => {
-    if (!markerGroupParentId) {
-      return [];
-    }
-
     return availableTags.filter((tag) =>
-      tag.parents?.some((parent) => parent.id === markerGroupParentId)
+      tag.name.startsWith("Marker Group: ")
     );
-  }, [availableTags, markerGroupParentId]);
+  }, [availableTags]);
 
   return (
     <TagAutocomplete

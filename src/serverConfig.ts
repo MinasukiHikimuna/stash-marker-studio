@@ -6,8 +6,6 @@ import { KeyboardShortcutConfig } from './types/keyboard';
 export interface AppConfig {
   serverConfig: ServerConfig;
   markerConfig: MarkerConfig;
-  markerGroupingConfig: MarkerGroupingConfig;
-  markerGroupTagSorting?: MarkerGroupTagSorting;
   videoPlaybackConfig?: VideoPlaybackConfig;
   keyboardShortcuts?: KeyboardShortcutConfig;
   completionDefaults?: CompletionDefaults;
@@ -45,21 +43,6 @@ export interface MarkerConfig {
 
   // Tag for scenes which AI analysis has been reviewed.
   aiReviewed: string;
-}
-
-export interface MarkerGroupingConfig {
-  // Parent tag for marker group tags.
-  markerGroupParent: string;
-}
-
-/**
- * @deprecated This configuration is now stored in the PostgreSQL database.
- * Use the database-backed API instead: /api/marker-group-tag-sorting
- * Run `npx tsx scripts/migrate-tag-sorting-to-db.ts` to migrate existing data.
- */
-export interface MarkerGroupTagSorting {
-  // Map of marker group tag IDs to arrays of child tag IDs in desired sort order
-  [markerGroupId: string]: string[];
 }
 
 export interface VideoPlaybackConfig {

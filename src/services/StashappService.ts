@@ -203,7 +203,6 @@ export class StashappService {
   // Config values that will be set by applyConfig
   private MARKER_STATUS_CONFIRMED = "";
   private MARKER_STATUS_REJECTED = "";
-  private MARKER_GROUP_PARENT_ID = "";
   private MARKER_SOURCE_MANUAL = "";
   private MARKER_SOURCE_DERIVED = "";
   private MARKER_AI_REVIEWED = "";
@@ -239,7 +238,6 @@ export class StashappService {
     this.MARKER_SOURCE_MANUAL = config.markerConfig.sourceManual;
     this.MARKER_SOURCE_DERIVED = config.markerConfig.sourceDerived || "";
     this.MARKER_AI_REVIEWED = config.markerConfig.aiReviewed;
-    this.MARKER_GROUP_PARENT_ID = config.markerGroupingConfig.markerGroupParent;
   }
 
   // Update the fetchGraphQL method to use only the API key

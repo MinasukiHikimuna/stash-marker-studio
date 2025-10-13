@@ -52,15 +52,6 @@ export async function GET() {
   try {
     const fileConfig = await loadConfigFromFile();
     if (fileConfig) {
-      // Deprecation warning for markerGroupTagSorting in JSON config
-      if (fileConfig.markerGroupTagSorting && Object.keys(fileConfig.markerGroupTagSorting).length > 0) {
-        console.warn(
-          '⚠️  DEPRECATION WARNING: markerGroupTagSorting in app-config.json is deprecated.\n' +
-          '   This data is now stored in the PostgreSQL database.\n' +
-          '   Run: npx tsx scripts/migrate-tag-sorting-to-db.ts\n' +
-          '   Then remove markerGroupTagSorting from app-config.json'
-        );
-      }
       return NextResponse.json(fileConfig);
     }
 

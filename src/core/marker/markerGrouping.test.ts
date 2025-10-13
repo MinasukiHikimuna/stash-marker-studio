@@ -114,7 +114,7 @@ describe("getMarkerGroupName", () => {
       0
     );
 
-    const result = getMarkerGroupName(marker, MARKER_GROUP_PARENT_ID);
+    const result = getMarkerGroupName(marker);
     expect(result).toEqual({
       fullName: "Marker Group: Group A",
       displayName: "Group A",
@@ -129,7 +129,7 @@ describe("getMarkerGroupName", () => {
       0
     );
 
-    const result = getMarkerGroupName(marker, MARKER_GROUP_PARENT_ID);
+    const result = getMarkerGroupName(marker);
     expect(result).toEqual({
       fullName: "Marker Group: 1. First Group",
       displayName: "First Group",
@@ -138,7 +138,7 @@ describe("getMarkerGroupName", () => {
 
   it("should return null when no parents", () => {
     const marker = createMarkerWithTag("Test Tag", 0);
-    const result = getMarkerGroupName(marker, MARKER_GROUP_PARENT_ID);
+    const result = getMarkerGroupName(marker);
     expect(result).toBeNull();
   });
 
@@ -158,7 +158,7 @@ describe("getMarkerGroupName", () => {
       },
     });
 
-    const result = getMarkerGroupName(marker, MARKER_GROUP_PARENT_ID);
+    const result = getMarkerGroupName(marker);
     expect(result).toBeNull();
   });
 });

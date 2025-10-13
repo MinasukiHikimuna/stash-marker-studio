@@ -58,7 +58,6 @@ describe("TimelineLabels", () => {
     trackCountsByGroup: {},
     labelWidth: 200,
     selectedMarkerId: null,
-    markerGroupParentId: null,
   };
 
   describe("Basic Rendering", () => {
@@ -304,7 +303,6 @@ describe("TimelineLabels", () => {
           {...defaultProps}
           tagGroups={tagGroups}
           trackCountsByGroup={{ Kissing: 1 }}
-          markerGroupParentId={MARKER_GROUP_PARENT_ID}
         />
       );
 
@@ -337,7 +335,6 @@ describe("TimelineLabels", () => {
           {...defaultProps}
           tagGroups={tagGroups}
           trackCountsByGroup={{ Kissing: 1, Hugging: 1 }}
-          markerGroupParentId={MARKER_GROUP_PARENT_ID}
         />
       );
 
@@ -350,14 +347,13 @@ describe("TimelineLabels", () => {
       expect(transparentLabels.length).toBeGreaterThan(0);
     });
 
-    it("does not display marker group when markerGroupParentId is null", () => {
-      const MARKER_GROUP_PARENT_ID = "marker-groups-parent";
-      const marker = createMarkerWithMarkerGroup(
-        "Kissing",
-        "Romance",
-        MARKER_GROUP_PARENT_ID,
-        10
-      );
+    it("does not display marker group when tag has no marker group parent", () => {
+      // Create a marker without marker group parent
+      const marker = createTestMarker({
+        id: "1",
+        seconds: 10,
+        primary_tag: createTestTag({ id: "tag-1", name: "Kissing" })
+      });
       const tagGroups: TagGroup[] = [createMockTagGroup("Kissing", [marker])];
 
       render(
@@ -365,7 +361,6 @@ describe("TimelineLabels", () => {
           {...defaultProps}
           tagGroups={tagGroups}
           trackCountsByGroup={{ Kissing: 1 }}
-          markerGroupParentId={null}
         />
       );
 

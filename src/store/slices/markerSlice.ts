@@ -10,7 +10,6 @@ import type { IncorrectMarker } from "@/utils/incorrectMarkerStorage";
 import type { ShotBoundary, ShotBoundaryFromAPI } from "@/core/shotBoundary/types";
 import { ShotBoundarySource } from "@/core/shotBoundary/types";
 import { shotBoundaryFromAPI } from "@/core/shotBoundary/types";
-import { loadMarkerGroups } from "./configSlice";
 
 // Modal state types
 export type CompletionModalData = {
@@ -235,10 +234,6 @@ export const initializeMarkerPage = createAsyncThunk(
       ]);
       const availableTags = tagsResult.findTags.tags;
       const availablePerformers = performersResult.findPerformers.performers;
-
-      // Load marker groups (if marker group parent is configured)
-      console.log("🎯 [INIT] Loading marker groups during marker page initialization");
-      await dispatch(loadMarkerGroups());
 
       return {
         scene,
