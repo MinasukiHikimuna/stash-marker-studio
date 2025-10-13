@@ -21,6 +21,7 @@ export default function DerivedMarkersSettings() {
   const [message, setMessage] = useState("");
   const [editingRuleIndex, setEditingRuleIndex] = useState<number | null>(null);
   const [showAddRuleDialog, setShowAddRuleDialog] = useState(false);
+  const [isAddingNewRule, setIsAddingNewRule] = useState(false); // Track if we're in new rule flow
   const [newRule, setNewRule] = useState<DerivedMarkerConfig>({
     sourceTagId: "",
     derivedTagId: "",
@@ -158,12 +159,16 @@ export default function DerivedMarkersSettings() {
       slotMapping: [],
     });
     setShowAddRuleDialog(true);
+    setIsAddingNewRule(true);
     setEditSourceSlotId("");
     setEditDerivedSlotId("");
+    setShowSourceSlotEditor(false);
+    setShowDerivedSlotEditor(false);
   };
 
   const closeAddRuleDialog = () => {
     setShowAddRuleDialog(false);
+    setIsAddingNewRule(false);
   };
 
   const saveNewRule = () => {
@@ -171,9 +176,68 @@ export default function DerivedMarkersSettings() {
       setMessage("Error: Both source and derived tags must be selected");
       return;
     }
-    setDerivedMarkers([...derivedMarkers, newRule]);
+
+    // Add the rule to the list
+    const updatedMarkers = [...derivedMarkers, newRule];
+    const newRuleIndex = updatedMarkers.length - 1;
+
+    setDerivedMarkers(updatedMarkers);
+
+    // Close the add dialog
     setShowAddRuleDialog(false);
-    setMessage("Rule added successfully. Click 'Save Configuration' to persist changes.");
+
+    // Load slot definitions for both tags
+    Promise.all([
+      newRule.sourceTagId ? loadSlotDefinitionsForTag(newRule.sourceTagId) : Promise.resolve(),
+      newRule.derivedTagId ? loadSlotDefinitionsForTag(newRule.derivedTagId) : Promise.resolve(),
+    ]).then(() => {
+      // Set editing state
+      setEditingRuleIndex(newRuleIndex);
+      setEditSourceSlotId("");
+      setEditDerivedSlotId("");
+
+      // Auto-match slots using the updated markers array
+      const sourceSlotSet = newRule.sourceTagId ? slotDefinitionSets[newRule.sourceTagId] : null;
+      const derivedSlotSet = newRule.derivedTagId ? slotDefinitionSets[newRule.derivedTagId] : null;
+
+      if (sourceSlotSet?.slotDefinitions && derivedSlotSet?.slotDefinitions) {
+        const existingMapping = newRule.slotMapping || [];
+        const newMapping = [...existingMapping];
+
+        // Auto-match slots with identical labels
+        sourceSlotSet.slotDefinitions.forEach(sourceSlot => {
+          // Skip if already mapped
+          const alreadyMapped = existingMapping.some(m => m.sourceSlotId === sourceSlot.id);
+          if (alreadyMapped) {
+            return;
+          }
+
+          const sourceLabel = sourceSlot.slotLabel?.trim().toLowerCase();
+          if (!sourceLabel) return;
+
+          // Find matching derived slot by label
+          const matchingDerivedSlot = derivedSlotSet.slotDefinitions?.find(
+            derivedSlot => derivedSlot.slotLabel?.trim().toLowerCase() === sourceLabel
+          );
+
+          if (matchingDerivedSlot) {
+            newMapping.push({
+              sourceSlotId: sourceSlot.id,
+              derivedSlotId: matchingDerivedSlot.id,
+            });
+          }
+        });
+
+        // Update mappings if any auto-matches were found
+        if (newMapping.length > existingMapping.length) {
+          const updated = [...updatedMarkers];
+          updated[newRuleIndex].slotMapping = newMapping;
+          setDerivedMarkers(updated);
+        }
+      }
+    });
+
+    setMessage("Rule added. Now configure slot mappings below.");
   };
 
   const removeRule = (index: number) => {
@@ -241,9 +305,16 @@ export default function DerivedMarkersSettings() {
   };
 
   const cancelEditingSlots = () => {
+    // If user cancels during new rule flow, remove the unsaved rule
+    if (isAddingNewRule && editingRuleIndex !== null) {
+      setDerivedMarkers(derivedMarkers.filter((_, i) => i !== editingRuleIndex));
+      setMessage("Rule creation cancelled.");
+    }
+
     setEditingRuleIndex(null);
     setEditSourceSlotId("");
     setEditDerivedSlotId("");
+    setIsAddingNewRule(false);
   };
 
   const saveSlots = async () => {
@@ -258,6 +329,7 @@ export default function DerivedMarkersSettings() {
       setEditingRuleIndex(null);
       setEditSourceSlotId("");
       setEditDerivedSlotId("");
+      setIsAddingNewRule(false);
     }, 100);
   };
 
@@ -510,7 +582,9 @@ export default function DerivedMarkersSettings() {
       {editingRuleIndex !== null && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-4">Edit Slot Mappings</h3>
+            <h3 className="text-lg font-semibold mb-4">
+              {isAddingNewRule ? "Configure Slot Mappings (New Rule)" : "Edit Slot Mappings"}
+            </h3>
 
             {(() => {
               const rule = derivedMarkers[editingRuleIndex];
