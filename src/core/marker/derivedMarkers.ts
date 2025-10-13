@@ -7,7 +7,8 @@ export interface DerivedMarker {
   slots: Array<{ slotDefinitionId: string; performerId: string }>;
   depth: number;
   ruleId: string;
-  sourceMarkerId?: number;
+  sourceMarkerId?: number; // Ultimate source (root of chain)
+  immediateParentMarkerId?: number; // Direct parent that created this marker
 }
 
 /**
@@ -69,6 +70,8 @@ export function computeDerivedMarkers(
 /**
  * Computes all derived markers using multi-level chaining with depth tracking.
  * Processes derivations in multiple passes, detecting when a derivedTagId matches another rule's sourceTagId.
+ *
+ * Tracks both immediate parent (who directly created this) and ultimate source (root of chain).
  */
 export function computeAllDerivedMarkers(
   marker: SceneMarker,
@@ -78,7 +81,12 @@ export function computeAllDerivedMarkers(
   const allDerived: DerivedMarker[] = [];
   const visited = new Set<string>();
 
-  function traverse(currentMarker: SceneMarker, currentDepth: number, currentSourceMarkerId?: number) {
+  function traverse(
+    currentMarker: SceneMarker,
+    currentDepth: number,
+    ultimateSourceMarkerId?: number,
+    immediateParentMarkerId?: number
+  ) {
     if (currentDepth > maxDepth) {
       return;
     }
@@ -87,12 +95,18 @@ export function computeAllDerivedMarkers(
       currentMarker,
       derivedMarkerConfigs,
       currentDepth,
-      currentSourceMarkerId
+      ultimateSourceMarkerId
     );
 
     for (const derived of directDerived) {
       if (!visited.has(derived.derivedTagId)) {
         visited.add(derived.derivedTagId);
+
+        // Set immediate parent for this derived marker
+        // At depth 0, parent is undefined (this is the direct derivation from source)
+        // At depth > 0, parent is the marker ID of the previous level
+        derived.immediateParentMarkerId = immediateParentMarkerId;
+
         allDerived.push(derived);
 
         // Create a temporary marker to continue traversal
@@ -113,11 +127,16 @@ export function computeAllDerivedMarkers(
           })) : undefined,
         };
 
-        traverse(tempMarker, currentDepth + 1, currentSourceMarkerId);
+        // For next level:
+        // - ultimateSourceMarkerId stays the same (always points to root)
+        // - immediateParentMarkerId becomes the current marker's ID (will be set after materialization)
+        // Note: We don't know the actual marker ID yet (it's created during materialization),
+        // so we pass undefined and let the materialization API handle tracking the parent
+        traverse(tempMarker, currentDepth + 1, ultimateSourceMarkerId, undefined);
       }
     }
   }
 
-  traverse(marker, 0, undefined);
+  traverse(marker, 0, undefined, undefined);
   return allDerived;
 }

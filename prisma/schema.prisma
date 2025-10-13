@@ -156,7 +156,7 @@ model MarkerDerivation {
   sourceMarker      Marker   @relation("source", fields: [sourceMarkerId], references: [id], onDelete: Cascade)
   derivedMarker     Marker   @relation("derived", fields: [derivedMarkerId], references: [id], onDelete: Cascade)
 
-  @@unique([sourceMarkerId, derivedMarkerId])
+  @@index([sourceMarkerId, derivedMarkerId])
   @@index([derivedMarkerId])
   @@index([ruleId])
   @@index([depth])

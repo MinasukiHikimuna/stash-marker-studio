@@ -65,14 +65,20 @@ export async function POST(
     // Get existing derivations for this source marker to avoid duplicates
     const existingDerivations = await prisma.markerDerivation.findMany({
       where: { sourceMarkerId: markerId },
-      select: { ruleId: true },
+      select: { ruleId: true, derivedMarkerId: true },
     });
     const existingRuleIds = new Set(existingDerivations.map((d) => d.ruleId));
+
+    // Sort derived markers by depth to process parents before children
+    const sortedDerivedMarkers = [...derivedMarkers].sort((a, b) => a.depth - b.depth);
+
+    // Track created markers by their tag ID (to find parent marker IDs for higher depths)
+    const tagIdToMarkerId = new Map<string, number>();
 
     // Create actual markers for each derived marker
     const createdMarkers = [];
 
-    for (const derivedMarker of derivedMarkers) {
+    for (const derivedMarker of sortedDerivedMarkers) {
       const { derivedTagId, tags, slots, depth, ruleId } = derivedMarker;
 
       // Skip if this derivation already exists
@@ -96,30 +102,15 @@ export async function POST(
           }))
         : [];
 
-      // Create the marker in local database
-      // Filter out primary tag from additional tags
-      const additionalTagIds = allTagIds
-        .map((tagId: string) => parseInt(tagId))
-        .filter((tagId: number) => tagId !== parseInt(derivedTagId));
-
-      const newMarker = await prisma.marker.create({
-        data: {
+      // Check if a derived marker with the same tag and time range already exists
+      // This handles the case where multiple source markers derive to the same generic tag
+      // (e.g., "Cum on Ass" and "Cum on Asshole" both deriving "Cumshot")
+      const existingDerivedMarker = await prisma.marker.findFirst({
+        where: {
           stashappSceneId: sourceMarker.stashappSceneId,
+          primaryTagId: parseInt(derivedTagId),
           seconds: sourceMarker.seconds,
           endSeconds: sourceMarker.endSeconds,
-          primaryTagId: parseInt(derivedTagId),
-          additionalTags: additionalTagIds.length > 0
-            ? {
-                create: additionalTagIds.map((tagId: number) => ({
-                  tagId,
-                })),
-              }
-            : undefined,
-          markerSlots: slotCreationData.length > 0
-            ? {
-                create: slotCreationData,
-              }
-            : undefined,
         },
         include: {
           additionalTags: true,
@@ -127,15 +118,96 @@ export async function POST(
         },
       });
 
-      // Create MarkerDerivation relationship record
-      await prisma.markerDerivation.create({
-        data: {
+      let newMarker;
+      if (existingDerivedMarker) {
+        // Reuse existing marker instead of creating a duplicate
+        newMarker = existingDerivedMarker;
+      } else {
+        // Create the marker in local database
+        // Filter out primary tag from additional tags
+        const additionalTagIds = allTagIds
+          .map((tagId: string) => parseInt(tagId))
+          .filter((tagId: number) => tagId !== parseInt(derivedTagId));
+
+        newMarker = await prisma.marker.create({
+          data: {
+            stashappSceneId: sourceMarker.stashappSceneId,
+            seconds: sourceMarker.seconds,
+            endSeconds: sourceMarker.endSeconds,
+            primaryTagId: parseInt(derivedTagId),
+            additionalTags: additionalTagIds.length > 0
+              ? {
+                  create: additionalTagIds.map((tagId: number) => ({
+                    tagId,
+                  })),
+                }
+              : undefined,
+            markerSlots: slotCreationData.length > 0
+              ? {
+                  create: slotCreationData,
+                }
+              : undefined,
+          },
+          include: {
+            additionalTags: true,
+            markerSlots: true,
+          },
+        });
+      }
+
+      // Store mapping for parent lookups
+      tagIdToMarkerId.set(derivedTagId, newMarker.id);
+
+      // Create MarkerDerivation relationship record(s)
+      // Check if derivation from ultimate source already exists
+      const existingUltimateDerivation = await prisma.markerDerivation.findFirst({
+        where: {
           sourceMarkerId: markerId,
           derivedMarkerId: newMarker.id,
-          ruleId: ruleId || `${sourceMarker.primaryTagId}->${derivedTagId}`,
-          depth: depth || 0,
         },
       });
+
+      if (!existingUltimateDerivation) {
+        // Create a record pointing to the ultimate source (original marker)
+        await prisma.markerDerivation.create({
+          data: {
+            sourceMarkerId: markerId,
+            derivedMarkerId: newMarker.id,
+            ruleId: ruleId || `${sourceMarker.primaryTagId}->${derivedTagId}`,
+            depth: depth || 0,
+          },
+        });
+      }
+
+      // If this is a deeper derivation (depth > 0), also create a record for immediate parent
+      if (depth > 0) {
+        // Find the immediate parent marker by looking at the rule chain
+        // The ruleId contains the source tag, which we can use to find the parent marker
+        const [sourceTagId] = ruleId.split('->');
+        const parentMarkerId = tagIdToMarkerId.get(sourceTagId);
+
+        if (parentMarkerId) {
+          // Check if derivation from immediate parent already exists
+          const existingParentDerivation = await prisma.markerDerivation.findFirst({
+            where: {
+              sourceMarkerId: parentMarkerId,
+              derivedMarkerId: newMarker.id,
+            },
+          });
+
+          if (!existingParentDerivation) {
+            // Create additional derivation record for immediate parent relationship
+            await prisma.markerDerivation.create({
+              data: {
+                sourceMarkerId: parentMarkerId,
+                derivedMarkerId: newMarker.id,
+                ruleId: ruleId, // Same rule, different source
+                depth: 0, // This is the immediate parent, so depth from parent is 0
+              },
+            });
+          }
+        }
+      }
 
       createdMarkers.push(newMarker);
     }
