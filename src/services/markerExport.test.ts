@@ -42,14 +42,14 @@ describe('markerExport', () => {
       expect(result.operations[0].localMarker).toBe(localMarkers[0]);
     });
 
-    it('should identify markers to update when they exist in both places', () => {
+    it('should identify markers to update when they exist in both places and have changed', () => {
       const localMarkers: (Marker & { additionalTags: MarkerAdditionalTag[] })[] = [
         {
           id: 1,
           stashappMarkerId: 500,
           stashappSceneId: 100,
           seconds: new Decimal(10.5),
-          endSeconds: new Decimal(15.5),
+          endSeconds: new Decimal(20.5), // Changed from Stashapp (was 15.5)
           primaryTagId: 1,
           lastSyncedAt: null,
           lastExportedAt: null,
@@ -91,6 +91,47 @@ describe('markerExport', () => {
       expect(result.operations[0].type).toBe('update');
       expect(result.operations[0].localMarker).toBe(localMarkers[0]);
       expect(result.operations[0].stashappMarker).toBe(stashappMarkers[0]);
+    });
+
+    it('should NOT mark markers as update when they are unchanged', () => {
+      const localMarkers: (Marker & { additionalTags: MarkerAdditionalTag[] })[] = [
+        {
+          id: 1,
+          stashappMarkerId: 500,
+          stashappSceneId: 100,
+          seconds: new Decimal(10.5),
+          endSeconds: new Decimal(15.5),
+          primaryTagId: 1,
+          lastSyncedAt: null,
+          lastExportedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          additionalTags: [],
+        },
+      ];
+
+      const stashappMarkers: SceneMarker[] = [
+        {
+          id: '500',
+          title: 'Test Marker',
+          seconds: 10.5,
+          end_seconds: 15.5,
+          stream: '',
+          preview: '',
+          screenshot: '',
+          scene: { id: '100', title: 'Test Scene' },
+          primary_tag: { id: '1', name: 'Test Tag' },
+          tags: [],
+        },
+      ];
+
+      const result = classifyExportOperations(localMarkers, stashappMarkers);
+
+      // Should have no operations since the marker is unchanged
+      expect(result.creates).toBe(0);
+      expect(result.updates).toBe(0);
+      expect(result.deletes).toBe(0);
+      expect(result.operations).toHaveLength(0);
     });
 
     it('should identify markers to delete when they exist in Stashapp but not locally', () => {
@@ -145,13 +186,13 @@ describe('markerExport', () => {
             },
           ],
         },
-        // Marker to update (has stashappMarkerId)
+        // Marker to update (has stashappMarkerId and is different)
         {
           id: 2,
           stashappMarkerId: 500,
           stashappSceneId: 100,
           seconds: new Decimal(15.0),
-          endSeconds: new Decimal(20.0),
+          endSeconds: new Decimal(25.0), // Changed from 20.0
           primaryTagId: 2,
           lastSyncedAt: null,
           lastExportedAt: null,
@@ -170,7 +211,7 @@ describe('markerExport', () => {
       ];
 
       const stashappMarkers: SceneMarker[] = [
-        // Marker that matches local marker (update)
+        // Marker that matches local marker (update because times differ)
         {
           id: '500',
           title: 'Marker to Update',
@@ -218,6 +259,204 @@ describe('markerExport', () => {
 
       expect(deleteOps).toHaveLength(1);
       expect(deleteOps[0].stashappMarker?.id).toBe('600');
+    });
+
+    it('should detect changes in start time only', () => {
+      const localMarkers: (Marker & { additionalTags: MarkerAdditionalTag[] })[] = [
+        {
+          id: 1,
+          stashappMarkerId: 500,
+          stashappSceneId: 100,
+          seconds: new Decimal(11.0), // Changed from 10.5
+          endSeconds: new Decimal(15.5),
+          primaryTagId: 1,
+          lastSyncedAt: null,
+          lastExportedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          additionalTags: [],
+        },
+      ];
+
+      const stashappMarkers: SceneMarker[] = [
+        {
+          id: '500',
+          title: 'Test Marker',
+          seconds: 10.5,
+          end_seconds: 15.5,
+          stream: '',
+          preview: '',
+          screenshot: '',
+          scene: { id: '100', title: 'Test Scene' },
+          primary_tag: { id: '1', name: 'Test Tag' },
+          tags: [],
+        },
+      ];
+
+      const result = classifyExportOperations(localMarkers, stashappMarkers);
+
+      expect(result.creates).toBe(0);
+      expect(result.updates).toBe(1);
+      expect(result.deletes).toBe(0);
+    });
+
+    it('should detect changes in primary tag only', () => {
+      const localMarkers: (Marker & { additionalTags: MarkerAdditionalTag[] })[] = [
+        {
+          id: 1,
+          stashappMarkerId: 500,
+          stashappSceneId: 100,
+          seconds: new Decimal(10.5),
+          endSeconds: new Decimal(15.5),
+          primaryTagId: 2, // Changed from 1
+          lastSyncedAt: null,
+          lastExportedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          additionalTags: [],
+        },
+      ];
+
+      const stashappMarkers: SceneMarker[] = [
+        {
+          id: '500',
+          title: 'Test Marker',
+          seconds: 10.5,
+          end_seconds: 15.5,
+          stream: '',
+          preview: '',
+          screenshot: '',
+          scene: { id: '100', title: 'Test Scene' },
+          primary_tag: { id: '1', name: 'Test Tag' },
+          tags: [],
+        },
+      ];
+
+      const result = classifyExportOperations(localMarkers, stashappMarkers);
+
+      expect(result.creates).toBe(0);
+      expect(result.updates).toBe(1);
+      expect(result.deletes).toBe(0);
+    });
+
+    it('should detect changes in additional tags', () => {
+      const localMarkers: (Marker & { additionalTags: MarkerAdditionalTag[] })[] = [
+        {
+          id: 1,
+          stashappMarkerId: 500,
+          stashappSceneId: 100,
+          seconds: new Decimal(10.5),
+          endSeconds: new Decimal(15.5),
+          primaryTagId: 1,
+          lastSyncedAt: null,
+          lastExportedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          additionalTags: [
+            {
+              id: 1,
+              markerId: 1,
+              tagId: 10,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+            {
+              id: 2,
+              markerId: 1,
+              tagId: 20, // Added new tag
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          ],
+        },
+      ];
+
+      const stashappMarkers: SceneMarker[] = [
+        {
+          id: '500',
+          title: 'Test Marker',
+          seconds: 10.5,
+          end_seconds: 15.5,
+          stream: '',
+          preview: '',
+          screenshot: '',
+          scene: { id: '100', title: 'Test Scene' },
+          primary_tag: { id: '1', name: 'Test Tag' },
+          tags: [{ id: '10', name: 'Tag 10' }],
+        },
+      ];
+
+      const result = classifyExportOperations(localMarkers, stashappMarkers);
+
+      expect(result.creates).toBe(0);
+      expect(result.updates).toBe(1);
+      expect(result.deletes).toBe(0);
+    });
+
+    it('should handle multiple unchanged markers correctly', () => {
+      const localMarkers: (Marker & { additionalTags: MarkerAdditionalTag[] })[] = [
+        {
+          id: 1,
+          stashappMarkerId: 500,
+          stashappSceneId: 100,
+          seconds: new Decimal(10.5),
+          endSeconds: new Decimal(15.5),
+          primaryTagId: 1,
+          lastSyncedAt: null,
+          lastExportedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          additionalTags: [],
+        },
+        {
+          id: 2,
+          stashappMarkerId: 501,
+          stashappSceneId: 100,
+          seconds: new Decimal(20.0),
+          endSeconds: new Decimal(25.0),
+          primaryTagId: 2,
+          lastSyncedAt: null,
+          lastExportedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          additionalTags: [],
+        },
+      ];
+
+      const stashappMarkers: SceneMarker[] = [
+        {
+          id: '500',
+          title: 'Test Marker 1',
+          seconds: 10.5,
+          end_seconds: 15.5,
+          stream: '',
+          preview: '',
+          screenshot: '',
+          scene: { id: '100', title: 'Test Scene' },
+          primary_tag: { id: '1', name: 'Test Tag 1' },
+          tags: [],
+        },
+        {
+          id: '501',
+          title: 'Test Marker 2',
+          seconds: 20.0,
+          end_seconds: 25.0,
+          stream: '',
+          preview: '',
+          screenshot: '',
+          scene: { id: '100', title: 'Test Scene' },
+          primary_tag: { id: '2', name: 'Test Tag 2' },
+          tags: [],
+        },
+      ];
+
+      const result = classifyExportOperations(localMarkers, stashappMarkers);
+
+      // All markers unchanged, so no operations
+      expect(result.creates).toBe(0);
+      expect(result.updates).toBe(0);
+      expect(result.deletes).toBe(0);
+      expect(result.operations).toHaveLength(0);
     });
   });
 

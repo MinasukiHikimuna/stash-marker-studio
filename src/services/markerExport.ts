@@ -15,11 +15,73 @@ export interface ExportPreview {
 }
 
 /**
+ * Checks if a local marker has changed compared to the Stashapp marker.
+ * Compares: start time, end time, primary tag, and additional tags.
+ */
+function hasMarkerChanged(
+  localMarker: Marker & { additionalTags: MarkerAdditionalTag[] },
+  stashappMarker: SceneMarker
+): boolean {
+  // Tolerance for floating point comparison (1ms)
+  const EPSILON = 0.001;
+
+  // Convert Prisma Decimal to number for comparison
+  const localSeconds = parseFloat(localMarker.seconds.toString());
+  const localEndSeconds = localMarker.endSeconds
+    ? parseFloat(localMarker.endSeconds.toString())
+    : null;
+
+  // Compare start time
+  if (Math.abs(localSeconds - stashappMarker.seconds) > EPSILON) {
+    return true;
+  }
+
+  // Compare end time (handle null cases)
+  const stashappEndSeconds = stashappMarker.end_seconds ?? null;
+  if (localEndSeconds !== null && stashappEndSeconds !== null) {
+    if (Math.abs(localEndSeconds - stashappEndSeconds) > EPSILON) {
+      return true;
+    }
+  } else if (localEndSeconds !== stashappEndSeconds) {
+    // One is null and the other isn't
+    return true;
+  }
+
+  // Compare primary tag
+  if (localMarker.primaryTagId?.toString() !== stashappMarker.primary_tag.id) {
+    return true;
+  }
+
+  // Compare additional tags (tag IDs only, order doesn't matter)
+  const localTagIds = new Set(
+    localMarker.additionalTags.map(tag => tag.tagId.toString())
+  );
+  const stashappTagIds = new Set(
+    stashappMarker.tags.map(tag => tag.id)
+  );
+
+  // Check if sets have different sizes
+  if (localTagIds.size !== stashappTagIds.size) {
+    return true;
+  }
+
+  // Check if all local tags exist in stashapp tags
+  for (const tagId of Array.from(localTagIds)) {
+    if (!stashappTagIds.has(tagId)) {
+      return true;
+    }
+  }
+
+  // No differences found
+  return false;
+}
+
+/**
  * Classifies markers into create, update, and delete operations for export to Stashapp.
  *
  * Logic:
  * - Create: Local markers without stashappMarkerId (new markers)
- * - Update: Local markers with stashappMarkerId that matches a Stashapp marker
+ * - Update: Local markers with stashappMarkerId that have changed since last sync
  * - Delete: Stashapp markers not present in local database
  */
 export function classifyExportOperations(
@@ -56,13 +118,18 @@ export function classifyExportOperations(
     const stashappMarkerId = parseInt(stashappMarker.id);
 
     if (localStashappMarkerIds.has(stashappMarkerId)) {
-      // This marker exists in both places - update it
+      // This marker exists in both places - check if it has changed
       const localMarker = localMarkersByStashappId.get(stashappMarkerId)!;
-      operations.push({
-        type: 'update',
-        localMarker,
-        stashappMarker,
-      });
+
+      if (hasMarkerChanged(localMarker, stashappMarker)) {
+        // Only add to operations if the marker has actually changed
+        operations.push({
+          type: 'update',
+          localMarker,
+          stashappMarker,
+        });
+      }
+      // If unchanged, don't add to operations list
     } else {
       // This Stashapp marker is not in our database - delete it
       operations.push({
