@@ -89,7 +89,9 @@ import {
 } from "../../../core/marker/markerLogic";
 import { MarkerStatus } from "../../../core/marker/types";
 import { BulkAutoAssignPreviewModal } from "../../../components/marker/BulkAutoAssignPreviewModal";
+import { BulkMaterializePreviewModal } from "../../../components/marker/BulkMaterializePreviewModal";
 import { findAutoAssignableMarkers, type MarkerAutoAssignment } from "../../../core/slot/bulkAutoAssignment";
+import type { MarkerMaterialization, AlreadyMaterializedMarker } from "../../../core/marker/bulkMaterialization";
 import type { ShotBoundary } from "../../../core/shotBoundary/types";
 import {
   planAddShotBoundaryAtPlayhead,
@@ -180,6 +182,18 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   const [isLoadingAutoAssign, setIsLoadingAutoAssign] = useState(false);
   const [assignableMarkers, setAssignableMarkers] = useState<MarkerAutoAssignment[]>([]);
   const [skippedMarkers, setSkippedMarkers] = useState<Array<{
+    markerId: string;
+    markerTag: string;
+    markerTime: string;
+    reason: string;
+  }>>([]);
+
+  // Add state for auto-materialize preview
+  const [isAutoMaterializeModalOpen, setIsAutoMaterializeModalOpen] = useState(false);
+  const [isLoadingAutoMaterialize, setIsLoadingAutoMaterialize] = useState(false);
+  const [materializableMarkers, setMaterializableMarkers] = useState<MarkerMaterialization[]>([]);
+  const [alreadyMaterializedMarkers, setAlreadyMaterializedMarkers] = useState<AlreadyMaterializedMarker[]>([]);
+  const [skippedMaterializeMarkers, setSkippedMaterializeMarkers] = useState<Array<{
     markerId: string;
     markerTag: string;
     markerTime: string;
@@ -464,6 +478,103 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
       showToast(`Assigned ${successCount} marker(s), ${failCount} failed`, "error");
     }
   }, [scene, assignableMarkers, dispatch, showToast]);
+
+  // Handle auto-materialize button click
+  const handleAutoMaterialize = useCallback(async () => {
+    if (!scene || !markers) {
+      showToast("No scene or markers available", "error");
+      return;
+    }
+
+    setIsAutoMaterializeModalOpen(true);
+    setIsLoadingAutoMaterialize(true);
+    setMaterializableMarkers([]);
+    setAlreadyMaterializedMarkers([]);
+    setSkippedMaterializeMarkers([]);
+
+    try {
+      const response = await fetch('/api/markers/analyze-derivations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: scene.id }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to analyze derivations');
+      }
+
+      const result = await response.json();
+      setMaterializableMarkers(result.materializableMarkers || []);
+      setAlreadyMaterializedMarkers(result.alreadyMaterializedMarkers || []);
+      setSkippedMaterializeMarkers(result.skippedMarkers || []);
+    } catch (error) {
+      console.error("Error analyzing markers for materialization:", error);
+      showToast("Failed to analyze markers", "error");
+      setIsAutoMaterializeModalOpen(false);
+    } finally {
+      setIsLoadingAutoMaterialize(false);
+    }
+  }, [scene, markers, showToast]);
+
+  // Handle confirm auto-materialize
+  const handleConfirmAutoMaterialize = useCallback(async () => {
+    if (!scene) {
+      showToast("No scene available", "error");
+      return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+    let totalDerivationsCreated = 0;
+
+    for (const markerMaterialization of materializableMarkers) {
+      try {
+        const selectedMarker = markers.find(m => m.id === markerMaterialization.markerId);
+        if (!selectedMarker) {
+          failCount++;
+          continue;
+        }
+
+        const derivedMarkers = computeAllDerivedMarkers(selectedMarker, derivedMarkerConfigs, maxDerivationDepth);
+
+        const response = await fetch(`/api/markers/${markerMaterialization.markerId}/materialize-derived`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            derivedMarkers,
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          successCount++;
+          totalDerivationsCreated += result.count || 0;
+        } else {
+          failCount++;
+          console.error(`Failed to materialize marker ${markerMaterialization.markerId}`);
+        }
+      } catch (error) {
+        failCount++;
+        console.error(`Error materializing marker ${markerMaterialization.markerId}:`, error);
+      }
+    }
+
+    // Refresh markers to show newly created derived markers
+    await dispatch(loadMarkers(scene.id));
+
+    // Close modal
+    setIsAutoMaterializeModalOpen(false);
+    setMaterializableMarkers([]);
+    setAlreadyMaterializedMarkers([]);
+    setSkippedMaterializeMarkers([]);
+
+    // Show result toast
+    if (failCount === 0) {
+      showToast(`Successfully materialized ${successCount} marker(s) (${totalDerivationsCreated} new derivations)`, "success");
+    } else {
+      showToast(`Materialized ${successCount} marker(s), ${failCount} failed`, "error");
+    }
+  }, [scene, materializableMarkers, markers, derivedMarkerConfigs, maxDerivationDepth, dispatch, showToast]);
 
   // Handle toggle hide derived markers
   const handleToggleHideDerivedMarkers = useCallback(() => {
@@ -1413,6 +1524,7 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
         onImportMarkers={handleImportMarkers}
         onToggleHideDerivedMarkers={handleToggleHideDerivedMarkers}
         onAutoAssignPerformers={handleAutoAssignPerformers}
+        onAutoMaterialize={handleAutoMaterialize}
       />
 
       {error && (
@@ -1610,6 +1722,22 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
           setIsAutoAssignModalOpen(false);
           setAssignableMarkers([]);
           setSkippedMarkers([]);
+        }}
+      />
+
+      {/* Bulk Auto-Materialize Preview Modal */}
+      <BulkMaterializePreviewModal
+        isOpen={isAutoMaterializeModalOpen}
+        materializableMarkers={materializableMarkers}
+        alreadyMaterializedMarkers={alreadyMaterializedMarkers}
+        skippedMarkers={skippedMaterializeMarkers}
+        isLoading={isLoadingAutoMaterialize}
+        onConfirm={handleConfirmAutoMaterialize}
+        onCancel={() => {
+          setIsAutoMaterializeModalOpen(false);
+          setMaterializableMarkers([]);
+          setAlreadyMaterializedMarkers([]);
+          setSkippedMaterializeMarkers([]);
         }}
       />
     </div>

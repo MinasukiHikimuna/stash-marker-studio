@@ -27,6 +27,7 @@ interface MarkerPageHeaderProps {
   onImportMarkers: () => void;
   onToggleHideDerivedMarkers: () => void;
   onAutoAssignPerformers: () => void;
+  onAutoMaterialize: () => void;
 }
 
 export function MarkerPageHeader({
@@ -46,6 +47,7 @@ export function MarkerPageHeader({
   onImportMarkers,
   onToggleHideDerivedMarkers,
   onAutoAssignPerformers,
+  onAutoMaterialize,
 }: MarkerPageHeaderProps) {
   const router = useRouter();
   const stashUrl = useAppSelector(selectStashUrl);
@@ -126,6 +128,14 @@ export function MarkerPageHeader({
               title="Auto-assign performers to markers with single valid match"
             >
               Auto-Assign Performers
+            </button>
+            <button
+              onClick={onAutoMaterialize}
+              disabled={isLoading || !scene}
+              className="bg-indigo-500 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-sm text-sm transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+              title="Materialize all derived markers at once"
+            >
+              Auto-Materialize
             </button>
             <button
               onClick={handleDeleteRejectedClick}
