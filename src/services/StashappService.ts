@@ -1575,7 +1575,7 @@ export class StashappService {
           page,
           per_page: perPage,
           sort: "updated_at",
-          direction: "ASC",
+          direction: "DESC",
         },
       });
 
@@ -1657,7 +1657,7 @@ export class StashappService {
           page,
           per_page: perPage,
           sort: "updated_at",
-          direction: "ASC",
+          direction: "DESC",
         },
       });
 
@@ -1746,7 +1746,7 @@ export class StashappService {
           page,
           per_page: perPage,
           sort: "updated_at",
-          direction: "ASC",
+          direction: "DESC",
         },
       });
 
