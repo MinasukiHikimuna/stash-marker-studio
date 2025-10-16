@@ -4,6 +4,7 @@ import { StashappService, type SceneMarker, type Tag } from '@/services/Stashapp
 import { type AppConfig } from '@/serverConfig';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { validateSlotDefinitionsBelongToTag } from '@/core/slot/slotValidation';
 
 const CONFIG_FILE_PATH = path.join(process.cwd(), 'app-config.json');
 
@@ -29,6 +30,23 @@ export async function POST(request: NextRequest) {
     const primaryTagIdNum = primaryTagId ? parseInt(primaryTagId) : null;
     const additionalTagIds: number[] = (tagIds?.map((id: string) => parseInt(id)) || [])
       .filter((tagId: number) => tagId !== primaryTagIdNum); // Exclude primary tag
+
+    // Validate slot definitions belong to primary tag (if slots provided)
+    if (slots && slots.length > 0 && primaryTagIdNum) {
+      const slotDefinitionIds = slots.map((s: { slotDefinitionId: string; performerId: string | null }) => s.slotDefinitionId);
+      const validationResult = await validateSlotDefinitionsBelongToTag(
+        slotDefinitionIds,
+        primaryTagIdNum,
+        prisma
+      );
+
+      if (!validationResult.valid) {
+        return NextResponse.json(
+          { error: validationResult.error, details: validationResult.details },
+          { status: 400 }
+        );
+      }
+    }
 
     // Create marker in local database with slots
     const marker = await prisma.marker.create({

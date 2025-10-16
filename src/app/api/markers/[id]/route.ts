@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { validateSlotDefinitionsBelongToTag } from '@/core/slot/slotValidation';
 
 // Update a marker (times, title, primary tag)
 export async function PATCH(
@@ -55,6 +56,23 @@ export async function PATCH(
     // Handle slot remapping when primary tag changes
     // remapSlots can be: undefined (no change), null (clear slots), or array (replace with mapped slots)
     if (primaryTagId !== undefined && remapSlots !== undefined) {
+      // Validate remapSlots belong to new primary tag (if slots provided)
+      if (remapSlots && Array.isArray(remapSlots) && remapSlots.length > 0 && updatedMarker.primaryTagId) {
+        const slotDefinitionIds = remapSlots.map((s: { slotDefinitionId: string; performerId: string | null }) => s.slotDefinitionId);
+        const validationResult = await validateSlotDefinitionsBelongToTag(
+          slotDefinitionIds,
+          updatedMarker.primaryTagId,
+          prisma
+        );
+
+        if (!validationResult.valid) {
+          return NextResponse.json(
+            { error: validationResult.error, details: validationResult.details },
+            { status: 400 }
+          );
+        }
+      }
+
       // Delete all existing slots for this marker
       await prisma.markerSlot.deleteMany({
         where: { markerId: updatedMarker.id },
