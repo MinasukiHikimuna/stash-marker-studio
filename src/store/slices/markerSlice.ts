@@ -530,6 +530,7 @@ export const updateMarkerTag = createAsyncThunk(
       sceneId: string;
       markerId: string;
       tagId: string;
+      remapSlots?: Array<{ slotDefinitionId: string; performerId: string | null }> | null;
     },
     { dispatch, rejectWithValue }
   ) => {
@@ -546,6 +547,7 @@ export const updateMarkerTag = createAsyncThunk(
         body: JSON.stringify({
           primaryTagId: params.tagId,
           title,
+          remapSlots: params.remapSlots,
         }),
       });
 

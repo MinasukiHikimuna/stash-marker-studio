@@ -9,7 +9,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { seconds, endSeconds, primaryTagId } = body;
+    const { seconds, endSeconds, primaryTagId, remapSlots } = body;
 
     // Convert id to number (internal database ID)
     const markerId = parseInt(id);
@@ -50,6 +50,27 @@ export async function PATCH(
           tagId: updatedMarker.primaryTagId,
         },
       });
+    }
+
+    // Handle slot remapping when primary tag changes
+    // remapSlots can be: undefined (no change), null (clear slots), or array (replace with mapped slots)
+    if (primaryTagId !== undefined && remapSlots !== undefined) {
+      // Delete all existing slots for this marker
+      await prisma.markerSlot.deleteMany({
+        where: { markerId: updatedMarker.id },
+      });
+
+      // If remapSlots is an array with content, create new mapped slots
+      if (remapSlots && Array.isArray(remapSlots) && remapSlots.length > 0) {
+        await prisma.markerSlot.createMany({
+          data: remapSlots.map((slot: { slotDefinitionId: string; performerId: string | null }) => ({
+            markerId: updatedMarker.id,
+            slotDefinitionId: slot.slotDefinitionId,
+            stashappPerformerId: slot.performerId ? parseInt(slot.performerId) : null,
+          })),
+        });
+      }
+      // If remapSlots is null or empty array, slots are already cleared above
     }
 
     return NextResponse.json({

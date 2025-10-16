@@ -115,11 +115,31 @@ export function MarkerListItem({
               );
               dispatch(setMarkers(realMarkers));
 
-              // Prepare slots data for API - convert from SceneMarker slots format to API format
-              const slotsForAPI = slots?.map(slot => ({
-                slotDefinitionId: slot.slotDefinitionId,
-                performerId: slot.stashappPerformerId?.toString() ?? null,
-              }));
+              // Check if slots need to be remapped for compatibility (when tag changes)
+              let slotsForAPI = undefined;
+              if (slots && slots.length > 0) {
+                if (newTagId === marker.primary_tag.id) {
+                  // Same tag - keep all slots as-is
+                  slotsForAPI = slots.map(slot => ({
+                    slotDefinitionId: slot.slotDefinitionId,
+                    performerId: slot.stashappPerformerId?.toString() ?? null,
+                  }));
+                } else {
+                  // Different tag - check compatibility
+                  const { mapCompatibleSlots } = await import("@/core/slot/slotCompatibility");
+                  const remappedSlots = await mapCompatibleSlots(
+                    slots.map(slot => ({
+                      slotDefinitionId: slot.slotDefinitionId,
+                      slotLabel: slot.slotLabel,
+                      stashappPerformerId: slot.stashappPerformerId,
+                      order: slot.order,
+                    })),
+                    newTagId
+                  );
+                  // If mapping returns null (incompatible), slotsForAPI stays undefined
+                  slotsForAPI = remappedSlots ?? undefined;
+                }
+              }
 
               // Prepare tag IDs - only pass if we have tags to preserve (e.g., when duplicating)
               // Otherwise let createMarker use defaults (MARKER_SOURCE_MANUAL, MARKER_STATUS_CONFIRMED)

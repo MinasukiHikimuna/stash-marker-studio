@@ -328,18 +328,90 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
   const handleSaveEditWithTagId = useCallback(
     async (marker: SceneMarker, tagId?: string) => {
       const finalTagId = tagId || editingTagId;
-      if (finalTagId !== marker.primary_tag.id && scene) {
+
+      // Check if this is a temporary marker that needs to be created
+      const isTempMarker = marker.id === "temp-new" || marker.id === "temp-duplicate";
+
+      if (isTempMarker && scene) {
+        // For temporary markers, create a new marker in the database
+        console.log("Creating temporary marker:", {
+          markerId: marker.id,
+          markerTag: marker.primary_tag.name,
+          selectedTagId: finalTagId,
+        });
+
+        // Check if slots need to be remapped for compatibility (when tag changes)
+        let slotsForAPI = undefined;
+        if (marker.slots && marker.slots.length > 0) {
+          if (finalTagId === marker.primary_tag.id) {
+            // Same tag - keep all slots as-is
+            slotsForAPI = marker.slots.map(slot => ({
+              slotDefinitionId: slot.slotDefinitionId,
+              performerId: slot.stashappPerformerId?.toString() ?? null,
+            }));
+          } else {
+            // Different tag - check compatibility
+            const { mapCompatibleSlots } = await import("@/core/slot/slotCompatibility");
+            const remappedSlots = await mapCompatibleSlots(
+              marker.slots.map(slot => ({
+                slotDefinitionId: slot.slotDefinitionId,
+                slotLabel: slot.slotLabel,
+                stashappPerformerId: slot.stashappPerformerId,
+                order: slot.order,
+              })),
+              finalTagId
+            );
+            // If mapping returns null (incompatible), slotsForAPI stays undefined
+            slotsForAPI = remappedSlots ?? undefined;
+          }
+        }
+
+        // Prepare tag IDs to preserve marker status
+        const tagIds = marker.tags.map(tag => tag.id);
+
+        try {
+          await dispatch(createMarker({
+            sceneId: scene.id,
+            startTime: marker.seconds,
+            endTime: marker.end_seconds ?? null,
+            tagId: finalTagId,
+            slots: slotsForAPI,
+            tagIds,
+          })).unwrap();
+        } catch (error) {
+          console.error("Error creating marker:", error);
+          dispatch(setError(`Failed to create marker: ${error}`));
+        }
+      } else if (finalTagId !== marker.primary_tag.id && scene) {
+        // For existing markers, update the tag if it changed
         console.log("Updating marker tag:", {
           markerId: marker.id,
           markerTag: marker.primary_tag.name,
           oldTagId: marker.primary_tag.id,
           newTagId: finalTagId,
         });
+
+        // Check if slots need to be remapped for compatibility
+        let remappedSlots = undefined;
+        if (marker.slots && marker.slots.length > 0) {
+          const { mapCompatibleSlots } = await import("@/core/slot/slotCompatibility");
+          remappedSlots = await mapCompatibleSlots(
+            marker.slots.map(slot => ({
+              slotDefinitionId: slot.slotDefinitionId,
+              slotLabel: slot.slotLabel,
+              stashappPerformerId: slot.stashappPerformerId,
+              order: slot.order,
+            })),
+            finalTagId
+          );
+        }
+
         try {
           await dispatch(updateMarkerTag({
             sceneId: scene.id,
             markerId: marker.id,
-            tagId: finalTagId
+            tagId: finalTagId,
+            remapSlots: remappedSlots,
           })).unwrap();
         } catch (error) {
           console.error("Error updating marker tag:", error);
