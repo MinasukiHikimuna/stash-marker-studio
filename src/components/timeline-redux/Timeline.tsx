@@ -37,8 +37,7 @@ import {
   selectMarkerGroupTagSorting,
   selectCorrespondingTagMappings,
 } from "../../store/slices/configSlice";
-import { loadAvailableTags, loadMarkers, seekToTime, selectSceneId } from "../../store/slices/markerSlice";
-import { selectAllTags, loadAllTags } from "../../store/slices/searchSlice";
+import { loadAvailableTags, loadMarkers, seekToTime, selectSceneId, selectAvailableTags } from "../../store/slices/markerSlice";
 import {
   groupMarkersByTags,
   createMarkersWithTracks,
@@ -92,7 +91,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
     const markerGroups = useAppSelector(selectMarkerGroups);
     const tagSorting = useAppSelector(selectMarkerGroupTagSorting);
     const correspondingTagMappings = useAppSelector(selectCorrespondingTagMappings);
-    const allTags = useAppSelector(selectAllTags);
+    const allTags = useAppSelector(selectAvailableTags);
     const sceneId = useAppSelector(selectSceneId);
 
     // Swimlane resize state
@@ -128,13 +127,6 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
       }
       setWindowHeight(window.innerHeight);
     });
-
-    // Ensure tags are loaded for the autocomplete
-    useEffect(() => {
-      if (allTags.length === 0) {
-        dispatch(loadAllTags());
-      }
-    }, [allTags.length, dispatch]);
 
     // Group markers by tag name with proper marker group ordering
     const tagGroups = useMemo(() => {
@@ -238,7 +230,6 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
 
         // Refresh tags to reflect the change
         dispatch(loadAvailableTags());
-        dispatch(loadAllTags());
 
         // Refresh markers to sync embedded tag data
         if (sceneId) {
@@ -367,7 +358,6 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(
 
         // Refresh tags to reflect the change
         dispatch(loadAvailableTags());
-        dispatch(loadAllTags());
 
         // Refresh markers to sync embedded tag data
         if (sceneId) {

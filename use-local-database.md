@@ -431,8 +431,27 @@ export default async function MarkerPage({
    - Replaced `stashappService.getSceneTags()` in `src/app/marker/[sceneId]/page.tsx` with `/api/stash/scenes/${sceneId}/tags`
    - Replaced `stashappService.getSceneTags()` in `src/hooks/useMarkerOperations.ts` with `/api/stash/scenes/${sceneId}/tags`
    - Replaced `stashappService.getAllTags()` in `src/hooks/useMarkerOperations.ts` with `/api/stash/tags`
-5. 🚧 **Phase 5**: Convert to Server Components for SSR
-6. ⏳ **Phase 6**: Test and validate
+5. ✅ **Phase 4.5**: Eliminate duplicate API calls (architectural duplicates)
+   - **Issue**: Noticed duplicate API calls in DevTools during page load - `/api/tags` (from searchSlice) and `/api/stash/tags` (from markerSlice) were both being called
+   - **Root Cause Analysis**:
+     - **First issue**: `page.tsx` had a separate `fetchTags()` callback with its own `useEffect` that duplicated the tag fetch already happening in `initializeMarkerPage` thunk
+     - **Second issue**: `Timeline.tsx` component (used on marker page) was importing `loadAllTags()` from `searchSlice` and calling `/api/tags`, while marker page was already loading `/api/stash/tags`
+     - **React Strict Mode duplication**: `reactStrictMode: true` in `next.config.js` causes all effects to run twice in development mode (this is expected behavior)
+   - **Fixes Applied**:
+     - Removed redundant `fetchTags()` callback and its `useEffect` from `src/app/marker/[sceneId]/page.tsx`
+     - Removed unused imports: `stashappService`, `setAvailableTags` from page.tsx
+     - Changed `Timeline.tsx` to use `selectAvailableTags` from `markerSlice` instead of `selectAllTags` from `searchSlice`
+     - Removed `loadAllTags()` calls from `Timeline.tsx` (3 locations)
+     - Removed `searchSlice` import from `Timeline.tsx`
+     - Added documentation comment explaining Strict Mode behavior
+   - **Result**:
+     - **Eliminated `/api/tags` calls entirely** from marker page (only `/api/stash/tags` is now called)
+     - Reduced network overhead: ~650 KB saved per page load (2x `/api/tags` calls eliminated)
+     - All endpoints now fetch 2x in dev (Strict Mode only), 1x in production
+     - Clean separation: search page uses `/api/tags`, marker page uses `/api/stash/tags`
+   - **Note**: The 2x calls in development are **expected behavior** from React Strict Mode and help catch bugs. Production builds disable Strict Mode and will only call each endpoint once.
+6. 🚧 **Phase 5**: Convert to Server Components for SSR
+7. ⏳ **Phase 6**: Test and validate
 
 ## Rollback Plan
 

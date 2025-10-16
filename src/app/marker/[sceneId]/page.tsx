@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useCallback, useState, use, useMemo } from "react";
 import {
-  stashappService,
   type Tag,
   type SceneMarker,
 } from "../../../services/StashappService";
@@ -50,7 +49,6 @@ import {
   selectSlotAssignmentModalData,
   setSelectedMarkerId,
   clearError,
-  setAvailableTags,
   // New modal actions
   openCompletionModal,
   openKeyboardShortcutsModal,
@@ -237,15 +235,19 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
 
   const fetchData = useCallback(async () => {
     const sceneId = resolvedParams.sceneId;
-    
+
     if (!sceneId) {
       router.push("/search");
       return;
     }
-    
+
     await dispatch(initializeMarkerPage(sceneId));
   }, [resolvedParams.sceneId, dispatch, router]);
 
+  // Initialize marker page data on mount
+  // Note: React Strict Mode (enabled in next.config.js) will cause this effect to run twice
+  // in development mode. This is expected behavior and helps catch bugs. In production builds,
+  // Strict Mode is disabled and this will only run once.
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -429,20 +431,8 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
     setEditingTagId("");
   }, []);
 
-  const fetchTags = useCallback(async () => {
-    try {
-      const response = await fetch('/api/stash/tags');
-      const result = await response.json();
-      dispatch(setAvailableTags(result.findTags.tags));
-    } catch (err) {
-      console.error("Error fetching tags:", err);
-      dispatch(setError(`Failed to fetch tags: ${err}`));
-    }
-  }, [dispatch]);
-
-  useEffect(() => {
-    fetchTags();
-  }, [fetchTags]);
+  // Note: Tags are loaded by initializeMarkerPage thunk in Redux
+  // No need for separate fetch here - removed duplicate fetchTags()
 
   // Handle import markers button click
   const handleImportMarkers = useCallback(async () => {
