@@ -355,7 +355,7 @@ export const useMarkerOperations = (
 
         // Find the "AI" parent tag
         const aiParentTag = allTags.findTags.tags.find(
-          (tag) => tag.name === "AI"
+          (tag: Tag) => tag.name === "AI"
         );
         console.log(
           "AI parent tag found:",
@@ -374,17 +374,17 @@ export const useMarkerOperations = (
 
         console.log(
           "All AI child tags found:",
-          aiChildTags.map((t) => t.name)
+          aiChildTags.map((t: Tag) => t.name)
         );
 
         // Find which AI child tags are currently on the scene
-        const aiChildTagsOnScene = currentSceneTags.filter((sceneTag) =>
-          aiChildTags.some((aiChild) => aiChild.id === sceneTag.id)
+        const aiChildTagsOnScene = currentSceneTags.filter((sceneTag: Tag) =>
+          aiChildTags.some((aiChild: Tag) => aiChild.id === sceneTag.id)
         );
 
         console.log(
           "AI child tags on scene to remove:",
-          aiChildTagsOnScene.map((t) => t.name)
+          aiChildTagsOnScene.map((t: Tag) => t.name)
         );
         console.log("=== End AI Tag Removal Debug ===");
 
