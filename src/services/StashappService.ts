@@ -1,4 +1,5 @@
 import type { AppConfig } from "@/serverConfig";
+import { prisma } from "@/lib/prisma";
 
 export type SceneMarker = {
   id: string;
@@ -797,6 +798,42 @@ export class StashappService {
     endSeconds: number | null,
     tagIds: string[]
   ): Promise<SceneMarker> {
+    // Validate all tags exist in Stashapp (primary + additional)
+    const allTagIds = [primaryTagId, ...tagIds.filter(id => id !== primaryTagId)];
+    const missingTags: Array<{ id: string; name: string }> = [];
+
+    for (const tagId of allTagIds) {
+      const query = `
+        query FindTag($id: ID!) {
+          findTag(id: $id) {
+            id
+            name
+          }
+        }
+      `;
+
+      const result = await this.fetchGraphQL<{
+        data: { findTag: { id: string; name: string } | null };
+      }>(query, { id: tagId });
+
+      if (!result.data.findTag) {
+        // Fetch tag name from local database for better error message
+        const localTag = await prisma.stashTag.findUnique({
+          where: { id: parseInt(tagId) },
+          select: { name: true },
+        });
+        missingTags.push({
+          id: tagId,
+          name: localTag?.name || 'Unknown',
+        });
+      }
+    }
+
+    if (missingTags.length > 0) {
+      const tagList = missingTags.map(t => `${t.id} (${t.name})`).join(', ');
+      throw new Error(`The following tags do not exist in Stashapp: ${tagList}. Please create these tags in Stashapp before creating markers with them.`);
+    }
+
     // Get the primary tag name to use as title
     const query = `
       query FindTag($id: ID!) {
@@ -809,7 +846,8 @@ export class StashappService {
     const result = await this.fetchGraphQL<{
       data: { findTag: { name: string } };
     }>(query, { id: primaryTagId });
-    const title = result.data.findTag.name;
+
+    const title = result.data.findTag!.name;
 
     // Create marker with millisecond precision
     const mutation = `
@@ -859,8 +897,13 @@ export class StashappService {
     };
 
     const createResult = await this.fetchGraphQL<{
-      data: { sceneMarkerCreate: SceneMarker };
+      data: { sceneMarkerCreate: SceneMarker | null };
     }>(mutation, variables);
+
+    if (!createResult.data.sceneMarkerCreate) {
+      throw new Error(`Failed to create marker in Stashapp. This may be because the primary tag (ID ${primaryTagId}) or one of the additional tags doesn't exist in Stashapp.`);
+    }
+
     return createResult.data.sceneMarkerCreate;
   }
 
