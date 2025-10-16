@@ -1,17 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { StashappService, type SceneMarker, type Tag } from '@/services/StashappService';
-import { type AppConfig } from '@/serverConfig';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { type SceneMarker, type Tag } from '@/services/StashappService';
 import { validateSlotDefinitionsBelongToTag } from '@/core/slot/slotValidation';
-
-const CONFIG_FILE_PATH = path.join(process.cwd(), 'app-config.json');
-
-async function loadConfig(): Promise<AppConfig> {
-  const configData = await fs.readFile(CONFIG_FILE_PATH, 'utf-8');
-  return JSON.parse(configData) as AppConfig;
-}
 
 // Create a new marker
 export async function POST(request: NextRequest) {
@@ -106,11 +96,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Load configuration and apply to service
-    const config = await loadConfig();
-    const stashappService = new StashappService();
-    stashappService.applyConfig(config);
-
     // Fetch markers from local database with slots and derivation relationships
     const dbMarkers = await prisma.marker.findMany({
       where: {
@@ -141,23 +126,69 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Fetch scene and tags from Stashapp for enrichment
-    const [scene, tagsResult] = await Promise.all([
-      stashappService.getScene(sceneId),
-      stashappService.getAllTags(),
+    // Fetch scene and tags from local database for enrichment
+    const [dbScene, dbTags] = await Promise.all([
+      prisma.stashScene.findUnique({
+        where: { id: parseInt(sceneId) },
+        include: {
+          tags: { include: { tag: true } },
+          performers: { include: { performer: true } },
+        },
+      }),
+      prisma.stashTag.findMany({
+        include: {
+          parents: {
+            include: {
+              parent: {
+                include: {
+                  parents: {
+                    include: { parent: true },
+                  },
+                },
+              },
+            },
+          },
+          children: {
+            include: { child: true },
+          },
+        },
+      }),
     ]);
 
-    if (!scene) {
+    if (!dbScene) {
       return NextResponse.json(
-        { error: 'Scene not found in Stashapp' },
+        { error: 'Scene not found in local database' },
         { status: 404 }
       );
     }
 
+    // Transform dbScene to Scene format
+    const scene = {
+      id: dbScene.id.toString(),
+      title: dbScene.title || '',
+    };
+
     // Create a tag lookup map for fast access
     const tagMap = new Map<string, Tag>();
-    for (const tag of tagsResult.findTags.tags) {
-      tagMap.set(tag.id, tag);
+    for (const dbTag of dbTags) {
+      tagMap.set(dbTag.id.toString(), {
+        id: dbTag.id.toString(),
+        name: dbTag.name,
+        description: null,
+        parents: dbTag.parents.map((p) => ({
+          id: p.parent.id.toString(),
+          name: p.parent.name,
+          parents: p.parent.parents.map((pp) => ({
+            id: pp.parent.id.toString(),
+            name: pp.parent.name,
+          })),
+        })),
+        children: dbTag.children.map((c) => ({
+          id: c.child.id.toString(),
+          name: c.child.name,
+          description: null,
+        })),
+      });
     }
 
     // Collect all unique performer IDs from marker slots
@@ -170,24 +201,24 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch performer data from Stashapp
+    // Fetch performer data from local database
     const performerMap = new Map<number, { id: string; name: string; gender?: string }>();
     if (performerIds.size > 0) {
       try {
-        const performers = await Promise.all(
-          Array.from(performerIds).map(id => stashappService.getPerformer(id.toString()))
-        );
+        const performers = await prisma.stashPerformer.findMany({
+          where: {
+            id: { in: Array.from(performerIds) },
+          },
+        });
         for (const performer of performers) {
-          if (performer) {
-            performerMap.set(parseInt(performer.id), {
-              id: performer.id,
-              name: performer.name,
-              gender: performer.gender,
-            });
-          }
+          performerMap.set(performer.id, {
+            id: performer.id.toString(),
+            name: performer.name,
+            gender: performer.gender || undefined,
+          });
         }
       } catch (error) {
-        console.warn('Failed to fetch some performers:', error);
+        console.warn('Failed to fetch some performers from local database:', error);
       }
     }
 

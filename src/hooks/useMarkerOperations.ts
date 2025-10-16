@@ -339,19 +339,19 @@ export const useMarkerOperations = (
   const identifyAITagsToRemove = useCallback(
     async (confirmedMarkers: SceneMarker[]): Promise<Tag[]> => {
       try {
-        // Get current scene tags
-        const currentSceneTags = await stashappService.getSceneTags(
-          confirmedMarkers[0].scene.id
-        );
+        // Get current scene tags from local database
+        const currentSceneTagsResponse = await fetch(`/api/stash/scenes/${confirmedMarkers[0].scene.id}/tags`);
+        const currentSceneTags = await currentSceneTagsResponse.json();
 
         console.log("=== AI Tag Removal Debug ===");
         console.log(
           "Current scene tags:",
-          currentSceneTags.map((t) => ({ id: t.id, name: t.name }))
+          currentSceneTags.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name }))
         );
 
-        // Get all tags to find the AI parent tag and its children
-        const allTags = await stashappService.getAllTags();
+        // Get all tags to find the AI parent tag and its children from local database
+        const allTagsResponse = await fetch('/api/stash/tags');
+        const allTags = await allTagsResponse.json();
 
         // Find the "AI" parent tag
         const aiParentTag = allTags.findTags.tags.find(

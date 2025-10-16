@@ -431,7 +431,8 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
 
   const fetchTags = useCallback(async () => {
     try {
-      const result = await stashappService.getAllTags();
+      const response = await fetch('/api/stash/tags');
+      const result = await response.json();
       dispatch(setAvailableTags(result.findTags.tags));
     } catch (err) {
       console.error("Error fetching tags:", err);
@@ -749,11 +750,10 @@ export default function MarkerPage({ params }: { params: Promise<{ sceneId: stri
           throw new Error("Scene data not found");
         }
         // Get current scene tags to check what's already present
-        const currentSceneTags = await stashappService.getSceneTags(
-          scene.id
-        );
+        const currentSceneTagsResponse = await fetch(`/api/stash/scenes/${scene.id}/tags`);
+        const currentSceneTags = await currentSceneTagsResponse.json();
         const currentSceneTagIds = new Set(
-          currentSceneTags.map((tag) => tag.id)
+          currentSceneTags.map((tag: { id: string }) => tag.id)
         );
 
         tagsToRemove = await identifyAITagsToRemove(confirmedMarkers);

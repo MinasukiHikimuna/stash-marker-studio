@@ -191,12 +191,12 @@ export const initializeMarkerPage = createAsyncThunk(
   "marker/initializeMarkerPage",
   async (sceneId: string, { rejectWithValue }) => {
     try {
-      // Load scene data
-      const scene = await stashappService.getScene(sceneId);
-
-      if (!scene) {
-        throw new Error("Scene not found");
+      // Load scene data from local database
+      const sceneResponse = await fetch(`/api/stash/scenes/${sceneId}`);
+      if (!sceneResponse.ok) {
+        throw new Error("Scene not found in local database");
       }
+      const scene = await sceneResponse.json();
 
       // Load markers from local database
       let markers: SceneMarker[] = [];
@@ -227,11 +227,13 @@ export const initializeMarkerPage = createAsyncThunk(
         // Continue without shot boundaries if database load fails
       }
 
-      // Load available tags and performers
-      const [tagsResult, performersResult] = await Promise.all([
-        stashappService.getAllTags(),
-        stashappService.getAllPerformers(),
+      // Load available tags and performers from local database
+      const [tagsResponse, performersResponse] = await Promise.all([
+        fetch('/api/stash/tags'),
+        fetch('/api/stash/performers'),
       ]);
+      const tagsResult = await tagsResponse.json();
+      const performersResult = await performersResponse.json();
       const availableTags = tagsResult.findTags.tags;
       const availablePerformers = performersResult.findPerformers.performers;
 
@@ -435,9 +437,10 @@ export const createMarker = createAsyncThunk<
     { dispatch, rejectWithValue }
   ) => {
     try {
-      // Get tag name for title
-      const tagsResult = await stashappService.getAllTags();
-      const tag = tagsResult.findTags.tags.find((t) => t.id === params.tagId);
+      // Get tag name for title from local database
+      const tagsResponse = await fetch('/api/stash/tags');
+      const tagsResult = await tagsResponse.json();
+      const tag = tagsResult.findTags.tags.find((t: { id: string }) => t.id === params.tagId);
       const title = tag?.name || 'Untitled';
 
       // Get config for marker source and status tags
@@ -535,9 +538,10 @@ export const updateMarkerTag = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      // Get tag name for title
-      const tagsResult = await stashappService.getAllTags();
-      const tag = tagsResult.findTags.tags.find((t) => t.id === params.tagId);
+      // Get tag name for title from local database
+      const tagsResponse = await fetch('/api/stash/tags');
+      const tagsResult = await tagsResponse.json();
+      const tag = tagsResult.findTags.tags.find((t: { id: string }) => t.id === params.tagId);
       const title = tag?.name || 'Untitled';
 
       // Update marker primary tag and title in local database
@@ -746,7 +750,8 @@ export const loadAvailableTags = createAsyncThunk(
   "marker/loadAvailableTags",
   async (_, { rejectWithValue }) => {
     try {
-      const result = await stashappService.getAllTags();
+      const response = await fetch('/api/stash/tags');
+      const result = await response.json();
       return result.findTags.tags;
     } catch (error) {
       return rejectWithValue(
@@ -867,9 +872,10 @@ export const duplicateMarker = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      // Get tag name for title
-      const tagsResult = await stashappService.getAllTags();
-      const tag = tagsResult.findTags.tags.find((t) => t.id === params.tagId);
+      // Get tag name for title from local database
+      const tagsResponse = await fetch('/api/stash/tags');
+      const tagsResult = await tagsResponse.json();
+      const tag = tagsResult.findTags.tags.find((t: { id: string }) => t.id === params.tagId);
       const title = tag?.name || 'Untitled';
 
       // Get config for marker source and status tags
@@ -933,9 +939,10 @@ export const mergeMarkers = createAsyncThunk(
         }
       }
 
-      // Get tag name for title
-      const tagsResult = await stashappService.getAllTags();
-      const tag = tagsResult.findTags.tags.find((t) => t.id === params.tagId);
+      // Get tag name for title from local database
+      const tagsResponse = await fetch('/api/stash/tags');
+      const tagsResult = await tagsResponse.json();
+      const tag = tagsResult.findTags.tags.find((t: { id: string }) => t.id === params.tagId);
       const title = tag?.name || 'Untitled';
 
       // Get config for marker source and status tags
@@ -1015,9 +1022,10 @@ export const splitMarker = createAsyncThunk(
 
       // Create second part (split time to end)
       if (params.splitTime < params.sourceEndTime) {
-        // Get tag name for title
-        const tagsResult = await stashappService.getAllTags();
-        const tag = tagsResult.findTags.tags.find((t) => t.id === params.tagId);
+        // Get tag name for title from local database
+        const tagsResponse = await fetch('/api/stash/tags');
+        const tagsResult = await tagsResponse.json();
+        const tag = tagsResult.findTags.tags.find((t: { id: string }) => t.id === params.tagId);
         const title = tag?.name || 'Untitled';
 
         const createResponse = await fetch('/api/markers', {
